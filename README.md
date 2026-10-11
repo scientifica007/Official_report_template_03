@@ -26,7 +26,7 @@ python3 -m http.server 8000
 
 ## الاختبار والنشر
 
-تحقق سريع: `node --check app.js` و`python3 -m json.tool catalog.json >/dev/null`. للنشر العام اختر GitHub Pages → Source: `Deploy from a branch` → branch `main` → folder `/ (root)`، إذا لم تكن Pages مفعّلة أصلًا. سيتم نشر موقع ثابت بلا خادم خلفي.
+تحقق سريع: `node --check app.js` و`python3 -m json.tool catalog.json >/dev/null`. للنشر العام افتح Settings → Pages → Build and deployment → Source واختر `GitHub Actions`. بعد التفعيل شغّل مسار `Deploy Official Report 03 (static)` من Actions، أو ادفع تغييرًا إلى الفرع `main`. سيتم نشر موقع ثابت بلا خادم خلفي.
 
 ## سياسة الاحتفاظ بالبيانات
 
