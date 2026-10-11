@@ -33,3 +33,15 @@ test('site is self-contained', () => {
   assert.match(html,/\.\/style\.css/);
   assert.match(app,/fetch\('\.\/catalog\.json'/);
 });
+
+
+test('split continuation is a single official evaluation element', () => {
+  const p = catalog.sections.find(s=>s.id==='III').domains.find(d=>d.id==='III-02');
+  assert.equal(p.indicators.length, 5);
+  assert.equal(p.indicators[4].label, 'اعداد حصيلة تنفيذه و عرضها على مجلس التوجيه للمصادقة');
+  assert.match(app,/oldId==='III-02-I006'\?'III-02-I005'/);
+});
+test('numbered chapters use a dedicated numbering column in the print layout', () => {
+  assert.match(app,/class=\\?"numbered-table/);
+  assert.match(app,/class=\\?"number-cell/);
+});
