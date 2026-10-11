@@ -1,6 +1,6 @@
 {
   "templateId": "OFFICIAL_REPORT_TEMPLATE_03",
-  "catalogVersion": "M1-PRELIMINARY-2026-10-11",
+  "catalogVersion": "M1.1-PRELIMINARY-2026-10-11",
   "catalogStatus": "PROVISIONAL_PDF_REVIEW_REQUIRED",
   "visualSource": "Official_report_template_03.pdf",
   "sourcePages": 11,
@@ -77,11 +77,7 @@
             },
             {
               "id": "III-02-I005",
-              "label": "اعداد حصيلة تنفيذه و عرضها على مجلس"
-            },
-            {
-              "id": "III-02-I006",
-              "label": "التوجيه للمصادقة"
+              "label": "اعداد حصيلة تنفيذه و عرضها على مجلس التوجيه للمصادقة"
             }
           ]
         },
