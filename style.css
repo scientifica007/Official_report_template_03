@@ -5,3 +5,28 @@
 /* Browser print is the PDF renderer in the initial, client-only release. */
 @page{size:A4 portrait;margin:17mm 16mm 15mm 16mm}
 @media print{html,body{background:#fff!important;font-family:"Amiri","Traditional Arabic","Noto Naskh Arabic",serif!important;color:#000!important}body>.app,body>dialog,body>.toast{display:none!important}#print-root{display:block!important;direction:rtl;font-size:12pt;line-height:1.6}.print-first{break-after:page;height:247mm;display:flex;flex-direction:column;align-items:center;justify-content:space-around;text-align:center}.print-first .oval{border:1px solid #555;border-radius:35px;padding:10px 34px;background:#f8f0d9;color:#af3333;font-weight:700}.print-first .title-box{border:1px solid #666;border-radius:16px;background:#fbf0d1;padding:15px 35px;font-weight:700;color:#a33}.print-cover{height:248mm;break-after:page;border:1px solid #333;display:flex;flex-direction:column;text-align:center;padding:19mm 14mm 8mm}.print-cover h2{font-size:22pt;margin:17mm auto 12mm;border:1px solid #555;width:65%;background:#f5f5f5}.print-cover .cover-state{border:1px solid #555;width:72%;padding:7mm;margin:0 auto}.print-cover .cover-team{text-align:right;margin-top:12mm}.print-cover .cover-date{margin-top:auto}.print-section{break-inside:auto}.print-section h2{font-size:15pt;text-decoration:underline;text-align:right;break-after:avoid;margin:10mm 0 4mm}.print-section h3{font-size:12pt;margin:4mm 0 2mm;break-after:avoid}.print-section table{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:3mm;font-size:10.5pt}.print-section th,.print-section td{border:1px solid #555;padding:3mm 3mm;vertical-align:top;overflow-wrap:anywhere}.print-section th{background:#eaeaea!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:bold}.print-section tr{break-inside:avoid}.print-section ul{padding-right:5mm;margin:0}.print-section li{line-height:1.7}.print-note{border-top:1px dashed #666;padding-top:2mm;font-size:9.5pt;white-space:pre-wrap}.print-label{font-weight:bold}.print-meta{margin:4mm 0}.print-meta-row{margin:1mm 0}.print-footer{font-size:8pt;color:#555;text-align:center;margin-top:10mm}.print-draft{font-size:9pt;color:#777}.print-list{padding:0 7mm;margin:2mm 0}.print-rec{margin:3mm 0;break-inside:avoid}.print-section .print-para{white-space:pre-wrap}}
+/* M1.1 — preliminary PDF visual alignment. */
+@media print {
+  .print-first {height:263mm;justify-content:flex-start;padding-top:68mm;gap:23mm;box-sizing:border-box;}
+  .print-first .oval {font-size:15pt;line-height:1.4;padding:3mm 16mm;min-width:25mm;border-radius:50%;border-color:#777;box-shadow:0 0 1px #333;transform:scale(1.75);}
+  .print-first .title-box {font-size:17pt;line-height:1.5;border-radius:14px;min-width:49mm;padding:5mm 6mm;border-color:#888;box-shadow:0 0 2px #666;transform:scale(1.75);}
+  .print-first .title-box small {font-size:11pt;color:#171717;}
+  .print-cover {position:relative;border:2px solid #3c3c3c;height:262mm;box-sizing:border-box;padding:15mm 8mm 4mm;font-size:12pt;width:100%;margin-right:0;}
+  .print-cover>div:first-child {font-size:14pt;line-height:1.45;}
+  .print-cover h2 {font-size:15pt;margin:11mm auto 7mm;width:60%;padding:2mm 3mm;}
+  .print-cover .cover-state {font-size:13pt;padding:4mm;width:65%;line-height:1.7;}
+  .print-cover .cover-team {font-size:11pt;line-height:1.5;margin-top:10mm;}
+  .print-cover .cover-date {font-size:12pt;}
+  .print-meta-row {display:flex;gap:5mm;align-items:baseline;margin:0.2mm 0;min-height:4.4mm;}
+  .print-meta-part {flex:1;white-space:normal;}
+  .print-section h2 {margin:4.5mm 0 1.5mm;}
+  .print-section h3 {margin:1.5mm 0 0.7mm;}
+  .print-section li {line-height:1.35;}
+  .print-section table {font-size:11.6pt;line-height:1.35;margin-top:1mm;}
+  .print-section td,.print-section th {padding:2.2mm 2.4mm;}
+  .print-section .numbered-table .number-cell {width:6%;text-align:center;font-weight:bold;padding-right:0.5mm;padding-left:0.5mm;}
+  .print-section .numbered-table .domain-cell {width:34%;text-align:center;vertical-align:middle;}
+  .print-section .numbered-table .indicator-cell {width:60%;}
+  .print-section .numbered-table th:first-child {width:40%;}
+  .print-section .numbered-table th:last-child {width:60%;}
+}
