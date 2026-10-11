@@ -26,7 +26,7 @@ python3 -m http.server 8000
 
 ## الاختبار والنشر
 
-تحقق سريع: `node --check app.js` و`python3 -m json.tool catalog.json >/dev/null`. للنشر العام اختر GitHub Pages → Source: `Deploy from a branch` → branch `main` → folder `/ (root)`، إذا لم تكن Pages مفعّلة أصلًا. سيتم نشر موقع ثابت بلا خادم خلفي.
+تحقق سريع: `node --check app.js` و`python3 -m json.tool catalog.json >/dev/null`. للنشر العام اختر المستودع → Settings → Pages → Build and deployment → Source: **GitHub Actions** (مرة واحدة)، ثم افتح Actions وشغّل workflow باسم **Deploy Official Report 03 (static)** عبر `Run workflow`. يقوم الملف `.github/workflows/deploy.yml` بالنشر عند كل تحديث للفرع `main`. لم تُفعّل صفحة GitHub Pages تلقائيًا من هذا المستودع حتى الآن؛ التفعيل الأول يحتاج إلى إجراء المالك من الإعدادات.
 
 ## سياسة الاحتفاظ بالبيانات
 
