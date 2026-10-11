@@ -45,3 +45,14 @@ test('numbered chapters use a dedicated numbering column in the print layout', (
   assert.match(app,/class=\\?"numbered-table/);
   assert.match(app,/class=\\?"number-cell/);
 });
+
+test('assessment controls and status exports preserve the official table columns',()=>{
+  assert.match(app,/const ASSESSMENTS=Object\.freeze/);
+  for(const code of ['compliant','non_compliant','not_applicable'])assert.match(app,new RegExp(code));
+  assert.match(app,/function renderAssessmentControl/);
+  assert.match(app,/data-assessment=/);
+  assert.match(app,/assessment:assessmentLabel\(e\.assessment\)/);
+  assert.match(app,/function entryHtml\(id\)/);
+  assert.match(app,/function getEntryParagraphs\(id\)/);
+  assert.match(app,/function clearReport\(\)/);
+});
