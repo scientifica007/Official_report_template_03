@@ -41,3 +41,22 @@
 .map-help .add-button{margin:0;flex-shrink:0}
 @media(max-width:730px){.map-help{flex-direction:column;align-items:stretch}.map-help .add-button{width:100%}}
 @media print{.map-help{display:none}}
+
+/* M1.5 — portrait front matter; A4 landscape for four-column inspection tables. */
+@page inspectionPortrait {size:A4 portrait;margin:17mm 16mm 15mm 16mm}
+@page inspectionLandscape {size:A4 landscape;margin:13mm 13mm 13mm 13mm}
+@media print {
+ .print-first,.print-cover,.print-intro,.print-closing {page:inspectionPortrait}
+ .print-table-section {page:inspectionLandscape}
+ .print-table-section .report-four-column-table {width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.4pt;line-height:1.4;margin:2mm 0}
+ .print-table-section .report-four-column-table th,.print-table-section .report-four-column-table td {padding:2mm 2.4mm;vertical-align:top;border:1px solid #444;overflow-wrap:anywhere;white-space:normal;text-align:right}
+ .print-table-section .report-four-column-table th {font-size:9.6pt;text-align:center;background:#ebebeb!important}
+ .print-table-section .report-four-column-table td {min-height:8mm}
+ .print-table-section .report-four-column-table tr {break-inside:auto;page-break-inside:auto}
+ .print-table-section .report-four-column-table thead {display:table-header-group}
+ .print-table-section .print-domain-cell {font-weight:600}
+ .print-table-section .print-status {font-size:8.2pt;font-weight:bold;margin-top:2mm}
+ .print-table-section .print-cell-line {white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 2mm;line-height:1.45}
+ .print-table-section .print-cell-line + .print-cell-line {border-top:1px dotted #bbb;padding-top:1.5mm}
+ .print-table-section .print-cell-line:last-child {margin-bottom:0}
+}
