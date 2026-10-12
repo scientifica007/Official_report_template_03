@@ -41,9 +41,12 @@ test('split continuation is a single official evaluation element', () => {
   assert.equal(p.indicators[4].label, 'إعداد حصيلة تنفيذه و عرضها على مجلس التوجيه للمصادقة');
   assert.match(app,/oldId==='III-02-I006'\?'III-02-I005'/);
 });
-test('numbered chapters use a dedicated numbering column in the print layout', () => {
-  assert.match(app,/class=\\?"numbered-table/);
-  assert.match(app,/class=\\?"number-cell/);
+test('print report uses four aligned columns, while preserving official domain numbers', () => {
+  assert.match(app,/class="report-four-column-table"/);
+  assert.match(app,/class="print-domain-cell"/);
+  assert.match(app,/class="print-findings-cell"/);
+  assert.match(app,/class="print-recommendations-cell"/);
+  assert.match(app,/domain.number/);
 });
 
 test('assessment controls and status exports preserve the official table columns',()=>{
