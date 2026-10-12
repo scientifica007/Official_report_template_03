@@ -279,3 +279,66 @@ with zipfile.ZipFile(sys.argv[1]) as z:
   execFileSync('python3',['-c',script,name],{stdio:'pipe'});
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
+
+
+function bookHarness(){
+ const h=createHarness(),storage=new Map();
+ h.context.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)};
+ h.context.confirm=()=>true;
+ h.run('render=()=>{};showToast=()=>{};loadInstitutionBook()');
+ return {h,storage};
+}
+test('M1.9: save institution and director, never report data or team',()=>{
+ const {h,storage}=bookHarness();
+ h.run("state.institution={name:'معهد تبسة',wilaya:'تبسة',code:'1201'};state.director={fullName:'المدير السابق',rank:'مدير'};state.mission.purpose='زيارة ميدانية';state.inspectors[0].name='المفتش';saveInstitution()");
+ const raw=[...storage.values()][0];
+ assert.match(raw,/معهد تبسة/);
+ assert.match(raw,/المدير السابق/);
+ assert.doesNotMatch(raw,/زيارة ميدانية|المفتش/);
+ assert.equal(h.run('institutionBook.length'),1);
+ assert.equal(h.run("institutionBook[0].director.fullName"),'المدير السابق');
+});
+test('M1.9: institution president remains until explicit update, then persists across report resets',()=>{
+ const {h}=bookHarness();
+ h.run("state.institution={name:'المؤسسة أ',wilaya:'تبسة',code:'1201'};state.director={fullName:'المدير أ'};saveInstitution()");
+ h.run("state.director.fullName='المدير ب';state=emptyState();selectedInstitutionId='';chooseInstitution(institutionBook[0].id)");
+ assert.equal(h.run('state.director.fullName'),'المدير أ');
+ h.run("state.director.fullName='المدير ب';saveInstitution();state=emptyState();selectedInstitutionId='';chooseInstitution(institutionBook[0].id)");
+ assert.equal(h.run('state.director.fullName'),'المدير ب');
+});
+test('M1.9: changing institution while findings exist is blocked',()=>{
+ const {h}=bookHarness();
+ h.run("state.institution={name:'الأولى',code:'1'};state.director={fullName:'مدير 1'};saveInstitution();state.institution={name:'الثانية',code:'2'};state.director={fullName:'مدير 2'};selectedInstitutionId='';saveInstitution()");
+ h.run("state.entries['III-01-I001']={assessment:'non_compliant',findings:[{id:'1',text:'معاينة سابقة'}],recommendations:[]};chooseInstitution(institutionBook[0].id)");
+ assert.equal(h.run('state.institution.name'),'الثانية');
+ assert.equal(h.run("state.entries['III-01-I001'].findings[0].text"),'معاينة سابقة');
+});
+test('M1.9: duplicate records skipped during import without altering existing director',async()=>{
+ const {h}=bookHarness();
+ h.run("state.institution={name:'المعهد',wilaya:'تبسة',code:'1201'};state.director={fullName:'المدير أ'};saveInstitution()");
+ h.context.__data=JSON.stringify({format:'OFFICIAL_REPORT_03_INSTITUTIONS_V1',institutions:[
+ {id:'1',institution:{name:'المعهد',wilaya:'تبسة',code:'1201'},director:{fullName:'شخص مختلف'}},
+ {id:'2',institution:{name:'معهد آخر',code:'1202'},director:{fullName:'المدير ب'}}]});
+ await h.run("importInstitutions({target:{files:[{size:999,text:()=>Promise.resolve(__data)}],value:''}})");
+ assert.equal(h.run('institutionBook.length'),2);
+ assert.equal(h.run('institutionBook[0].director.fullName'),'المدير أ');
+ assert.equal(h.run('institutionBook[1].director.fullName'),'المدير ب');
+});
+test('M1.9: report reset does not remove local directory',()=>{
+ const {h,storage}=bookHarness();
+ h.run("state.institution={name:'مركز الشريعة',code:'1234'};state.director={fullName:'المدير'};saveInstitution()");
+ const json=[...storage.values()][0];
+ h.run("state=emptyState();selectedInstitutionId='';loadInstitutionBook()");
+ assert.equal([...storage.values()][0],json);
+ assert.equal(h.run('institutionBook.length'),1);
+ assert.equal(h.run('state.institution.name'),undefined);
+});
+test('M1.9: register controls precede identity fields and QR footer omits unwanted phrase',()=>{
+ const {h}=bookHarness();
+ const markup=h.run('renderMeta()');
+ assert.ok(markup.indexOf('id="stored-institution"')<markup.indexOf('id="institution-name"'));
+ assert.match(markup,/حفظ المؤسسة ورئيسها/);
+ h.run("state.institution.name='المؤسسة';buildPrint()");
+ assert.doesNotMatch(h.printRoot.innerHTML,/ولا يُعد إمضاءً إلكترونيًا/);
+ assert.doesNotMatch(h.run('documentXML(true)'),/ولا يُعد إمضاءً إلكترونيًا/);
+});
