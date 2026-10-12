@@ -60,3 +60,32 @@
  .print-table-section .print-cell-line + .print-cell-line {border-top:1px dotted #bbb;padding-top:1.5mm}
  .print-table-section .print-cell-line:last-child {margin-bottom:0}
 }
+
+/* M1.6: suppress Chrome print metadata without removing document margins.
+   Margin-box content overrides UA-supplied URL, print timestamp and page title.
+   Browser print settings may still override CSS; leave a user-facing fallback. */
+@page {@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:""}@bottom-right{content:""}}
+@page inspectionPortrait {@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:""}@bottom-right{content:""}}
+@page inspectionLandscape {@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:""}@bottom-right{content:""}}
+@media print {
+  .print-table-section .print-status {
+    display:inline-block;
+    font-size:9.4pt;
+    line-height:1.55;
+    font-weight:800;
+    color:#111!important;
+    border:1.4px solid #222;
+    border-radius:2px;
+    background:#ededed!important;
+    padding:1.1mm 2.5mm;
+    margin:2.3mm 0 1.1mm;
+    white-space:nowrap;
+    break-inside:avoid;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  .print-table-section .print-status strong {font-weight:900}
+  .print-table-section .print-status-non_compliant {border:2px double #111}
+  .print-table-section .print-status-not_applicable {border-style:dashed}
+  .print-draft {padding:0 0 3mm;font-size:9pt}
+}
