@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const source=readFileSync('app.js','utf8').replace(/\binit\(\);\s*$/,'');
+const qrSource=readFileSync('vendor/qrcodegen.min.js','utf8');
 const catalog=JSON.parse(readFileSync('catalog.json','utf8'));
 
 function createHarness(){
@@ -15,6 +16,7 @@ function createHarness(){
  const progress={textContent:''};
  const document={getElementById(id){if(id==='print-root')return printRoot;if(id==='report-progress')return progress;return null}};
  const context=vm.createContext({document,__catalog:catalog,TextEncoder});
+ vm.runInContext(qrSource,context,{timeout:10000});
  vm.runInContext(source,context,{timeout:10000});
  vm.runInContext('catalog=__catalog;state=emptyState();',context);
  return {context,printRoot,progress,run(code){return vm.runInContext(code,context,{timeout:10000})}};
