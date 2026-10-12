@@ -243,7 +243,7 @@ test('M1.8: oversized Arabic report metadata does NOT block PDF content or signa
  assert.ok(new TextEncoder().encode(h.run('reportQrPayload()')).length>2953);
  assert.doesNotThrow(()=>h.run('buildPrint()'));
  const out=h.printRoot.innerHTML;
- assert.match(out,/class="print-signatures"/);
+ assert.match(out,/class="print-section print-closing print-signatures"/);
  assert.match(out,/تعذر إدراج رمز QR/);
  assert.match(out,/معاينة مهمة لا يجوز فقدانها/);
  assert.match(out,/مفتش تجريبي/);
