@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const source=readFileSync('app.js','utf8').replace(/\binit\(\);\s*$/,'');
+const qrSource=readFileSync('vendor/qrcodegen.min.js','utf8');
 const catalog=JSON.parse(readFileSync('catalog.json','utf8'));
 
 function createHarness(){
@@ -15,6 +16,7 @@ function createHarness(){
  const progress={textContent:''};
  const document={getElementById(id){if(id==='print-root')return printRoot;if(id==='report-progress')return progress;return null}};
  const context=vm.createContext({document,__catalog:catalog,TextEncoder});
+ vm.runInContext(qrSource,context,{timeout:10000});
  vm.runInContext(source,context,{timeout:10000});
  vm.runInContext('catalog=__catalog;state=emptyState();',context);
  return {context,printRoot,progress,run(code){return vm.runInContext(code,context,{timeout:10000})}};
@@ -144,4 +146,86 @@ test('M1.6: CSS explicitly replaces print browser URL, title, timestamp margin b
  }
  assert.match(css,/print-status-non_compliant/);
  assert.match(css,/print-color-adjust:exact/);
+});
+
+
+test('M1.7: footer automatically switches singular and plural; QR payload is Arabic offline text',()=>{
+ const h=createHarness();
+ h.run("state.mission.purpose='فحص سير المؤسسة';state.institution.name='مؤسسة الاختبار';state.mission.visitDates='12/10/2026';state.inspectors=[{name:'مفتش واحد',role:'IFEP'}]");
+ assert.equal(h.run('signatureHeading()'),'إمضاء السيد المفتش');
+ let payload=h.run('reportQrPayload()');
+ for(const term of ['تقرير التفتيش المعمق','فحص سير المؤسسة','مؤسسة الاختبار','12/10/2026','مفتش واحد','مفتش التكوين والتعليم المهنيين'])assert.ok(payload.includes(term),term);
+ assert.ok(!payload.includes('scientifica007.github.io'));
+ h.run("state.inspectors.push({name:'مفتش ثان',role:'IAF'})");
+ assert.equal(h.run('signatureHeading()'),'إمضاء السادة المفتشين');
+ payload=h.run('reportQrPayload()');
+ assert.match(payload,/مفتش ثان — مفتش إداري ومالي/);
+ h.run('buildPrint()');
+ const printed=h.printRoot.innerHTML;
+ assert.match(printed,/class="print-section print-closing print-signatures"/);
+ assert.match(printed,/إمضاء السادة المفتشين/);
+ assert.match(printed,/مفتش واحد/);
+ assert.match(printed,/مفتش ثان/);
+ assert.match(printed,/class="report-qr-svg"/);
+ assert.doesNotMatch(printed,/لا يُعد إمضاءً إلكترونيًا[\s\S]*<section/);
+});
+
+test('M1.7: QR matrix, SVG and byte-perfect PNG can be read without network access',()=>{
+ const h=createHarness();
+ h.run("state.mission.purpose='زيارة تفتيش بيداغوجي وإداري';state.institution.name='المعهد الوطني للتكوين المهني';state.mission.visitDates='11/10/2026 إلى 12/10/2026';state.inspectors=[{name:'المفتش أ',role:'IFEP'},{name:'المفتش ب',role:'IAF'}]");
+ const q=h.run('reportQrMatrix()');
+ assert.ok(q.size>=21&&q.size<=177);
+ const svg=h.run('reportQrSvg(reportQrMatrix())');
+ assert.match(svg,/shape-rendering="crispEdges"/);
+ assert.match(svg,/path fill="#000"/);
+ const png=Buffer.from(h.run('qrPng(reportQrMatrix())'));
+ assert.deepEqual([...png.subarray(0,8)],[137,80,78,71,13,10,26,10]);
+ const dir=mkdtempSync(join(tmpdir(),'report03-qr-'));
+ try{
+  const name=join(dir,'report-qr.png');writeFileSync(name,png);
+  const script=`import struct,sys,zlib
+p=open(sys.argv[1],'rb').read()
+assert p[:8]==b'\\x89PNG\\r\\n\\x1a\\n'
+offset=8;chunks={}
+while offset<len(p):
+ size=struct.unpack('>I',p[offset:offset+4])[0]
+ name=p[offset+4:offset+8];value=p[offset+8:offset+8+size]
+ check=struct.unpack('>I',p[offset+8+size:offset+12+size])[0]
+ assert zlib.crc32(name+value)&0xffffffff==check,(name,check)
+ chunks[name]=value;offset+=12+size
+w,h,depth,mode=struct.unpack('>IIBB',chunks[b'IHDR'][:10])
+assert w==h and 100<w<1000 and depth==1 and mode==0,(w,h,depth,mode)
+raw=zlib.decompress(chunks[b'IDAT'])
+assert len(raw)==h*(1+(w+7)//8)
+assert raw[0]==0
+`;
+  execFileSync('python3',['-c',script,name],{stdio:'pipe'});
+ }finally{rmSync(dir,{recursive:true,force:true})}
+});
+
+test('M1.7: generated DOCX contains actual QR media and drawing relationship',()=>{
+ const h=createHarness();
+ h.run("state.mission.purpose='فحص ميداني';state.institution.name='المؤسسة';state.mission.visitDates='12/10/2026';state.inspectors=[{name:'الأول',role:'IFEP'},{name:'الثاني',role:'IAF'}];download=(bytes)=>{globalThis.__filebytes=bytes};showToast=()=>{};exportDOCX();");
+ const bytes=Buffer.from(h.run('globalThis.__filebytes'));
+ const dir=mkdtempSync(join(tmpdir(),'report03-word-'));
+ try{
+  const name=join(dir,'signed.docx');writeFileSync(name,bytes);
+  const script=`import zipfile,sys,xml.etree.ElementTree as ET,zlib,struct
+with zipfile.ZipFile(sys.argv[1]) as z:
+ assert z.testzip() is None
+ image=z.read('word/media/report-qr.png')
+ assert image[:8]==b'\\x89PNG\\r\\n\\x1a\\n'
+ rel=z.read('word/_rels/document.xml.rels')
+ assert b'rIdQr' in rel and b'media/report-qr.png' in rel
+ ct=z.read('[Content_Types].xml')
+ assert b'image/png' in ct
+ root=ET.fromstring(z.read('word/document.xml'))
+ ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+     'a':'http://schemas.openxmlformats.org/drawingml/2006/main'}
+ assert root.findall('.//w:drawing',ns)
+ txt=' '.join(t.text or '' for t in root.findall('.//w:t',ns))
+ assert 'إمضاء السادة المفتشين' in txt and 'الأول' in txt and 'الثاني' in txt
+`;
+  execFileSync('python3',['-c',script,name],{stdio:'pipe'});
+ }finally{rmSync(dir,{recursive:true,force:true})}
 });

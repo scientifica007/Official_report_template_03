@@ -89,3 +89,17 @@
   .print-table-section .print-status-not_applicable {border-style:dashed}
   .print-draft {padding:0 0 3mm;font-size:9pt}
 }
+
+/* M1.7 inspector sign-off and scan-ready QR */
+@media print {
+ .print-signatures {page:inspectionPortrait;break-before:page;page-break-before:always;break-inside:avoid;padding-top:10mm}
+ .print-signatures h2{text-align:center;font-size:17pt;margin:0 0 14mm}
+ .print-signatures .signatories{display:grid;grid-template-columns:repeat(auto-fit,minmax(55mm,1fr));gap:9mm;text-align:center;direction:rtl}
+ .print-signatures .signatory{border:1px solid #777;padding:5mm 3mm 4mm;break-inside:avoid;min-height:37mm}
+ .print-signatures .signatory-name{font-size:13pt;font-weight:700}
+ .print-signatures .signatory-role{font-size:10.5pt;margin:2mm 0 5mm}
+ .print-signatures .signatory-ink{border-top:1px dotted #777;padding-top:2mm;font-size:9.5pt;color:#555;margin-top:5mm}
+ .print-signatures .report-qr-block{text-align:center;margin:12mm auto 0;break-inside:avoid}
+ .print-signatures .report-qr-svg{display:block;width:73mm;height:73mm;max-width:100%;margin:0 auto;background:#fff!important}
+ .print-signatures .report-qr-block p{font-size:9pt;margin:4mm auto 0;max-width:150mm;line-height:1.4}
+}
