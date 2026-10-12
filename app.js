@@ -208,7 +208,7 @@ function printSignatures(){
  return '<section class="print-section print-closing print-signatures"><h2>'+heading+
  '</h2><div class="signatories">'+people+'</div><div class="report-qr-block">'+
  (qr.matrix?reportQrSvg(qr.matrix):'<p class="qr-warning" role="note">'+safe(qr.warning)+'</p>')+
- (qr.matrix?'<p>رمز QR يتضمن بيانات التعريف بالتقرير والمهمة والمفتشين</p>':'')+'</div></section>';
+ (qr.matrix?'<p>رمز QR يتضمن بيانات التعريف بالتقرير والمهمة والمفتشين.</p>':'')+'</div></section>';
 }
 /* Lossless black-and-white PNG for editable Word, no network or canvas dependency. */
 function bytesConcat(parts){const b=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let k=0;for(const p of parts){b.set(p,k);k+=p.length}return b}
@@ -260,7 +260,7 @@ function docxSignatures(includeQr,qrWarning=''){
   body+=para('الصفة: '+inspectorTitle(inspector.role));
   body+=para('الإمضاء: ..................................................................');
  }
- if(includeQr)body+=docxQrDrawing()+para('رمز QR يتضمن بيانات التعريف بالتقرير والمهمة والمفتشين',{center:true});
+ if(includeQr)body+=docxQrDrawing()+para('رمز QR يتضمن بيانات التعريف بالتقرير والمهمة والمفتشين.',{center:true});
  else body+=para(qrWarning||'رمز QR غير متاح لهذه النسخة من التقرير.',{center:true});
  return body;
 }
