@@ -69,3 +69,32 @@ test('proofreading preserves original text and stable record identity',()=>{
   assert.equal(catalog.catalogVersion,'M1.3-PROOFREAD-2026-10-12');
   assert.equal(catalog.catalogStatus,'PROVISIONAL_PDF_REVIEW_REQUIRED');
 });
+
+test('UX M1.4: criteria are atomic and keep a trace to the official composite',()=>{
+  assert.equal(catalog.catalogVersion,'M1.4-UX-ATOMIC-2026-10-12');
+  assert.equal(catalog.splitHistory.length,5);
+  const sectionII=catalog.sections.find(s=>s.id==='II');
+  const indicators=sectionII.domains[0].indicators;
+  assert.equal(indicators.length,17);
+  assert.equal(catalog.sections.flatMap(s=>s.domains.flatMap(d=>d.indicators)).length,176);
+  const first=indicators.find(x=>x.id==='II-MAIN-I003A');
+  assert.equal(first.label,'الورشات');
+  assert.equal(first.sourceIndicatorId,'II-MAIN-I003');
+  assert.match(first.sourceLabel,/جدار السياج/);
+  assert.match(app,/catalog\.splitHistory\?\.find/);
+  assert.match(app,/legacyAssessments/);
+});
+test('UX M1.4: institution is edited once and maps link is optional',()=>{
+  assert.match(app,/filter\(s=>s\.id!=='I'\)/);
+  assert.doesNotMatch(app,/entryHtml\('I'\)/);
+  assert.doesNotMatch(app,/getEntryParagraphs\('I'\)/);
+  assert.match(app,/function googleMapsLink/);
+  assert.match(app,/data-open-map/);
+  assert.match(app,/\['mapUrl'/);
+  assert.match(app,/www\.google\.com/);
+});
+test('UX M1.4: training immersion has Arabic and French wording',()=>{
+ const label=catalog.sections.find(s=>s.id==='III').domains.find(d=>d.id==='III-10').indicators.find(i=>i.id==='III-10-I004').label;
+ assert.match(label,/الانغماس المهني للمكوّنين/);
+ assert.match(label,/Immersion professionnelle des formateurs/);
+});
