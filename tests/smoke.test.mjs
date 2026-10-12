@@ -67,7 +67,8 @@ test('proofreading preserves original text and stable record identity',()=>{
   assert.equal(key.label,'القانون الأساسي النموذجي');
   assert.equal(key.sourceLabel,'القانون الأساسي النوذجي');
   assert.equal(all.find(x=>x.id==='VII-01-I003').label,'تقييم تسيير المطعم (إجراءات استلام المواد الغذائية)');
-  assert.equal(catalog.catalogVersion,'M1.3-PROOFREAD-2026-10-12');
+  assert.equal(catalog.editorialRevision.correctedEntryCount,81);
+  assert.equal(catalog.catalogVersion,'M1.4-UX-ATOMIC-2026-10-12');
   assert.equal(catalog.catalogStatus,'PROVISIONAL_PDF_REVIEW_REQUIRED');
 });
 
