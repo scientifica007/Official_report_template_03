@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const source=readFileSync('app.js','utf8').replace(/\binit\(\);\s*$/,'');
 const catalog=JSON.parse(readFileSync('catalog.json','utf8'));
@@ -80,4 +84,35 @@ test('clearing state and drafts leaves no finding on future exports',()=>{
  h.run("pendingDrafts['III-07-I002']={findings:'نص مؤقت',recommendations:''};state=emptyState();pendingDrafts=Object.create(null);");
  const x=JSON.parse(JSON.stringify(h.run('exportSnapshot()')));
  assert.deepEqual(x.entries,{});
+});
+
+test('generated Word download is a valid OOXML ZIP with four-column RTL tables',()=>{
+ const h=createHarness();
+ h.run("pendingDrafts['III-07-I002']={findings:'معاينة في ملف Word',recommendations:'توصية في ملف Word'};download=(bytes,type,extension)=>{globalThis.__filebytes=bytes};showToast=()=>{};exportDOCX();");
+ const buffer=Buffer.from(h.run('globalThis.__filebytes'));
+ const dir=mkdtempSync(join(tmpdir(),'official03-'));
+ const filename=join(dir,'report.docx');
+ try{
+  writeFileSync(filename,buffer);
+  const code=`import sys,zipfile,xml.etree.ElementTree as ET
+p=sys.argv[1]
+ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+with zipfile.ZipFile(p) as archive:
+ assert archive.testzip() is None
+ assert '[Content_Types].xml' in archive.namelist()
+ root=ET.fromstring(archive.read('word/document.xml'))
+ tables=root.findall('.//w:tbl',ns)
+ assert len(tables)==8,len(tables)
+ for table in tables:
+  for row in table.findall('w:tr',ns):
+   assert len(row.findall('w:tc',ns))==4
+ page_sizes=root.findall('.//w:pgSz',ns)
+ assert any(p.attrib.get('{'+ns['w']+'}orient')=='landscape' for p in page_sizes)
+ assert any(p.attrib.get('{'+ns['w']+'}orient')=='portrait' for p in page_sizes)
+ texts=[t.text or '' for t in root.findall('.//w:t',ns)]
+ assert 'معاينة في ملف Word' in texts
+ assert 'توصية في ملف Word' in texts
+`;
+  execFileSync('python3',['-c',code,filename],{stdio:'pipe'});
+ }finally{rmSync(dir,{recursive:true,force:true})}
 });
