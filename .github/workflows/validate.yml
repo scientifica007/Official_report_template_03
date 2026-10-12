@@ -16,4 +16,4 @@ jobs:
         with:
           node-version: '22'
       - name: Static checks and data contract
-        run: node --test tests/smoke.test.mjs
+        run: node --test tests/*.test.mjs
