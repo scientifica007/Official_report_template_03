@@ -119,3 +119,15 @@
    background:#f8f8f8!important;
  }
 }
+
+/* Local institution/directory selection before each inspection mission. */
+.institution-book {background:#f4f8f6;border:1px solid #d4e4db;border-radius:12px;padding:16px;margin:14px 0 22px}
+.institution-book h3 {font-size:16px;margin:0 0 9px;color:#164d41}
+.institution-book label {display:block;font-size:13px;font-weight:700;margin:10px 0 8px}
+.institution-book select {background:#fff;border:1px solid #b9cec1;border-radius:8px;padding:11px 12px;width:100%;max-width:100%;min-height:45px}
+.institution-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+.institution-actions .btn,.institution-actions .add-button {font-size:12px;padding:9px 12px;margin:0}
+.institution-book .helper{font-size:12px;color:#50695e;line-height:1.7;margin:11px 0 0}
+.institution-book-error{color:#9d3030;border:1px solid #ecc3c3;padding:12px;border-radius:8px;background:#fff5f5}
+@media(max-width:760px){.institution-book{padding:13px}.institution-actions{display:grid;grid-template-columns:1fr}.institution-actions button{width:100%}}
+@media print{.institution-book{display:none!important}}
