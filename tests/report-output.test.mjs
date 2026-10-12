@@ -14,7 +14,7 @@ function createHarness(){
  const printRoot={innerHTML:''};
  const progress={textContent:''};
  const document={getElementById(id){if(id==='print-root')return printRoot;if(id==='report-progress')return progress;return null}};
- const context=vm.createContext({document,__catalog:catalog});
+ const context=vm.createContext({document,__catalog:catalog,TextEncoder});
  vm.runInContext(source,context,{timeout:10000});
  vm.runInContext('catalog=__catalog;state=emptyState();',context);
  return {context,printRoot,progress,run(code){return vm.runInContext(code,context,{timeout:10000})}};
