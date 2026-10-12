@@ -135,10 +135,12 @@ buildPrint();`);
 test('M1.6: CSS explicitly replaces print browser URL, title, timestamp margin boxes',()=>{
  const css=readFileSync('style.css','utf8');
  for(const page of ['inspectionPortrait','inspectionLandscape']){
-  const rule=css.match(new RegExp('@page\\s+'+page+'\\s*\\{([^{}]*(?:\\{[^{}]*\\}[^{}]*)*)\\}','m'));
-  assert.ok(rule,'Missing named page '+page);
+  // There is an earlier layout rule and a later metadata-suppression rule.
+  const start=css.lastIndexOf('@page '+page+' {');
+  assert.ok(start>=0,'Missing named page '+page);
+  const rule=css.slice(start,start+420);
   for(const slot of ['top-left','top-center','top-right','bottom-left','bottom-center','bottom-right'])
-   assert.match(rule[0],new RegExp('@'+slot+'\\s*\\{\\s*content:\\s*""\\s*\\}'));
+   assert.ok(rule.includes('@'+slot+'{content:""}'),'Missing empty '+slot+' in '+page);
  }
  assert.match(css,/print-status-non_compliant/);
  assert.match(css,/print-color-adjust:exact/);
