@@ -12,7 +12,7 @@ const FIELDSETS = [
  {id:'director',label:'معلومات رئيس المؤسسة',fields:[['fullName','الاسم واللقب','text'],['job','الوظيفة','text'],['rank','الرتبة','text'],['installedAt','تاريخ التنصيب بالمؤسسة','text'],['firstAppointedAt','تاريخ أول تعيين كمدير','text']]},
  {id:'summary',label:'خلاصة التقرير',fields:[['generalAssessment','التقدير العام حول سير المؤسسة والاختلالات','textarea'],['generalRecommendations','التوصيات العامة الإضافية (كل توصية في سطر)','textarea']]}
 ];
-function emptyState(){return {templateId:'OFFICIAL_REPORT_TEMPLATE_03',catalogVersion:'M1.1-PRELIMINARY-2026-10-11',status:'draft',mission:{},institution:{},director:{},summary:{},inspectors:[{id:makeId(),name:'',role:'IFEP',district:''}],entries:{}}}
+function emptyState(){return {templateId:'OFFICIAL_REPORT_TEMPLATE_03',catalogVersion:'M1.3-PROOFREAD-2026-10-12',status:'draft',mission:{},institution:{},director:{},summary:{},inspectors:[{id:makeId(),name:'',role:'IFEP',district:''}],entries:{}}}
 function makeId(){return 'e'+Math.random().toString(36).slice(2,10)+Date.now().toString(36)}
 function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function text(v){return String(v??'').trim()}
