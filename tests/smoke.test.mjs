@@ -38,7 +38,7 @@ test('site is self-contained', () => {
 test('split continuation is a single official evaluation element', () => {
   const p = catalog.sections.find(s=>s.id==='III').domains.find(d=>d.id==='III-02');
   assert.equal(p.indicators.length, 5);
-  assert.equal(p.indicators[4].label, 'اعداد حصيلة تنفيذه و عرضها على مجلس التوجيه للمصادقة');
+  assert.equal(p.indicators[4].label, 'إعداد حصيلة تنفيذه و عرضها على مجلس التوجيه للمصادقة');
   assert.match(app,/oldId==='III-02-I006'\?'III-02-I005'/);
 });
 test('numbered chapters use a dedicated numbering column in the print layout', () => {
@@ -55,4 +55,17 @@ test('assessment controls and status exports preserve the official table columns
   assert.match(app,/function entryHtml\(id\)/);
   assert.match(app,/function getEntryParagraphs\(id\)/);
   assert.match(app,/function clearReport\(\)/);
+});
+
+test('proofreading preserves original text and stable record identity',()=>{
+  const all=catalog.sections.flatMap(s=>s.domains.flatMap(d=>[d,...d.indicators]));
+  const ids=all.map(x=>x.id);
+  assert.equal(ids.length,new Set(ids).size);
+  assert.equal(all.filter(x=>!!x.sourceLabel).length,81);
+  const key=all.find(x=>x.id==='III-01-I001');
+  assert.equal(key.label,'القانون الأساسي النموذجي');
+  assert.equal(key.sourceLabel,'القانون الأساسي النوذجي');
+  assert.equal(all.find(x=>x.id==='VII-01-I003').label,'تقييم تسيير المطعم (إجراءات استلام المواد الغذائية)');
+  assert.equal(catalog.catalogVersion,'M1.3-PROOFREAD-2026-10-12');
+  assert.equal(catalog.catalogStatus,'PROVISIONAL_PDF_REVIEW_REQUIRED');
 });
