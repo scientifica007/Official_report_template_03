@@ -78,7 +78,7 @@ function reportQrPayload(){
 function signatureHeading(){return state.inspectors.length>1?'إمضاء السادة المفتشين':'إمضاء السيد المفتش'}
 function reportQrMatrix(){
  if(typeof qrcodegen==='undefined'||!qrcodegen.QrCode)throw Error('تعذّر تحميل مكتبة رمز QR المحلية؛ أعد تحديث الصفحة.');
- try{return qrcodegen.QrCode.encodeText(reportQrPayload(),qrcodegen.QrCode.Ecc.LOW)}
+ try{const utf8=Array.from(new TextEncoder().encode(reportQrPayload()));return qrcodegen.QrCode.encodeSegments([qrcodegen.QrSegment.makeEci(26),qrcodegen.QrSegment.makeBytes(utf8)],qrcodegen.QrCode.Ecc.LOW)}
  catch(e){if(e instanceof RangeError)throw Error('البيانات المدخلة أطول من سعة رمز QR؛ اختصر الهدف أو تسمية المؤسسة أو تواريخ التفتيش دون حذف أسماء المفتشين.');throw e}
 }
 function reportQrSvg(qr){
