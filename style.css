@@ -34,3 +34,10 @@
 
 /* Optional inspector assessment, separate from observations and recommendations. */
 .assessment-control{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 15px;padding:12px 14px;background:#f5f8f6;border:1px solid #d7e3dc;border-radius:10px}.assessment-control label{font-size:13px;font-weight:700;color:#25483b}.assessment-control select{min-width:155px;border:1px solid #abbfb3;border-radius:8px;background:#fff;padding:8px 12px;color:#25483b;font-size:13px}.assessment-hint{font-size:11px;color:#617b6d}.assessment-control[data-value="compliant"]{border-right:4px solid #287d54}.assessment-control[data-value="non_compliant"]{border-right:4px solid #b36529}.assessment-control[data-value="not_applicable"]{border-right:4px solid #758591}.assessment-control[data-value=""]{border-right:4px solid #c8d3cc}@media(max-width:730px){.assessment-control{align-items:stretch;flex-direction:column}.assessment-control select{width:100%}}@media print{.print-assessment{font-weight:bold;margin-bottom:1.5mm;font-size:9.5pt;color:#000}}
+
+/* M1.4: optional geographic link is deliberately user-triggered. */
+.map-help{margin-top:12px;padding:12px 14px;border:1px solid #d9e6dd;background:#f8faf8;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.map-help span{font-size:12px;line-height:1.7;color:#506b5d}
+.map-help .add-button{margin:0;flex-shrink:0}
+@media(max-width:730px){.map-help{flex-direction:column;align-items:stretch}.map-help .add-button{width:100%}}
+@media print{.map-help{display:none}}
