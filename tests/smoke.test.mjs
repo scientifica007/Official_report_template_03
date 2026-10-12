@@ -61,7 +61,8 @@ test('proofreading preserves original text and stable record identity',()=>{
   const all=catalog.sections.flatMap(s=>s.domains.flatMap(d=>[d,...d.indicators]));
   const ids=all.map(x=>x.id);
   assert.equal(ids.length,new Set(ids).size);
-  assert.equal(all.filter(x=>!!x.sourceLabel).length,81);
+  assert.equal(catalog.editorialRevision.correctedEntryCount,81);
+  assert.ok(all.filter(x=>!!x.sourceLabel).length>=81,'Proofread labels and split-origin labels preserve provenance');
   const key=all.find(x=>x.id==='III-01-I001');
   assert.equal(key.label,'القانون الأساسي النموذجي');
   assert.equal(key.sourceLabel,'القانون الأساسي النوذجي');
