@@ -16,8 +16,11 @@ test('official chapter skeleton is present', () => {
   assert.equal(ids.length, new Set(ids).size);
   assert.equal(catalog.catalogStatus, 'PROVISIONAL_PDF_REVIEW_REQUIRED');
 });
-test('data are not persisted automatically or sent to a server', () => {
-  assert.doesNotMatch(app, /localStorage\s*\.\s*setItem\s*\(/);
+test('report data remain in tab memory; only institution metadata are stored locally', () => {
+  assert.match(app,/localStorage\.setItem\(BOOK_KEY,JSON\.stringify\(\{format:BOOK_FORMAT,institutions:records\}\)\)/);
+  assert.doesNotMatch(app,/localStorage\.setItem\(['"]report/i);
+  assert.match(app,/function exportSnapshot\(/);
+  assert.match(app,/function saveInstitution\(/);
   assert.doesNotMatch(app, /indexedDB\s*\.\s*open\s*\(/);
   assert.doesNotMatch(app, /navigator\.sendBeacon\s*\(/);
   assert.match(app,/function clearReport\(/);
