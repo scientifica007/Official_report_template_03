@@ -103,3 +103,19 @@
  .print-signatures .report-qr-svg{display:block;width:73mm;height:73mm;max-width:100%;margin:0 auto;background:#fff!important}
  .print-signatures .report-qr-block p{font-size:9pt;margin:4mm auto 0;max-width:150mm;line-height:1.4}
 }
+
+/* M1.8: QR failure is a non-blocking informational note, never an empty report. */
+@media print {
+ .print-signatures .qr-warning {
+   margin:8mm auto 0;
+   width:85%;
+   border:1px solid #777;
+   padding:4mm;
+   text-align:center;
+   font-size:10pt;
+   line-height:1.7;
+   color:#111;
+   overflow-wrap:anywhere;
+   background:#f8f8f8!important;
+ }
+}

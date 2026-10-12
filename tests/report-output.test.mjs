@@ -229,3 +229,53 @@ with zipfile.ZipFile(sys.argv[1]) as z:
   execFileSync('python3',['-c',script,name],{stdio:'pipe'});
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
+
+test('M1.8: oversized Arabic report metadata does NOT block PDF content or signatures',()=>{
+ const h=createHarness();
+ h.run(`state.mission.purpose='بيانات تجريبية مطوّلة '.repeat(65);
+ state.institution.name='اسم مؤسسة تجريبي طويل '.repeat(65);
+ state.mission.visitDates='تاريخ اختبار طويل '.repeat(65);
+ state.inspectors=[{name:'مفتش تجريبي',role:'IFEP'}];
+ state.entries['III-01-I001']={assessment:'non_compliant',findings:[{id:'f1',text:'معاينة مهمة لا يجوز فقدانها'}],recommendations:[]};`);
+ const q=h.run('reportQrForExport()');
+ assert.equal(q.matrix,null);
+ assert.match(q.warning,/سعة رمز QR/);
+ assert.ok(new TextEncoder().encode(h.run('reportQrPayload()')).length>2953);
+ assert.doesNotThrow(()=>h.run('buildPrint()'));
+ const out=h.printRoot.innerHTML;
+ assert.match(out,/class="print-section print-closing print-signatures"/);
+ assert.match(out,/تعذر إدراج رمز QR/);
+ assert.match(out,/معاينة مهمة لا يجوز فقدانها/);
+ assert.match(out,/مفتش تجريبي/);
+ assert.match(out,/غير مطابق/);
+});
+
+test('M1.8: oversized Arabic report downloads valid DOCX without QR, without losing content',()=>{
+ const h=createHarness();
+ h.run(`state.mission.purpose='هدف طويل تجريبي '.repeat(70);
+ state.institution.name='اسم مؤسسة اختبار مطوّل '.repeat(70);
+ state.mission.visitDates='مواعيد اختبار مطوّلة '.repeat(70);
+ state.inspectors=[{name:'مفتش الاختبار',role:'IFEP'}];
+ state.entries['III-01-I001']={assessment:'non_compliant',findings:[{id:'f1',text:'معاينة محفوظة أثناء فشل رمز QR'}],recommendations:[]};
+ download=(bytes)=>{globalThis.__filebytes=bytes};showToast=()=>{};exportDOCX();`);
+ const bytes=Buffer.from(h.run('globalThis.__filebytes'));
+ assert.ok(bytes.length>1000,'DOCX actually downloaded into buffer');
+ const dir=mkdtempSync(join(tmpdir(),'report03-oversize-qr-'));
+ try{
+  const name=join(dir,'report.docx');writeFileSync(name,bytes);
+  const script=`import zipfile,sys,xml.etree.ElementTree as ET
+with zipfile.ZipFile(sys.argv[1]) as z:
+ assert z.testzip() is None
+ assert 'word/media/report-qr.png' not in z.namelist()
+ assert 'word/_rels/document.xml.rels' not in z.namelist()
+ root=ET.fromstring(z.read('word/document.xml'))
+ n={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+ text=' '.join(v.text or '' for v in root.findall('.//w:t',n))
+ assert 'معاينة محفوظة أثناء فشل رمز QR' in text
+ assert 'إمضاء السيد المفتش' in text
+ assert 'تعذر إدراج رمز QR' in text
+ assert 'حالة التقييم: غير مطابق' in text
+`;
+  execFileSync('python3',['-c',script,name],{stdio:'pipe'});
+ }finally{rmSync(dir,{recursive:true,force:true})}
+});
