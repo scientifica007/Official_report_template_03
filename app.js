@@ -63,6 +63,94 @@ function printDomainRows(d){const rows=[];const domainEntry=getEntry(d.id);
 }
 function p(s){return safe(text(s)||'........................................')}
 function inspectorTitle(role){return ({IFEP:'مفتش التكوين والتعليم المهنيين (IFEP)',ITP:'مفتش تقني وبيداغوجي للتكوين والتعليم المهنيين (ITP)',IAF:'مفتش إداري ومالي (IAF)'})[role]||role}
+
+/* M1.7: QR carries report metadata verbatim, entirely offline. It is not a digital signature. */
+function reportQrPayload(){
+ const m=state.mission||{},i=state.institution||{},staff=Array.isArray(state.inspectors)?state.inspectors:[];
+ const value=v=>text(v)||'غير مدخل';
+ return ['تقرير التفتيش المعمق — النموذج 03',
+   'هدف مهمة التفتيش: '+value(m.purpose),
+   'المؤسسة المعنية: '+value(i.name),
+   'تاريخ/تواريخ التفتيش: '+value(m.visitDates),
+   'المفتشون المعنيون:'].concat(staff.length?staff.map((x,k)=>
+       (k+1)+'. '+value(x.name)+' — '+inspectorTitle(x.role)):['غير مدخل']).join('\n');
+}
+function signatureHeading(){return state.inspectors.length>1?'إمضاء السادة المفتشين':'إمضاء السيد المفتش'}
+function reportQrMatrix(){
+ if(typeof qrcodegen==='undefined'||!qrcodegen.QrCode)throw Error('تعذّر تحميل مكتبة رمز QR المحلية؛ أعد تحديث الصفحة.');
+ try{return qrcodegen.QrCode.encodeText(reportQrPayload(),qrcodegen.QrCode.Ecc.LOW)}
+ catch(e){if(e instanceof RangeError)throw Error('البيانات المدخلة أطول من سعة رمز QR؛ اختصر الهدف أو تسمية المؤسسة أو تواريخ التفتيش دون حذف أسماء المفتشين.');throw e}
+}
+function reportQrSvg(qr){
+ const quiet=4,size=qr.size+quiet*2,draw=[];
+ for(let y=0;y<qr.size;y++)for(let x=0;x<qr.size;x++)if(qr.getModule(x,y))
+  draw.push('M'+(x+quiet)+' '+(y+quiet)+'h1v1h-1z');
+ return '<svg xmlns="http://www.w3.org/2000/svg" class="report-qr-svg" role="img" aria-label="رمز QR لبيانات التقرير" viewBox="0 0 '+size+' '+size+'" shape-rendering="crispEdges"><rect width="'+size+'" height="'+size+'" fill="#fff"/><path fill="#000" d="'+draw.join(' ')+'"/></svg>';
+}
+function printSignatures(){
+ const heading=signatureHeading(),people=state.inspectors.map(x=>
+ '<div class="signatory"><div class="signatory-name">'+safe(text(x.name)||'اسم المفتش غير مدخل')+
+ '</div><div class="signatory-role">'+safe(inspectorTitle(x.role))+
+ '</div><div class="signatory-ink">مساحة الإمضاء</div></div>').join('');
+ return '<section class="print-section print-closing print-signatures"><h2>'+heading+
+ '</h2><div class="signatories">'+people+'</div><div class="report-qr-block">'+
+ reportQrSvg(reportQrMatrix())+
+ '<p>رمز QR يتضمن بيانات التعريف بالتقرير والمهمة والمفتشين؛ ولا يُعد إمضاءً إلكترونيًا.</p></div></section>';
+}
+/* Lossless black-and-white PNG for editable Word, no network or canvas dependency. */
+function bytesConcat(parts){const b=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let k=0;for(const p of parts){b.set(p,k);k+=p.length}return b}
+function pngU32(bytes,pos,num){bytes[pos]=(num>>>24)&255;bytes[pos+1]=(num>>>16)&255;bytes[pos+2]=(num>>>8)&255;bytes[pos+3]=num&255}
+function pngChunk(type,data){
+ const label=new TextEncoder().encode(type),body=bytesConcat([label,data]),out=new Uint8Array(12+data.length);
+ pngU32(out,0,data.length);out.set(body,4);pngU32(out,8+data.length,crc32(body));return out;
+}
+function qrPng(qr){
+ const quiet=4,scale=Math.max(4,Math.floor(950/(qr.size+quiet*2))),dim=(qr.size+quiet*2)*scale;
+ const stride=1+Math.ceil(dim/8),raw=new Uint8Array(stride*dim);
+ for(let y=0;y<dim;y++){
+  const qy=Math.floor(y/scale)-quiet,offset=y*stride+1;
+  for(let x=0;x<dim;x++){
+   const qx=Math.floor(x/scale)-quiet;
+   if(qx<0||qy<0||qx>=qr.size||qy>=qr.size||!qr.getModule(qx,qy))
+    raw[offset+(x>>>3)]|=128>>>(x&7);
+  }
+ }
+ const chunks=Math.ceil(raw.length/65535),z=new Uint8Array(2+raw.length+chunks*5+4);
+ z[0]=0x78;z[1]=0x01;let source=0,target=2,a=1,b=0;
+ while(source<raw.length){
+  const length=Math.min(65535,raw.length-source),last=source+length===raw.length;
+  z[target++]=last?1:0;z[target++]=length&255;z[target++]=length>>>8;
+  z[target++]=(~length)&255;z[target++]=((~length)>>>8)&255;
+  z.set(raw.subarray(source,source+length),target);target+=length;
+  for(let p=source;p<source+length;p++){a=(a+raw[p])%65521;b=(b+a)%65521}
+  source+=length;
+ }
+ pngU32(z,target,((b<<16)|a)>>>0);
+ const ihdr=new Uint8Array(13);pngU32(ihdr,0,dim);pngU32(ihdr,4,dim);ihdr[8]=1;ihdr[9]=0;
+ return bytesConcat([Uint8Array.from([137,80,78,71,13,10,26,10]),pngChunk('IHDR',ihdr),pngChunk('IDAT',z),pngChunk('IEND',new Uint8Array(0))]);
+}
+function docxQrDrawing(){
+ const e=2520000; // 70 mm square, 1 mm = 36000 EMU
+ return '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing>'+
+ '<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">'+
+ '<wp:extent cx="'+e+'" cy="'+e+'"/><wp:docPr id="1" name="QR Code report metadata" descr="رمز QR يتضمن بيانات التقرير والمفتشين"/>'+
+ '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'+
+ '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="report-qr.png"/><pic:cNvPicPr/></pic:nvPicPr>'+
+ '<pic:blipFill><a:blip r:embed="rIdQr"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'+
+ '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+e+'" cy="'+e+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'+
+ '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+}
+function docxSignatures(includeQr){
+ let body=pageBreak()+para(signatureHeading(),{center:true,heading:true});
+ for(const inspector of state.inspectors){
+  body+=para('الاسم واللقب: '+(text(inspector.name)||'غير مدخل'),{bold:true});
+  body+=para('الصفة: '+inspectorTitle(inspector.role));
+  body+=para('الإمضاء: ..................................................................');
+ }
+ if(includeQr)body+=docxQrDrawing()+para('رمز QR يتضمن بيانات التعريف بالتقرير والمهمة والمفتشين؛ ولا يُعد إمضاءً إلكترونيًا.',{center:true});
+ return body;
+}
+
 function buildPrint(){const m=state.mission,i=state.institution,d=state.director;const team=state.inspectors.map(x=>`<div>السيد/ ${p(x.name)} — ${safe(inspectorTitle(x.role))} ${x.district?`— المقاطعة ${safe(x.district)}`:''}</div>`).join('');let html=`<section class="print-first"><div class="oval">النموذج 03</div><div class="title-box">تقرير التفتيش المعمق<br><small>(Inspection approfondie)</small></div></section><section class="print-cover"><div><strong>الجمهورية الجزائرية الديمقراطية الشعبية</strong><br><strong>وزارة التكوين والتعليم المهنيين</strong><br><strong>المفتشية العامة</strong></div><h2>تقرير التفتيش المعمق</h2><div class="cover-state">المؤسسة / ${p(i.name)}<br>الولاية / ${p(i.wilaya)}</div><div class="cover-team"><u>التقرير من إعداد /</u>${team}</div><div class="cover-date">${p(m.monthYear)}</div></section><section class="print-section print-intro"><div class="print-draft">نسخة عمل تجريبية — لم تُعتمد مهنيًا داخل المنصة — الفهرس قيد المطابقة المرجعية</div><h2>مقدمة:</h2><ul><li>الهدف (الغرض) من إنجاز المهمة: ${p(m.purpose)}</li><li>فترة إنجاز المهمة (ثلاث سنوات) مع ذكر صاحب المهمة (ن – 3): ${p(m.period)}</li><li>الاطلاع على تقارير التفتيش: ${p(m.previousReports)}</li></ul>${m.visitDates?`<div class="print-meta">تواريخ إجراء التفتيش: ${safe(m.visitDates)}</div>`:''}<h2>I. التعريف بالمؤسسة /</h2><h3>معلومات بيانية تتعلق بالمؤسسة:</h3>${[['التسمية',i.name,'الولاية',i.wilaya,'الرمز',i.code],['مرسوم الإنشاء',i.decree,'المؤرخ في',i.decreeDate],['تاريخ بداية النشاط',i.startDate],['العنوان',i.address],['الهاتف',i.phone,'الفاكس',i.fax],['البريد الإلكتروني',i.email,'الموقع الإلكتروني',i.website],['اختصاص المؤسسة',i.speciality],['البعد عن مقر الولاية',i.distance]].map(cells=>`<div class="print-meta-row">${Array.from({length:Math.ceil(cells.length/2)},(_,index)=>`<span class="print-meta-part">${cells[index*2]}: ${p(cells[index*2+1])}</span>`).join('')}</div>`).join('')}<h3>معلومات بيانية تتعلق برئيس المؤسسة:</h3>${[['الاسم واللقب',d.fullName,'الوظيفة',d.job],['الرتبة',d.rank],['تاريخ التنصيب بالمؤسسة',d.installedAt,'تاريخ أول تعيين كمدير',d.firstAppointedAt]].map(cells=>`<div class="print-meta-row">${Array.from({length:Math.ceil(cells.length/2)},(_,index)=>`<span class="print-meta-part">${cells[index*2]}: ${p(cells[index*2+1])}</span>`).join('')}</div>`).join('')}${i.mapUrl?`<div class="print-meta">الموقع الجغرافي للمؤسسة (خرائط Google): ${safe(i.mapUrl)}</div>`:''}</section>`;
 
  for(const section of catalog.sections.filter(s=>!['I','X','XI'].includes(s.id))){
