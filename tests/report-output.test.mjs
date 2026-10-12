@@ -116,3 +116,30 @@ with zipfile.ZipFile(p) as archive:
   execFileSync('python3',['-c',code,filename],{stdio:'pipe'});
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
+
+test('M1.6: selected assessment states are conspicuous in PDF print and editable DOCX',()=>{
+ const h=createHarness();
+ h.run(`state.entries['III-01-I001']={assessment:'non_compliant',findings:[],recommendations:[]};
+state.entries['III-01-I002']={assessment:'compliant',findings:[],recommendations:[]};
+state.entries['III-02-I004']={assessment:'not_applicable',findings:[],recommendations:[]};
+buildPrint();`);
+ const out=h.printRoot.innerHTML;
+ for(const [code,label] of [['non_compliant','غير مطابق'],['compliant','مطابق'],['not_applicable','غير معني']]){
+  assert.match(out,new RegExp('print-status-'+code));
+  assert.match(out,new RegExp('حالة التقييم:</strong> '+label));
+  assert.match(h.run('documentXML()'),new RegExp('حالة التقييم: '+label));
+ }
+ assert.doesNotMatch(out,/لم يُقيّم بعد/);
+ assert.doesNotMatch(out,/<div class="print-draft">[^<]*<\/div><section class="print-section print-intro"/);
+});
+test('M1.6: CSS explicitly replaces print browser URL, title, timestamp margin boxes',()=>{
+ const css=readFileSync('style.css','utf8');
+ for(const page of ['inspectionPortrait','inspectionLandscape']){
+  const rule=css.match(new RegExp('@page\\s+'+page+'\\s*\\{([^{}]*(?:\\{[^{}]*\\}[^{}]*)*)\\}','m'));
+  assert.ok(rule,'Missing named page '+page);
+  for(const slot of ['top-left','top-center','top-right','bottom-left','bottom-center','bottom-right'])
+   assert.match(rule[0],new RegExp('@'+slot+'\\s*\\{\\s*content:\\s*""\\s*\\}'));
+ }
+ assert.match(css,/print-status-non_compliant/);
+ assert.match(css,/print-color-adjust:exact/);
+});
