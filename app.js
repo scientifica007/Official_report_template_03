@@ -1,4 +1,4 @@
-/* Official Report 03 — no network transmission, no localStorage, no analytics. */
+/* Official Report 03: report stays in memory; institution and director records use browser storage. */
 'use strict';
 let catalog = null;
 let state = emptyState();
