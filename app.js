@@ -20,7 +20,7 @@ function sharedReportHasInputs(){
 }
 function sharedMissionBanner(){
  return '<div class="shared-report-banner" role="status"><strong>محرر التقرير المشترك — '+safe(sharedProvenance?.title||'مهمة تفتيش')+
- '</strong><span>كل معاينة وتوصية تُحفظ في المهمة باسم صاحبها، وتظهر لزملائه عند التحديث.</span>'+
+ '</strong><span>كل معاينة وتوصية تُحفظ في المهمة باسم صاحبها، وتظهر لزملائه عند التحديث.</span>'+ '<span id="shared-report-status" role="status" aria-live="polite" class="shared-report-status"></span>'+
  '<button type="button" class="btn subtle" data-shared-action="refresh">تحديث المساهمات</button>'+
  '<button type="button" class="btn subtle" data-shared-action="exit">العودة إلى مهام التفتيش</button></div>';
 }
