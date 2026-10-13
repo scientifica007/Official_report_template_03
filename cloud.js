@@ -279,7 +279,7 @@ function dashboardCard(label,value,description,target){
 }
 function dashboardView(){
  const colleagues=profiles.filter(p=>p.approved).length;
- const unread=notifications.filter(x=>!x.read_at).length;
+ const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
  return '<div class="portal-page-heading"><h2>لوحة القيادة</h2><p>مرحبًا '+elt(profile.first_name)+
  '، هذه البيانات المتاحة حاليًا في السجل المركزي.</p></div>'+
  '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'عرض المؤسسات وتحرير بياناتها','institutions')+
@@ -447,7 +447,7 @@ function reservedView(page){
  '</p><p>لم تُنشأ أي بيانات تجريبية باسم مفتش أو مهمة.</p></section>';
 }
 function notificationsView(){
- const unread=notifications.filter(x=>!x.read_at).length;
+ const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
  return '<div class="portal-page-heading"><h2>الإشعارات</h2><p>'+unread+' غير مقروء</p></div>'+
  '<section class="portal-widget"><button class="btn subtle" data-cloud-action="refresh">تحديث الإشعارات</button>'+
  (notifications.length?notifications.slice(0,25).map(noticeCard).join(''):'<p>لا توجد إشعارات حاليًا.</p>')+'</section>';
@@ -502,7 +502,7 @@ function render(){
  if(reportControls)reportControls.hidden=!report;
  if(reportUser)reportUser.textContent=report?text(profile.first_name+' '+profile.last_name):'';
  const unreadEl=document.getElementById('cloud-unread');
- if(unreadEl)unreadEl.textContent=approved?String(notifications.filter(x=>!x.read_at).length):'';
+ if(unreadEl)unreadEl.textContent=approved?String(notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length):'';
  if(!configured){
   root.innerHTML='<div class="portal-access-card"><h2>تهيئة المنصة مطلوبة</h2><p>لا يمكن استعمال محرر التقارير دون حساب معتمد واتصال مصادقة. اتصل بمسؤول المنصة لإتمام إعداد الخدمة.</p></div>';
   return;
@@ -616,10 +616,20 @@ if(reportLogout)reportLogout.addEventListener('click',async()=>{
 });
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
 root.addEventListener('input',e=>{
+ const missionField=e.target.dataset?.missionField;
+ if(missionField&&Object.hasOwn(missionDraft,missionField))missionDraft[missionField]=e.target.value;
  const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
  if(group&&key&&institutionDraft[group])institutionDraft[group][key]=e.target.value;
 });
-root.addEventListener('change',e=>{if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render()}});
+root.addEventListener('change',e=>{
+ if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
+ if(e.target.id==='mission-select'){
+  selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
+  render();return;
+ }
+ const field=e.target.dataset?.missionField;
+ if(field&&Object.hasOwn(missionDraft,field))missionDraft[field]=e.target.value;
+});
 root.addEventListener('click',async e=>{
  const button=e.target.closest('[data-cloud-action]');if(!button||busy)return;
  const action=button.dataset.cloudAction;
@@ -639,6 +649,14 @@ root.addEventListener('click',async e=>{
   else if(action==='load')await loadSelected();
   else if(action==='refresh'){await fetchAll();feedback='القائمة والإشعارات محدثة.'}
   else if(action==='read')await markRead(button.dataset.notificationId);
+  else if(action==='mission-create')await createMission();
+  else if(action==='mission-invite')await inviteMissionPeer();
+  else if(action==='mission-respond'){
+   const accept=button.dataset.accept==='true';
+   await respondMissionInvite(button.dataset.missionId,accept);
+  }
+  else if(action==='mission-refresh'){await loadMissions();feedback='المهام والدعوات محدّثة.'}
+  else if(action==='mission-read')await readMissionNotification(button.dataset.notificationId);
   else if(action==='set-status')await changeInspectorStatus(button.dataset.userId,button.dataset.newStatus);
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
