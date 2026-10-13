@@ -1162,7 +1162,14 @@ window.Report03CloudUI={
   selectedSharedId='';editingVersion=null;institutionDraft={institution:{},director:{}};
   if(verifiedUser())render();
  },
- showView(page){if(verifiedUser()){currentPage=page;render()}},
+ showView(page){
+  if(!verifiedUser())return;
+  if(reportActive()&&page!=='report'){
+   if(!window.Report03CloudBridge?.exitSharedMission?.())return;
+   activeReportMissionId='';
+  }
+  currentPage=page;render();
+ },
  getReportOwner(){
   if(!verifiedUser())return null;
   return {id:profile.id,first_name:profile.first_name,last_name:profile.last_name,
