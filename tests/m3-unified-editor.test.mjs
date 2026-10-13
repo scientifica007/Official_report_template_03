@@ -194,3 +194,45 @@ test('M3.3 regression: export stays closed when shared save verification fails',
  assert.equal(h.elements['btn-export'].disabled,false);
  assert.match(alerts[0],/لا توجد مزامنة صالحة/);
 });
+
+
+test('M3.3 UX: default unsaved shared drafts are calm, switch to original strong style without affecting saved content',()=>{
+ const h=appHarness();
+ h.context.__payload=payload;
+ h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ assert.match(h.elements.workspace.innerHTML,/data-draft-contrast aria-pressed="false"/);
+ assert.match(h.elements.workspace.innerHTML,/تمييز المسودات: هادئ/);
+ const css=readFileSync('style.css','utf8');
+ assert.match(css,/body:not\(\.shared-draft-strong\) \.shared-editor-card\.unsaved-draft/);
+ assert.match(css,/body:not\(\.shared-draft-strong\) \.shared-draft-review\.has-unsent/);
+ assert.match(css,/\.shared-editor-card\.unsaved-draft\{border:3px solid #df6500/);
+ const listeners={};
+ h.context.document.addEventListener=(type,handler)=>{listeners[type]=handler};
+ h.context.window.addEventListener=()=>{};
+ h.context.document.body={classList:{toggle(name,on){h.context.__bodyTone={name,on}}}};
+ for(const id of ['btn-export','export-dialog','dialog-clear','close-dialog','dialog-cancel','do-json','do-docx','do-pdf','btn-import','import-file','btn-clear','menu-toggle']){
+  h.elements[id]={disabled:false,hidden:false,addEventListener(){},click(){},close(){}};
+ }
+ h.run('bindHandlers()');
+ const toggle={dataset:{draftContrast:''},textContent:'',setAttribute(key,value){this[key]=value}};
+ const prev=h.run("JSON.stringify(state.entries)");
+ listeners.click({target:{closest(selector){return selector==='button'?toggle:null}}});
+ assert.equal(h.context.__bodyTone.name,'shared-draft-strong');
+ assert.equal(h.context.__bodyTone.on,true);
+ assert.equal(toggle['aria-pressed'],'true');
+ assert.match(toggle.textContent,/تمييز المسودات: قوي/);
+ listeners.click({target:{closest(){return toggle}}});
+ assert.equal(h.context.__bodyTone.on,false);
+ assert.equal(toggle['aria-pressed'],'false');
+ assert.equal(h.run("JSON.stringify(state.entries)"),prev);
+});
+test('M3.3 print: preserve named portrait and landscape sections, and explain Edge behavior at export',()=>{
+ const css=readFileSync('style.css','utf8');
+ const html=readFileSync('index.html','utf8');
+ assert.match(css,/@page inspectionPortrait\s*\{size:A4 portrait/);
+ assert.match(css,/@page inspectionLandscape\s*\{size:A4 landscape/);
+ assert.match(css,/\.print-table-section\s*\{page:inspectionLandscape\}/);
+ assert.match(css,/\.print-first,.print-cover,.print-intro,.print-closing\s*\{page:inspectionPortrait\}/);
+ assert.match(html,/id="pdf-orientation-guide"/);
+ assert.match(html,/جداول الفحص والرقابة أفقية A4/);
+});
