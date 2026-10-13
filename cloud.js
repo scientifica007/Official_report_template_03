@@ -127,9 +127,13 @@ async function loadMissions(){
    ?'لم تُفعّل جداول المهام المشتركة في Supabase بعد. يحتاج مسؤول المنصة إلى تشغيل الترحيل 003.'
    :'تعذّر تحميل بيانات المهام: '+err.message;
  }
- if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId))selectedMissionId='';
+ if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId)){
+  selectedMissionId='';
+  if(activeReportMissionId){activeReportMissionId='';window.Report03CloudBridge?.exitSharedMission?.(true);}
+ }
  await loadMissionContributions();
  await loadSharedReportExtras();
+ notifyReportEditor(false);
 }
 
 function selectedMission(){
@@ -711,7 +715,7 @@ function missionsView(){
  const availablePeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&
     p.id!==session.user.id&&(!mission||!missionMembers.some(m=>m.mission_id===mission.id&&m.inspector_id===p.id)));
  return '<div class="portal-page-heading"><h2>مهام التفتيش المشتركة</h2>'+
- '<p>أنشئ مهمة، ادعُ زملاءك، ثم سجل المعاينات والتوصيات المشتركة داخلها مع حفظ صاحب كل مساهمة.</p></div>'+
+ '<p>أنشئ مهمة أو اختر مهمة قائمة، ثم افتح محرر التقرير 03 لإدخال المعاينات والتوصيات في مواضعها الرسمية.</p></div>'+
  (!missionEnabled?'<section class="portal-widget"><h3>الخدمة غير مفعّلة</h3><p>'+elt(missionError||'يجب تشغيل ترحيل SQL رقم 003 في Supabase.')+'</p>'+
  '<p>يمكنك الاستمرار في إعداد التقرير الفردي دون أي تغيير.</p></section>':
  '<div class="portal-widgets"><section class="portal-widget"><h3>إنشاء مهمة جديدة</h3>'+
@@ -747,7 +751,8 @@ function missionsView(){
  availablePeers.map(p=>'<option value="'+elt(p.id)+'">'+elt(text(p.first_name+' '+p.last_name)+' — '+title(p.profession))+'</option>').join('')+'</select></label>'+
  '<button type="button" class="btn subtle" data-cloud-action="mission-invite" '+(!availablePeers.length?'disabled':'')+
  '>إرسال الدعوة</button>'+
- '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. يعتمد حفظ المساهمات المشتركة على ترحيل قاعدة البيانات 004؛ لن تُستبدل بيانات التقرير المحلي.</p>'+sharedContributionEditor()+'</div>':'')+
+ '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. يتم تحرير المعاينات والتوصيات داخل المحرر الرسمي 03، وليس هنا.</p>'+
+ '<button type="button" class="btn primary" data-cloud-action="open-mission-report">فتح المهمة في محرر التقرير 03</button></div>':'')+
  '</section>');
 }
 async function createMission(){
@@ -971,7 +976,7 @@ async function signOut(){
     !confirm('توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد. هل تريد تسجيل الخروج والتخلي عن هذه النصوص؟'))return;
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';missionContributions=[];contributionLoadedFor='';contributionError='';contributionDrafts=Object.create(null);selectedSharedId='';editingVersion=null;
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];activeReportMissionId='';sharedFieldEvents=[];sharedAssessmentEvents=[];sharedDataLoadedFor='';embeddedDrafts=Object.create(null);missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';missionContributions=[];contributionLoadedFor='';contributionError='';contributionDrafts=Object.create(null);selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
@@ -1028,6 +1033,10 @@ root.addEventListener('click',async e=>{
  if(action==='mode-login'||action==='mode-signup'){mode=action==='mode-login'?'login':'signup';feedback='';render();return}
  if(action==='nav'){
   const page=button.dataset.page;
+  if(page==='report'&&activeReportMissionId){
+   if(!window.Report03CloudBridge?.exitSharedMission?.())return;
+   activeReportMissionId='';
+  }
   if(page==='admin'&&!profile?.is_admin)return;
   if(!verifiedUser())return;
   currentPage=page;feedback='';render();return;
@@ -1056,6 +1065,7 @@ root.addEventListener('click',async e=>{
    const d=contributionDraft();d.parentId=null;d.kind='finding';d.requestId='';
   }
   else if(action==='contribution-add')await appendContribution();
+  else if(action==='open-mission-report')await enterMissionReport();
   else if(action==='set-status')await changeInspectorStatus(button.dataset.userId,button.dataset.newStatus);
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
@@ -1108,9 +1118,10 @@ async function init(){
  render();
 }
 document.addEventListener('DOMContentLoaded',init);
-setInterval(async()=>{if(!verifiedUser()||busy||document?.hidden)return;
+setInterval(async()=>{if(!verifiedUser()||busy||document?.hidden||pendingFieldSaves||sharedReportBusy)return;
  // Do not steal focus while a collaborator is typing an unsubmitted finding.
  if(currentPage==='missions'&&document.activeElement?.matches?.('[data-contrib-field]'))return;
+ if(reportActive()&&document.activeElement?.matches?.('[data-shared-body],[data-group],[data-assessment]'))return;
  try{await fetchAll();render()}catch(e){status('تعذر تحديث الحساب والإشعارات مؤقتًا: '+e.message)}
 },120000);
 })();
