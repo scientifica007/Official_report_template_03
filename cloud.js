@@ -429,7 +429,7 @@ async function loadSelected(){
  if(!current)throw Error('اختر مؤسسة محفوظة أولًا');
  const bridge=window.Report03CloudBridge;
  if(!bridge?.applyIdentity)throw Error('محرر المؤسسة غير متاح');
- const result=bridge.applyIdentity(current.institution_data,current.director_data);
+ const result=bridge.applyIdentity(current.institution_data,current.director_data,{sharedInstitutionId:current.id});
  if(!result?.ok)throw Error(result?.message||'تعذر تحميل المؤسسة الحالية');
  currentPage='report';
  feedback='حُمّلت المؤسسة ورئيسها إلى التقرير. لن تُغيَّر المعاينات الموجودة.';
@@ -501,7 +501,27 @@ root.addEventListener('click',async e=>{
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
 });
-window.Report03CloudUI={resetSelection(){selectedSharedId='';editingVersion=null;institutionDraft={institution:{},director:{}};if(verifiedUser())render()},showView(page){if(verifiedUser()){currentPage=page;render()}}};
+window.Report03CloudUI={
+ resetSelection(){
+  selectedSharedId='';editingVersion=null;institutionDraft={institution:{},director:{}};
+  if(verifiedUser())render();
+ },
+ showView(page){if(verifiedUser()){currentPage=page;render()}},
+ listReportInstitutions(){
+  if(!verifiedUser())return [];
+  return shared.map(record=>({id:record.id,name:record.name,wilaya:record.wilaya,code:record.code}));
+ },
+ selectForReport(id){
+  if(!verifiedUser())return {ok:false,message:'يلزم تسجيل الدخول بحساب مفتش معتمد.'};
+  const record=shared.find(x=>x.id===id);
+  if(!record)return {ok:false,message:'المؤسسة غير موجودة في القائمة الحالية؛ حدّث المؤسسات المشتركة.'};
+  const bridge=window.Report03CloudBridge;
+  if(!bridge?.applyIdentity)return {ok:false,message:'محرر التقرير غير جاهز.'};
+  const result=bridge.applyIdentity(record.institution_data,record.director_data,{sharedInstitutionId:record.id});
+  if(result?.ok)useSharedInstitution(record.id);
+  return result||{ok:false,message:'تعذر تحميل بيانات المؤسسة.'};
+ }
+};
 async function init(){
  render();if(!configured)return;
  try{
