@@ -134,3 +134,55 @@ test('M2.1: enabled cloud configuration is public-only and targets the project r
  assert.ok(!source.includes('sb_secret_')&&!source.includes('service_role:'));
  assert.ok(!source.includes('SUPABASE_DB_PASSWORD'));
 });
+
+
+test('M2.2 shell: hidden editor until approved authentication, with public login as first screen',async()=>{
+ const h=createHarness();
+ h.context.sessionStorage.getItem=()=>null;
+ await h.ready();
+ assert.match(h.elements['cloud-content'].innerHTML,/تسجيل الدخول/);
+ assert.match(h.elements['cloud-content'].innerHTML,/إنشاء حساب/);
+ assert.doesNotMatch(h.elements['cloud-content'].innerHTML,/محرر التقرير 03/);
+ const html=readFileSync('index.html','utf8');
+ assert.match(html,/<div class="app" id="app" hidden>/);
+ assert.match(html,/<section id="cloud-shell" class="portal-shell"/);
+ assert.ok(html.indexOf('<section id="cloud-shell"')>html.indexOf('</div>\n<section id="cloud-shell"')-3);
+});
+test('M2.2 shell: approved users land on dashboard, with distinct profile/admin and report views',async()=>{
+ const h=createHarness();await h.ready();
+ assert.match(h.elements['cloud-content'].innerHTML,/لوحة القيادة/);
+ assert.match(h.elements['cloud-content'].innerHTML,/المؤسسات المشتركة/);
+ assert.match(h.elements['cloud-content'].innerHTML,/المفتشون الزملاء/);
+ assert.match(h.elements['cloud-content'].innerHTML,/قيد التطوير/);
+ await h.navigate('account');
+ assert.match(h.elements['cloud-content'].innerHTML,/حسابي/);
+ assert.match(h.elements['cloud-content'].innerHTML,/inspector@example\.dz/);
+ await h.navigate('report');
+ assert.equal(h.elements['cloud-shell'].hidden,true);
+ await h.navigate('dashboard');
+ assert.equal(h.elements['cloud-shell'].hidden,false);
+});
+test('M2.2 shell: institution can be edited separately from report, without uploading findings',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('institutions');
+ assert.match(h.elements['cloud-content'].innerHTML,/إضافة مؤسسة جديدة/);
+ const reportGetter=h.bridge.getIdentity;
+ h.bridge.getIdentity=()=>{throw new Error('report must not be read by institution editor')};
+ h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ await h.field('institution','address','عنوان معدل في سجل المؤسسات');
+ await h.field('director','fullName','مدير المؤسسة الحالي');
+ await h.action('save');
+ const call=h.requests.find(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions'));
+ assert.ok(call);
+ assert.equal(call.body.institution_data.address,'عنوان معدل في سجل المؤسسات');
+ assert.equal(call.body.director_data.fullName,'مدير المؤسسة الحالي');
+ assert.ok(!('entries' in call.body));
+ assert.ok(!('mission' in call.body));
+ h.bridge.getIdentity=reportGetter;
+});
+test('M2.2 shell: reserved teamwork/calendar/messaging sections explicitly disclose missing implementation',async()=>{
+ const h=createHarness();await h.ready();
+ for(const page of ['missions','calendar','teams','messages']){
+  await h.navigate(page);
+  assert.match(h.elements['cloud-content'].innerHTML,/قيد التطوير/);
+ }
+});
