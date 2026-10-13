@@ -12,7 +12,7 @@ const key=String(cfg.publishableKey||'');
 const configured=/^https:\/\//.test(base)&&base.length<300&&key.length>20&&!key.toLowerCase().includes('service_role')&&!key.startsWith('sb_secret_');
 const SESSION_KEY='official_report03_cloud_session_v1';
 let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],accountDecisions=[],myDecisions=[],mode='login';
-let selectedSharedId='',feedback='',busy=false,currentPage='dashboard';
+let selectedSharedId='',editingVersion=null,feedback='',busy=false,currentPage='dashboard';
 let institutionDraft={institution:{},director:{}};
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
@@ -220,6 +220,7 @@ const INSTITUTION_EDITOR_FIELDS=[
 function useSharedInstitution(id){
  const record=shared.find(x=>x.id===id);
  selectedSharedId=record?.id||'';
+ editingVersion=record?.version??null;
  institutionDraft={
   institution:record?{...record.institution_data}: {},
   director:record?{...record.director_data}:{}
@@ -393,15 +394,21 @@ async function onAuthSubmit(event){
 }
 async function saveShared(){
  if(!verifiedUser())throw Error('الحساب غير معتمد');
- const data=institutionDraft,i=data.institution||{},director=data.director||{};
+ const data=institutionDraft;
+ const i={},director={};
+ for(const [group,field] of INSTITUTION_EDITOR_FIELDS){
+  const dst=group==='institution'?i:director;
+  dst[field]=text(data[group]?.[field]);
+ }
  if(!text(i.name))throw Error('أدخل اسم المؤسسة قبل الحفظ المشترك');
  const baseRecord={name:text(i.name),wilaya:text(i.wilaya),code:text(i.code),
   institution_data:i,director_data:director,updated_by:session.user.id};
  let updated;
  if(selectedSharedId){
   const previous=shared.find(x=>x.id===selectedSharedId);if(!previous)throw Error('المؤسسة المحددة غير موجودة');
-  updated=await submit('shared_institutions',{...baseRecord,version:previous.version+1},
-   {id:'eq.'+previous.id,version:'eq.'+previous.version,select:'id,name,version'},'PATCH');
+  if(editingVersion===null)throw Error('رقم نسخة المؤسسة غير معروف. أعد اختيار المؤسسة قبل الحفظ.');
+  updated=await submit('shared_institutions',{...baseRecord,version:editingVersion+1},
+   {id:'eq.'+previous.id,version:'eq.'+editingVersion,select:'id,name,version'},'PATCH');
   if(!updated.length)throw Error('تغيرت بيانات المؤسسة من طرف مفتش آخر. راجع أحدث نسخة قبل إعادة الحفظ؛ لم نمحُ كتابتك الحالية.');
  }else{
   updated=await submit('shared_institutions',{...baseRecord,created_by:session.user.id,version:1},
@@ -445,7 +452,7 @@ async function changeInspectorStatus(id,newStatus){
 async function signOut(){
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];selectedSharedId='';
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
@@ -478,7 +485,7 @@ root.addEventListener('click',async e=>{
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
 });
-window.Report03CloudUI={resetSelection(){selectedSharedId='';institutionDraft={institution:{},director:{}};if(verifiedUser())render()},showView(page){if(verifiedUser()){currentPage=page;render()}}};
+window.Report03CloudUI={resetSelection(){selectedSharedId='';editingVersion=null;institutionDraft={institution:{},director:{}};if(verifiedUser())render()},showView(page){if(verifiedUser()){currentPage=page;render()}}};
 async function init(){
  render();if(!configured)return;
  try{
