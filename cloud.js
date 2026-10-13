@@ -982,6 +982,67 @@ async function signOut(){
 }
 // Report editor is outside the portal root: bind its header control to the
 // exact same logout path and unsaved-report confirmation as the account page.
+
+document.addEventListener('input',e=>{
+ const itemId=e.target?.dataset?.sharedBody;
+ if(itemId&&reportActive()){
+  const d=sharedDraft(itemId);
+  if(d.body!==e.target.value){d.body=e.target.value;d.requestId='';}
+ }
+});
+document.addEventListener('change',async e=>{
+ if(!reportActive())return;
+ const kindItem=e.target?.dataset?.sharedKind;
+ if(kindItem){const d=sharedDraft(kindItem);d.kind=e.target.value;d.requestId='';return;}
+ const group=e.target?.dataset?.group,key=e.target?.dataset?.field;
+ const assessment=e.target?.dataset?.assessment;
+ if((group&&key)||assessment){
+  if(group&&key&&!((group==='mission'&&['period','previousReports','monthYear'].includes(key))||
+           (group==='summary'&&['generalAssessment','generalRecommendations'].includes(key))))return;
+  const input=e.target;
+  input.disabled=true;
+  try{
+   if(assessment)await saveSharedAssessment(assessment,input.value);
+   else await saveSharedField(group,key,input.value);
+   status('تم حفظ التعديل في المهمة المشتركة.');
+  }catch(err){
+   status('تعذر حفظ التعديل: '+err.message+'. حدّث المهمة وأعد المحاولة.');
+   await loadSharedReportExtras();notifyReportEditor(true);
+  }finally{input.disabled=false;}
+ }
+});
+document.addEventListener('click',async e=>{
+ const button=e.target?.closest?.('[data-shared-action]');
+ if(!button||!reportActive()||sharedReportBusy)return;
+ const action=button.dataset.sharedAction,id=button.dataset.itemId,parentId=button.dataset.parentId;
+ if(action==='refresh'){
+  sharedReportBusy=true;try{await loadSharedReportAll();status('تم تحديث مساهمات المهمة.');}
+  catch(err){status('تعذر التحديث: '+err.message)}
+  finally{sharedReportBusy=false}return;
+ }
+ if(action==='exit'){
+  if(window.Report03CloudBridge?.exitSharedMission?.()){
+   activeReportMissionId='';selectedMissionId='';currentPage='missions';render();
+  }return;
+ }
+ if(!id||!catalogTargets().some(x=>x.id===id))return;
+ const d=sharedDraft(id);
+ if(action==='cancel'){d.kind='finding';d.parentId=null;d.requestId='';window.Report03CloudBridge?.rerenderShared?.();return;}
+ if(action==='reply'||action==='correct'){
+  const parent=missionContributions.find(x=>x.id===parentId&&x.item_id===id&&['finding','recommendation'].includes(x.kind));
+  if(!parent){status('المساهمة الأصلية غير متاحة.');return;}
+  if(action==='correct'&&parent.author_id!==session.user.id){status('لا يمكن تصحيح نص زميلك. استخدم التعقيب.');return;}
+  d.kind=action==='reply'?'reply':'correction';d.parentId=parent.id;d.body='';d.requestId='';
+  window.Report03CloudBridge?.rerenderShared?.();return;
+ }
+ if(action==='save'){
+  sharedReportBusy=true;button.disabled=true;
+  try{await saveEmbedded(id);status('حُفظت المساهمة باسمك في المهمة المشتركة.');}
+  catch(err){status('فشل الحفظ: '+err.message)}
+  finally{sharedReportBusy=false;button.disabled=false;}
+ }
+});
+
 const reportLogout=document.getElementById('report-logout');
 if(reportLogout)reportLogout.addEventListener('click',async()=>{
  if(busy||!verifiedUser())return;
@@ -1071,6 +1132,17 @@ root.addEventListener('click',async e=>{
  finally{busy=false;render()}
 });
 window.Report03CloudUI={
+ activeSharedMissionId(){return reportActive()?activeReportMissionId:''},
+ getSharedReportPayload(){return effectiveSharedReport()},
+ renderSharedEntry(id){return sharedEditorFor(id)},
+ async prepareSharedExport(){return prepareSharedExport()},
+ async refreshSharedReport(){await loadSharedReportAll();return effectiveSharedReport()},
+ async exitSharedReport(){
+  if(!reportActive())return true;
+  const ok=window.Report03CloudBridge?.exitSharedMission?.();
+  if(ok){activeReportMissionId='';currentPage='missions';render();}
+  return Boolean(ok);
+ },
  resetSelection(){
   selectedSharedId='';editingVersion=null;institutionDraft={institution:{},director:{}};
   if(verifiedUser())render();
