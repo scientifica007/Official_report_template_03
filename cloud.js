@@ -18,6 +18,7 @@ let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visi
 let missionContributions=[],contributionLoadedFor='',contributionError='',contributionBusy=false;
 let contributionDrafts=Object.create(null);
 let embeddedDrafts=Object.create(null),activeReportMissionId='';
+const expandedSharedItems=new Set();
 let sharedFieldEvents=[],sharedAssessmentEvents=[],sharedDataLoadedFor='',sharedDataError='';
 let sharedReportBusy=false,pendingFieldSaves=0;
 let institutionDraft={institution:{},director:{}};
@@ -267,7 +268,7 @@ function sharedEditorFor(itemId){
  const draft=sharedDraft(itemId);
  const originals=missionContributions.filter(x=>x.item_id===itemId&&['finding','recommendation'].includes(x.kind));
  const children=missionContributions.filter(x=>x.item_id===itemId&&['reply','correction'].includes(x.kind));
- return '<div class="shared-inline-editor">'+
+ return '<details class="shared-editor-card" data-shared-details="'+elt(itemId)+'" '+(expandedSharedItems.has(itemId)?'open':'')+'><summary>المعاينات والتوصيات ('+originals.length+') — فتح التحرير المشترك</summary><div class="shared-inline-editor">'+
  '<div class="shared-editor-header"><strong>مساهمات المفتشين ('+originals.length+')</strong>'+
  '<button type="button" class="btn subtle" data-shared-action="refresh">تحديث</button></div>'+
  (originals.length?originals.map(x=>{
@@ -293,7 +294,7 @@ function sharedEditorFor(itemId){
  ' <button type="button" class="btn subtle" data-shared-action="cancel" data-item-id="'+elt(itemId)+'">إلغاء</button></p>':'')+
  '<textarea data-shared-body="'+elt(itemId)+'" rows="3" maxlength="30000" placeholder="اكتب هنا. لا يتم الحفظ إلا بعد الضغط على الزر.">'+elt(draft.body)+'</textarea>'+
  '<button type="button" class="add-button" data-shared-action="save" data-item-id="'+elt(itemId)+'">حفظ الإضافة في المهمة</button>'+
- '</div>';
+ '</div></details>';
 }
 async function saveEmbedded(itemId){
  if(!reportActive()||contributionLoadedFor!==activeReportMissionId||contributionError)
@@ -990,6 +991,11 @@ async function signOut(){
 // Report editor is outside the portal root: bind its header control to the
 // exact same logout path and unsaved-report confirmation as the account page.
 
+document.addEventListener('toggle',e=>{
+ if(!e.target?.dataset?.sharedDetails)return;
+ if(e.target.open)expandedSharedItems.add(e.target.dataset.sharedDetails);
+ else expandedSharedItems.delete(e.target.dataset.sharedDetails);
+},true);
 document.addEventListener('input',e=>{
  const itemId=e.target?.dataset?.sharedBody;
  if(itemId&&reportActive()){
