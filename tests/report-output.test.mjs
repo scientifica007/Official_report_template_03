@@ -15,7 +15,7 @@ function createHarness(){
  const printRoot={innerHTML:''};
  const progress={textContent:''};
  const document={getElementById(id){if(id==='print-root')return printRoot;if(id==='report-progress')return progress;return null}};
- const context=vm.createContext({document,__catalog:catalog,TextEncoder});
+ const context=vm.createContext({document,__catalog:catalog,TextEncoder,window:{}});
  vm.runInContext(qrSource,context,{timeout:10000});
  vm.runInContext(source,context,{timeout:10000});
  vm.runInContext('catalog=__catalog;state=emptyState();',context);

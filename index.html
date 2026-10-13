@@ -39,6 +39,12 @@
       <div id="report-progress" class="progress-text">0 معاينة — 0 توصية</div>
       <button id="btn-clear" class="text-danger" type="button">محو بيانات التقرير</button>
     </div>
+    <details id="cloud-shell" class="cloud-shell">
+      <summary>الحسابات والسجل المركزي للمؤسسات <span id="cloud-unread" aria-live="polite"></span></summary>
+      <div id="cloud-content" class="cloud-content">
+        <p>يمكن استخدام الموقع محليًا دون تفعيل حسابات المفتشين.</p>
+      </div>
+    </details>
     <main id="workspace" class="workspace" tabindex="-1"></main>
   </div>
 </div>
@@ -59,5 +65,7 @@
 </dialog>
 <script src="./vendor/qrcodegen.min.js" defer></script>
 <script src="./app.js" defer></script>
+<script src="./cloud-config.js" defer></script>
+<script src="./cloud.js" defer></script>
 </body>
 </html>

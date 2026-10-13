@@ -131,3 +131,41 @@
 .institution-book-error{color:#9d3030;border:1px solid #ecc3c3;padding:12px;border-radius:8px;background:#fff5f5}
 @media(max-width:760px){.institution-book{padding:13px}.institution-actions{display:grid;grid-template-columns:1fr}.institution-actions button{width:100%}}
 @media print{.institution-book{display:none!important}}
+
+/* M2.1 shared institutions — opt-in, keeping the existing editor untouched */
+.cloud-shell{margin:12px clamp(12px,2.5vw,28px);border:1px solid #cbdcd4;border-radius:12px;background:#f8fbf9;color:#224b3c}
+.cloud-shell>summary{cursor:pointer;padding:14px 18px;font-size:14px;font-weight:750;list-style-position:inside}
+.cloud-shell>summary::marker{color:#30664f}
+.cloud-shell[open]>summary{border-bottom:1px solid #d3e2d9}
+.cloud-content{padding:18px}
+.cloud-content h3,.cloud-content h4{margin:0 0 9px;color:#174a3d}
+.cloud-content h4{font-size:15px}
+.cloud-content p{font-size:13px;line-height:1.8;margin:7px 0}
+.cloud-content input,.cloud-content select{width:100%;background:#fff;border:1px solid #b7cfc1;border-radius:8px;padding:9px 12px;color:#133f32;min-height:41px}
+.cloud-content label{display:block;font-size:13px;font-weight:600;margin:12px 0}
+.cloud-content form>button{margin:12px 0 0}
+.cloud-modes,.cloud-actions,.cloud-header,.cloud-pending{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.cloud-modes button{border:1px solid #aac1b5;padding:9px 18px;border-radius:8px;background:#fff;cursor:pointer}
+.cloud-modes button[aria-current="true"]{background:#1e5a47;color:#fff}
+.cloud-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cloud-header,.cloud-directory,.cloud-alerts,.cloud-approvals{padding:14px 0;border-bottom:1px solid #d4e1d9}
+.cloud-header p{flex:1}
+.cloud-directory>select{margin:5px 0 14px}
+.cloud-alerts,.cloud-directory{max-width:100%}
+.cloud-notice{background:#fff;border:1px solid #d5e3dc;border-radius:9px;padding:12px;margin:10px 0}
+.cloud-notice.is-read{opacity:.83;background:#f4f6f5}
+.cloud-notice table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.cloud-notice td,.cloud-notice th{padding:7px;border:1px solid #d4ded8;overflow-wrap:anywhere}
+.cloud-notice .add-button{margin-top:10px}
+.cloud-message{margin-top:12px;font-size:13px;color:#23543f}
+.cloud-warning{border:1px solid #e7c58c;background:#fff9ee;border-radius:8px;padding:12px}
+.cloud-tip{color:#526c5e}
+.cloud-pending{padding:10px;margin:6px 0;background:#fff;border-radius:8px;justify-content:space-between}
+@media(max-width:760px){
+ .cloud-two{grid-template-columns:1fr}
+ .cloud-shell{margin:8px}
+ .cloud-content{padding:12px}
+ .cloud-actions>*{width:100%}
+ .cloud-notice{overflow-x:auto}
+}
+@media print{.cloud-shell{display:none!important}}
