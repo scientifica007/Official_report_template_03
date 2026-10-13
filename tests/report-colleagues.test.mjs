@@ -72,7 +72,7 @@ test('M2.2.5: supports multiple distinct directory colleagues, disallows duplica
 test('M2.2.5: directory remains optional, while manual inspector addition is still present',()=>{
  const h=harness({directory:[]});
  assert.match(h.markup(),/لا يوجد زملاء آخرون متاحون/);
- assert.match(app,/id="add-inspector">\\+ إضافة مفتش يدويًا/);
+ assert.match(app,/id="add-inspector">\+ إضافة مفتش يدويًا/);
  assert.match(app,/if\(b\.id==='add-inspector'\)/);
  assert.equal(h.state.inspectors.length,1);
 });
