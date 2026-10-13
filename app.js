@@ -19,7 +19,7 @@ const FIELDSETS = [
 const BOOK_KEY='official_report_03_institutions_v1',BOOK_FORMAT='OFFICIAL_REPORT_03_INSTITUTIONS_V1';
 const INST_KEYS=FIELDSETS.find(x=>x.id==='institution').fields.map(x=>x[0]);
 const HEAD_KEYS=FIELDSETS.find(x=>x.id==='director').fields.map(x=>x[0]);
-let institutionBook=[],selectedInstitutionId='',bookError='';
+let institutionBook=[],selectedInstitutionId='',selectedCloudInstitutionId='',bookError='';
 function fieldsOnly(data,keys){const o={};for(const k of keys)o[k]=typeof data?.[k]==='string'?data[k].trim():'';return o}
 function bookData(x){return {institution:fieldsOnly(x.institution,INST_KEYS),director:fieldsOnly(x.director,HEAD_KEYS)}}
 function bookNorm(x){return text(x).normalize('NFKC').replace(/\s+/g,' ').toLocaleLowerCase('ar')}
@@ -52,6 +52,12 @@ function persistBook(records){
 function hasInspectionInput(){return Object.values(state.entries).some(e=>e&&((e.findings||[]).length||(e.recommendations||[]).length||assessmentLabel(e.assessment)))||
  Object.values(pendingDrafts).some(e=>e&&(text(e.findings)||text(e.recommendations)))}
 function chooseInstitution(id){
+ if(id.startsWith('central:')){
+  const result=window.Report03CloudUI?.selectForReport?.(id.slice('central:'.length));
+  if(!result?.ok){showToast(result?.message||'تعذر تحميل المؤسسة المشتركة. حدّث قائمة المؤسسات ثم حاول مجددًا.');render()}
+  else showToast('حُمّلت بيانات المؤسسة المشتركة ورئيسها إلى التقرير دون نسخها إلى السجل المحلي.');
+  return;
+ }
  const record=institutionBook.find(x=>x.id===id);
  if(id&&!record){showToast('المؤسسة غير موجودة.');render();return}
  if(hasInspectionInput()){showToast('لا يمكن تغيير المؤسسة مع وجود معاينات أو تقييمات. صدّر التقرير ثم امحُ بيانات التقرير أولًا.');render();return}
@@ -59,7 +65,7 @@ function chooseInstitution(id){
  !confirm('استبدال بيانات المؤسسة ورئيسها بمعلومات المؤسسة المختارة؟ لن تُحذف بيانات المهمة أو المفتشين.')){render();return}
  state.institution=record?{...record.institution}:{};
  state.director=record?{...record.director}:{};
- selectedInstitutionId=record?.id||'';window.Report03CloudUI?.resetSelection?.();changed=true;render();
+ selectedInstitutionId=record?.id||'';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();changed=true;render();
  showToast(record?'استُرجعت المؤسسة ورئيسها. اضغط «حفظ المؤسسة» لتثبيت أي تعديل.':'أدخل بيانات مؤسسة ورئيسها الجديد ثم احفظهما.');
 }
 function saveInstitution(){
@@ -72,14 +78,14 @@ function saveInstitution(){
  const next=old?institutionBook.map(x=>x.id===old.id?record:x):[...institutionBook,record];
  if(!persistBook(next))return;
  state.institution={...record.institution};state.director={...record.director};
- selectedInstitutionId=record.id;window.Report03CloudUI?.resetSelection?.();render();
+ selectedInstitutionId=record.id;selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();render();
  showToast(old?'حُفظت تعديلات المؤسسة ورئيسها.':'حُفظت المؤسسة ورئيسها في المتصفح.');
 }
 function deleteInstitution(){
  const old=institutionBook.find(x=>x.id===selectedInstitutionId);if(!old)return;
  if(!confirm('حذف «'+old.institution.name+'» من سجل المؤسسات؟ لن يُحذف تقريرك الحالي.'))return;
  if(!persistBook(institutionBook.filter(x=>x.id!==old.id)))return;
- selectedInstitutionId='';render();showToast('حُذفت المؤسسة من السجل فقط.');
+ selectedInstitutionId='';selectedCloudInstitutionId='';render();showToast('حُذفت المؤسسة من السجل فقط.');
 }
 function exportInstitutions(){
  const payload={format:BOOK_FORMAT,exportedAt:new Date().toISOString(),institutions:institutionBook};
@@ -103,19 +109,28 @@ async function importInstitutions(event){
  }catch(e){showToast('تعذر استيراد سجل المؤسسات: '+e.message)}
 }
 function renderInstitutionBook(){
- const opts=[...institutionBook].sort((a,b)=>a.institution.name.localeCompare(b.institution.name,'ar')).map(x=>
- '<option value="'+safe(x.id)+'" '+(selectedInstitutionId===x.id?'selected':'')+'>'+safe(x.institution.name+(x.institution.wilaya?' — '+x.institution.wilaya:'')+(x.institution.code?' ('+x.institution.code+')':''))+'</option>').join('');
- return '<div class="institution-book"><h3>سجل المؤسسات</h3>'+
- '<p class="helper">تُحفظ بيانات المؤسسة ورئيسها في هذا المتصفح فقط؛ لا تُحفظ التقارير. يمكن نقل السجل بين الأجهزة بصيغة JSON.</p>'+
+ const central=window.Report03CloudUI?.listReportInstitutions?.()||[];
+ const centralOptions=central.map(x=>
+  '<option value="central:'+safe(x.id)+'" '+(selectedCloudInstitutionId===x.id?'selected':'')+'>'+
+  safe(x.name+(x.wilaya?' — '+x.wilaya:'')+(x.code?' ('+x.code+')':''))+'</option>').join('');
+ const localOptions=[...institutionBook].sort((a,b)=>a.institution.name.localeCompare(b.institution.name,'ar')).map(x=>
+  '<option value="'+safe(x.id)+'" '+(selectedInstitutionId===x.id?'selected':'')+'>'+
+  safe(x.institution.name+(x.institution.wilaya?' — '+x.institution.wilaya:'')+(x.institution.code?' ('+x.institution.code+')':''))+'</option>').join('');
+ return '<div class="institution-book"><h3>اختيار المؤسسة</h3>'+
+ '<p class="helper">اختر مؤسسة من السجل المركزي المشترك لاسترجاع بياناتها ورئيسها مباشرة إلى التقرير. المؤسسات المحلية القديمة متاحة بصورة منفصلة.</p>'+
  (bookError?'<p class="institution-book-error">'+safe(bookError)+'</p>':'')+
- '<label for="stored-institution">اختيار مؤسسة محفوظة أو مؤسسة جديدة</label>'+
- '<select id="stored-institution" data-stored-institution="true"><option value="" '+(!selectedInstitutionId?'selected':'')+'>+ مؤسسة جديدة</option>'+opts+'</select>'+
- '<div class="institution-actions"><button type="button" class="add-button" data-save-institution="true">حفظ المؤسسة ورئيسها</button>'+
- '<button type="button" class="btn subtle" data-export-institutions="true">تصدير المؤسسات JSON</button>'+
- '<button type="button" class="btn subtle" data-import-institutions="true">استيراد المؤسسات JSON</button>'+
- (selectedInstitutionId?'<button type="button" class="btn danger-outline" data-delete-institution="true">حذف من السجل</button>':'')+
+ '<label for="stored-institution">اختيار مؤسسة مشتركة أو محلية، أو إنشاء مؤسسة جديدة</label>'+
+ '<select id="stored-institution" data-stored-institution="true">'+
+ '<option value="" '+(!selectedInstitutionId&&!selectedCloudInstitutionId?'selected':'')+'>+ مؤسسة جديدة</option>'+
+ '<optgroup label="المؤسسات المشتركة — السجل المركزي ('+central.length+')">'+centralOptions+'</optgroup>'+
+ '<optgroup label="المؤسسات المحلية — هذا الجهاز ('+institutionBook.length+')">'+localOptions+'</optgroup>'+
+ '</select>'+
+ '<div class="institution-actions"><button type="button" class="add-button" data-save-institution="true">حفظ المؤسسة ورئيسها محليًا</button>'+
+ '<button type="button" class="btn subtle" data-export-institutions="true">تصدير المؤسسات المحلية JSON</button>'+
+ '<button type="button" class="btn subtle" data-import-institutions="true">استيراد المؤسسات المحلية JSON</button>'+
+ (selectedInstitutionId?'<button type="button" class="btn danger-outline" data-delete-institution="true">حذف من السجل المحلي</button>':'')+
  '<input id="institutions-file" type="file" accept=".json,application/json" hidden></div>'+
- '<p class="helper">تعديل بيانات المؤسسة المختارة أو رئيسها لا يغير السجل إلا عند الضغط على زر الحفظ. محو التقرير لا يمحو المؤسسات.</p></div>';
+ '<p class="helper">التعديل داخل التقرير لا يغيّر بيانات المؤسسة المركزية. لتعديل السجل المشترك استخدم قسم «المؤسسات» في لوحة القيادة. لا تُرفع معاينات التقرير أو توصياته إلى السحابة.</p></div>';
 }
 
 function emptyState(){return {templateId:'OFFICIAL_REPORT_TEMPLATE_03',catalogVersion:'M1.4-UX-ATOMIC-2026-10-12',status:'draft',mission:{},institution:{},director:{},summary:{},inspectors:[{id:makeId(),name:'',role:'IFEP',district:''}],entries:{},legacyAssessments:[]}}
@@ -137,7 +152,7 @@ function updateProgress(){const {f,r}=counts();const assessed=Object.values(stat
 function showToast(message){const n=$('toast');n.textContent=message;n.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>n.classList.remove('show'),3200)}
 function renderNav(){const shell=$('section-nav');shell.innerHTML=catalog.sections.filter(s=>s.id!=='I').map(s=>`<div><button type="button" class="section-btn ${currentView===s.id?'selected':''}" data-chapter="${s.id}"><span><span class="section-index">${s.id}</span> ${safe(s.label)}</span><span>${s.domains.length?'⌄':'›'}</span></button>${currentView===s.id&&s.domains.length?`<div>${s.domains.map(d=>`<button type="button" class="domain-btn ${currentDomain===d.id?'selected':''}" data-domain="${safe(d.id)}"><span>${d.number?`${d.number}. `:''}${safe(d.label)}</span></button>`).join('')}</div>`:''}</div>`).join('');document.querySelector('[data-view="meta"]').classList.toggle('selected',currentView==='meta')}
 function render(){if(!valid())return;renderNav();updateProgress();const root=$('workspace');root.innerHTML=currentView==='meta'?renderMeta():renderChapter();}
-function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. تظل بيانات التقارير في ذاكرة التبويب، ويمكن حفظ بيانات المؤسسة ورئيسها محليًا عند اختيار ذلك.</p><div class="scope-warning">هذه نسخة تنفيذية تجريبية تعمل دون حسابات أو تعاون مباشر. إدراج أسماء عدة مفتشين هنا يخص الغلاف فقط؛ نظام الأعضاء المتساوين والاقتراحات المتبادلة سيُضاف عند تفعيل خدمة العمل التعاوني الآمنة.</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''}"><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}">${safe(state[g.id][id]||'')}</textarea>`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">للبيانات الظاهرة على الغلاف. المشاركة بين حسابات مختلفة غير مفعّلة في هذا الإصدار.</p><div id="inspector-rows">${state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div><button class="add-button" type="button" id="add-inspector">+ إضافة مفتش</button></section>`}
+function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. تظل بيانات التقارير في ذاكرة التبويب. يمكن اختيار مؤسسة من السجل المركزي المشترك أو استخدام سجل المؤسسات المحلي القديم.</p><div class="scope-warning">هذا المحرر متاح للمفتشين المعتمدين. إدراج أسماء عدة مفتشين هنا يخص الغلاف فقط؛ نظام الأعضاء المتساوين والاقتراحات المتبادلة سيُضاف عند تفعيل خدمة العمل التعاوني الآمنة.</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''}"><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}">${safe(state[g.id][id]||'')}</textarea>`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">للبيانات الظاهرة على الغلاف. المشاركة بين حسابات مختلفة غير مفعّلة في هذا الإصدار.</p><div id="inspector-rows">${state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div><button class="add-button" type="button" id="add-inspector">+ إضافة مفتش</button></section>`}
 function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
  const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
 function renderEntryEditor(id,label){const e=getEntry(id);return `<div class="entry-area">${[['findings','المعاينات','المعاينة'],['recommendations','التوصيات','التوصية']].map(([kind,title,placeholder])=>`<div class="entry-box"><h3>${title} <span class="pill count">${(e[kind]||[]).length}</span></h3>${(e[kind]||[]).length?`<ul class="item-list">${e[kind].map(v=>`<li>${safe(v.text)}<button type="button" class="remove-entry" data-remove="${id}" data-kind="${kind}" data-entry="${v.id}" title="حذف">×</button></li>`).join('')}</ul>`:'<p class="empty">لا يوجد إدخال بعد</p>'}<textarea data-input-target="${id}" data-input-kind="${kind}" placeholder="اكتب ${placeholder}؛ سيُضم النص عند التصدير حتى دون الضغط على زر الإضافة">${safe(pendingDrafts[id]?.[kind]||'')}</textarea><button type="button" class="add-button" data-add="${id}" data-kind="${kind}">+ إضافة ${placeholder}</button></div>`).join('')}</div>`}
@@ -148,8 +163,8 @@ function scrollTop(){document.querySelector('.sidebar').classList.remove('open')
 function download(bytes,type,extension){const a=document.createElement('a');const blob=new Blob([bytes],{type});a.href=URL.createObjectURL(blob);const c=(state.institution.code||'report03').replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,40);a.download=`inspection_03_${c}_${new Date().toISOString().slice(0,10)}.${extension}`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}
 function exportSnapshot(){commitPendingEntries();const entries={};for(const [key,e] of Object.entries(state.entries)){if(!(e.findings.length||e.recommendations.length||assessmentLabel(e.assessment)))continue;entries[key]={assessment:assessmentLabel(e.assessment)?e.assessment:null,findings:e.findings.map(x=>({id:x.id,text:x.text})),recommendations:e.recommendations.map(x=>({id:x.id,text:x.text}))}}return {templateId:state.templateId,catalogVersion:catalog.catalogVersion,exportVersion:'1.0',status:'draft',issuedAt:new Date().toISOString(),mission:{...state.mission},institution:{...state.institution},director:{...state.director},summary:{...state.summary},inspectors:state.inspectors.map(x=>({...x})),legacyAssessments:state.legacyAssessments.map(x=>({...x})),entries}}
 function exportJSON(){const out=JSON.stringify(exportSnapshot(),null,2);download(out,'application/json;charset=utf-8','json');changed=false;showToast('تم تنزيل ملف JSON. يمكنك استيراده لاحقًا.')}
-async function importJSON(ev){const file=ev.target.files?.[0];ev.target.value='';if(!file)return;try{if(file.size>5_000_000)throw Error('حجم الملف كبير جدًا');const x=JSON.parse(await file.text());if(x.templateId!=='OFFICIAL_REPORT_TEMPLATE_03'||typeof x.entries!=='object'||!x.entries||Array.isArray(x.entries))throw Error('هذا الملف ليس تقريرًا مدعومًا');const validIds=new Set([...[...catalog.sections.map(s=>s.id)],...allDomains().flatMap(d=>[d.id,...d.indicators.map(i=>i.id)])]);pendingDrafts=Object.create(null);const entries={};const legacyAssessments=Array.isArray(x.legacyAssessments)?x.legacyAssessments.slice(0,100).filter(v=>v&&typeof v==='object'&&assessmentLabel(v.assessment)).map(v=>({sourceId:String(v.sourceId||'').slice(0,100),label:String(v.label||'').slice(0,2000),assessment:v.assessment})):[];for(const [oldId,e] of Object.entries(x.entries)){const split=catalog.splitHistory?.find(rule=>rule.legacyId===oldId);const id=split?split.domainId:(oldId==='III-02-I006'?'III-02-I005':oldId);if(!validIds.has(id)||!e||typeof e!=='object')continue;if(!entries[id])entries[id]={assessment:null,findings:[],recommendations:[]};if(assessmentLabel(e.assessment)){if(split){legacyAssessments.push({sourceId:split.legacyId,label:split.legacyLabel,assessment:e.assessment})}else entries[id].assessment=e.assessment}for(const kind of ['findings','recommendations']){if(Array.isArray(e[kind]))entries[id][kind].push(...e[kind].slice(0,500).filter(v=>v&&typeof v.text==='string').map(v=>({id:makeId(),text:v.text.slice(0,30000)})))}}selectedInstitutionId='';window.Report03CloudUI?.resetSelection?.();state={...emptyState(),mission:x.mission&&typeof x.mission==='object'?x.mission:{},institution:x.institution&&typeof x.institution==='object'?x.institution:{},director:x.director&&typeof x.director==='object'?x.director:{},summary:x.summary&&typeof x.summary==='object'?x.summary:{},inspectors:Array.isArray(x.inspectors)&&x.inspectors.length?x.inspectors.slice(0,30).map(v=>({id:makeId(),name:String(v.name||'').slice(0,200),role:['IFEP','ITP','IAF'].includes(v.role)?v.role:'IFEP',district:String(v.district||'').slice(0,100)})):[{id:makeId(),name:'',role:'IFEP',district:''}],entries,legacyAssessments};currentView='meta';changed=true;render();showToast(legacyAssessments.length?'تم الاستيراد؛ تقييمات المؤشرات المركبة القديمة محفوظة للمراجعة في JSON ولم تُوزّع على عناصر جديدة':'تم استيراد بيانات التقرير إلى ذاكرة التبويب')}catch(err){alert('تعذّر الاستيراد: '+err.message)}}
-function clearReport(){if(!confirm('سيتم محو جميع بيانات التقرير الحالية من ذاكرة هذا التبويب. هل تأكدت من تنزيل ملف JSON أو DOCX أو PDF قبل المتابعة؟'))return;state=emptyState();selectedInstitutionId='';window.Report03CloudUI?.resetSelection?.();pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;$('print-root').replaceChildren();$('import-file').value='';$('export-dialog').close();render();showToast('تم محو بيانات التقرير من الواجهة')}
+async function importJSON(ev){const file=ev.target.files?.[0];ev.target.value='';if(!file)return;try{if(file.size>5_000_000)throw Error('حجم الملف كبير جدًا');const x=JSON.parse(await file.text());if(x.templateId!=='OFFICIAL_REPORT_TEMPLATE_03'||typeof x.entries!=='object'||!x.entries||Array.isArray(x.entries))throw Error('هذا الملف ليس تقريرًا مدعومًا');const validIds=new Set([...[...catalog.sections.map(s=>s.id)],...allDomains().flatMap(d=>[d.id,...d.indicators.map(i=>i.id)])]);pendingDrafts=Object.create(null);const entries={};const legacyAssessments=Array.isArray(x.legacyAssessments)?x.legacyAssessments.slice(0,100).filter(v=>v&&typeof v==='object'&&assessmentLabel(v.assessment)).map(v=>({sourceId:String(v.sourceId||'').slice(0,100),label:String(v.label||'').slice(0,2000),assessment:v.assessment})):[];for(const [oldId,e] of Object.entries(x.entries)){const split=catalog.splitHistory?.find(rule=>rule.legacyId===oldId);const id=split?split.domainId:(oldId==='III-02-I006'?'III-02-I005':oldId);if(!validIds.has(id)||!e||typeof e!=='object')continue;if(!entries[id])entries[id]={assessment:null,findings:[],recommendations:[]};if(assessmentLabel(e.assessment)){if(split){legacyAssessments.push({sourceId:split.legacyId,label:split.legacyLabel,assessment:e.assessment})}else entries[id].assessment=e.assessment}for(const kind of ['findings','recommendations']){if(Array.isArray(e[kind]))entries[id][kind].push(...e[kind].slice(0,500).filter(v=>v&&typeof v.text==='string').map(v=>({id:makeId(),text:v.text.slice(0,30000)})))}}selectedInstitutionId='';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();state={...emptyState(),mission:x.mission&&typeof x.mission==='object'?x.mission:{},institution:x.institution&&typeof x.institution==='object'?x.institution:{},director:x.director&&typeof x.director==='object'?x.director:{},summary:x.summary&&typeof x.summary==='object'?x.summary:{},inspectors:Array.isArray(x.inspectors)&&x.inspectors.length?x.inspectors.slice(0,30).map(v=>({id:makeId(),name:String(v.name||'').slice(0,200),role:['IFEP','ITP','IAF'].includes(v.role)?v.role:'IFEP',district:String(v.district||'').slice(0,100)})):[{id:makeId(),name:'',role:'IFEP',district:''}],entries,legacyAssessments};currentView='meta';changed=true;render();showToast(legacyAssessments.length?'تم الاستيراد؛ تقييمات المؤشرات المركبة القديمة محفوظة للمراجعة في JSON ولم تُوزّع على عناصر جديدة':'تم استيراد بيانات التقرير إلى ذاكرة التبويب')}catch(err){alert('تعذّر الاستيراد: '+err.message)}}
+function clearReport(){if(!confirm('سيتم محو جميع بيانات التقرير الحالية من ذاكرة هذا التبويب. هل تأكدت من تنزيل ملف JSON أو DOCX أو PDF قبل المتابعة؟'))return;state=emptyState();selectedInstitutionId='';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;$('print-root').replaceChildren();$('import-file').value='';$('export-dialog').close();render();showToast('تم محو بيانات التقرير من الواجهة')}
 function entryHtml(id){const e=getEntry(id);if(!e.findings.length&&!e.recommendations.length&&!assessmentLabel(e.assessment))return '';return `<div class="print-note">${assessmentLabel(e.assessment)?`<div class="print-assessment">نتيجة الفحص أو التقييم: ${safe(assessmentLabel(e.assessment))}</div>`:''}${e.findings.length?`<span class="print-label">المعاينات:</span><ul>${e.findings.map(x=>`<li>${safe(x.text)}</li>`).join('')}</ul>`:''}${e.recommendations.length?`<span class="print-label">التوصيات:</span><ul>${e.recommendations.map(x=>`<li>${safe(x.text)}</li>`).join('')}</ul>`:''}</div>`}
 
 /* Parallel print columns: findings and recommendations always align with their own criterion. */
@@ -309,7 +324,7 @@ window.Report03CloudBridge={
       Object.values(state[group]||{}).some(value=>Boolean(text(value))))||
     (state.inspectors||[]).some(i=>Object.values(i).some(value=>Boolean(text(value))));
   if(reportHasData&&!confirm('سيؤدي تسجيل الخروج إلى محو بيانات التقرير الجاري من ذاكرة التبويب. صدّر JSON أو DOCX أو PDF قبل المتابعة. هل تريد تسجيل الخروج ومحو المسودة؟'))return false;
-  state=emptyState();selectedInstitutionId='';
+  state=emptyState();selectedInstitutionId='';selectedCloudInstitutionId='';
   pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;
   $('print-root')?.replaceChildren();
   const file=$('import-file');if(file)file.value='';
@@ -318,14 +333,14 @@ window.Report03CloudBridge={
   return true;
  },
  getIdentity(){return bookData(state)},
- applyIdentity(institution,director){
+ applyIdentity(institution,director,metadata={}){
   if(!catalog)return {ok:false,message:'انتظر تحميل فهرس النموذج.'};
   if(hasInspectionInput())return {ok:false,message:'توجد معاينات أو تقييمات ضمن التقرير الحالي. صدّره ثم امحُ بياناته قبل تغيير المؤسسة.'};
   if([...Object.values(state.institution),...Object.values(state.director)].some(text)&&
      !confirm('هل تريد استبدال بيانات المؤسسة ورئيسها الحالية بمعلومات السجل المشترك؟'))return {ok:false,message:'لم تُغيَّر بيانات التقرير.'};
   state.institution=fieldsOnly(institution||{},INST_KEYS);
   state.director=fieldsOnly(director||{},HEAD_KEYS);
-  selectedInstitutionId='';changed=true;render();
+  selectedInstitutionId='';selectedCloudInstitutionId=metadata.sharedInstitutionId||'';changed=true;render();
   return {ok:true};
  }
 };

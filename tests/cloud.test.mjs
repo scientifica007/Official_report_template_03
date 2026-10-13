@@ -25,7 +25,7 @@ function createHarness(configured=true,conflict=false){
  const bridge={
   getIdentity(){return {institution:{name:'مركز تبسة 1',wilaya:'تبسة',code:'1201',address:'عنوان جديد'},
                           director:{fullName:'الرئيس الجديد'}}},
-  applyIdentity(i,d){bridge.received={institution:i,director:d};return {ok:true}}
+  applyIdentity(i,d,metadata){bridge.received={institution:i,director:d,metadata};return {ok:true}}
  };
  const localSession={access_token:'mock-access-token',refresh_token:'mock-refresh-token',user:{id:uid,email:'inspector@example.dz'},expires_at_ms:Date.now()+600000};
  const storage={getItem:()=>JSON.stringify(localSession),setItem(){},removeItem(){}};
@@ -261,4 +261,65 @@ test('M2.2.1: portal header logout works from dashboard without first opening ac
  await h.action('logout');
  assert.equal(h.requests.filter(x=>x.url.endsWith('/auth/v1/logout')).length,1);
  assert.match(h.elements['cloud-content'].innerHTML,/تسجيل الدخول/);
+});
+
+
+test('M2.2.2: report bridge lists all available central institutions after approved sign-in',async()=>{
+ const h=createHarness();await h.ready();
+ const shared=h.context.window.Report03CloudUI.listReportInstitutions();
+ assert.equal(shared.length,1);
+ assert.equal(shared[0].name,'مركز تبسة 1');
+ assert.equal(shared[0].code,'1201');
+ assert.equal(shared[0].id,institutionId);
+ assert.equal(Object.hasOwn(shared[0],'institution_data'),false);
+ const inactive=createHarness(false);await inactive.ready();
+ assert.equal(inactive.context.window.Report03CloudUI.listReportInstitutions().length,0);
+});
+test('M2.2.2: selecting central institution populates report identity and current director without local saves',async()=>{
+ const h=createHarness();await h.ready();
+ const result=h.context.window.Report03CloudUI.selectForReport(institutionId);
+ assert.equal(result.ok,true);
+ assert.equal(h.bridge.received.institution.code,'1201');
+ assert.equal(h.bridge.received.director.fullName,'الرئيس القديم');
+ assert.equal(h.bridge.received.metadata.sharedInstitutionId,institutionId);
+ assert.equal(h.requests.filter(r=>r.method==='POST'&&r.url.includes('/shared_institutions')).length,0);
+ assert.equal(h.requests.filter(r=>r.method==='PATCH'&&r.url.includes('/shared_institutions')).length,0);
+ const missing=h.context.window.Report03CloudUI.selectForReport('not-a-real-id');
+ assert.equal(missing.ok,false);
+ assert.match(missing.message,/غير موجودة/);
+});
+test('M2.2.2: report select renders shared and legacy local institutions in distinct groups',()=>{
+ const a=app.indexOf('function renderInstitutionBook(){');
+ const b=app.indexOf('\nfunction emptyState(){',a);
+ assert.ok(a>=0&&b>a);
+ const functionBody=app.slice(a,b);
+ const shared=[{id:'central-1214',name:'معهد بن طبال',wilaya:'تبسة',code:'1214'},
+               {id:'central-1201',name:'مركز تبسة',wilaya:'تبسة',code:'1201'},
+               {id:'central-1224',name:'معهد الشريعة',wilaya:'تبسة',code:'1224'}];
+ const local=[{id:'local-test',institution:{name:'مؤسسة تجريبية',wilaya:'تبسة',code:'9999'}}];
+ const context={window:{Report03CloudUI:{listReportInstitutions:()=>shared}},
+  institutionBook:local,selectedInstitutionId:'',selectedCloudInstitutionId:'',bookError:'',
+  safe:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')};
+ const rendered=vm.runInNewContext(functionBody+'\nrenderInstitutionBook()',context,{timeout:10000});
+ assert.match(rendered,/المؤسسات المشتركة — السجل المركزي \(3\)/);
+ assert.match(rendered,/المؤسسات المحلية — هذا الجهاز \(1\)/);
+ for(const x of shared)assert.ok(rendered.includes('value="central:'+x.id+'"'));
+ assert.match(rendered,/value="local-test"/);
+ assert.match(rendered,/التعديل داخل التقرير لا يغيّر بيانات المؤسسة المركزية/);
+});
+test('M2.2.2: central selection delegates to cloud bridge instead of local storage',()=>{
+ const start=app.indexOf('function chooseInstitution(id){');
+ const end=app.indexOf('\nfunction saveInstitution(){',start);
+ assert.ok(start>=0&&end>start);
+ let selected='',saved=0;
+ const ctx={window:{Report03CloudUI:{selectForReport(id){selected=id;return {ok:true}},resetSelection(){}}},
+  institutionBook:[{id:'local-test'}],safe:s=>s,
+  showToast(){},render(){},hasInspectionInput(){return false},
+  persistBook(){saved++},state:{institution:{},director:{}},text:s=>String(s||''),
+  confirm(){return true},changed:false,selectedInstitutionId:'',selectedCloudInstitutionId:''};
+ vm.runInNewContext(app.slice(start,end)+"\nchooseInstitution('central:central-1214')",ctx,{timeout:10000});
+ assert.equal(selected,'central-1214');
+ assert.equal(saved,0);
+ assert.equal(ctx.institutionBook.length,1);
+ assert.match(app,/selectedCloudInstitutionId=metadata\.sharedInstitutionId\|\|''/);
 });
