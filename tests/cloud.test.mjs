@@ -12,11 +12,14 @@ const entry={id:institutionId,name:'مركز تبسة 1',wilaya:'تبسة',code:
  institution_data:{name:'مركز تبسة 1',wilaya:'تبسة',code:'1201',address:'تبسة'},
  director_data:{fullName:'الرئيس القديم'},version:1,updated_at:'2026-10-13T10:00:00Z',updated_by:uid};
 function createHarness(configured=true,conflict=false){
- const events={root:{},document:{}},requests=[],values=new Map();
+ const events={root:{},document:{},report:{}},requests=[],values=new Map();
  const elements={
  'cloud-shell':{open:true},
  'cloud-content':{innerHTML:'',addEventListener(name,fn){events.root[name]=fn}},
- 'cloud-unread':{textContent:''}
+ 'cloud-unread':{textContent:''},
+ 'report-logout':{disabled:false,addEventListener(name,fn){events.report[name]=fn}},
+ 'report-session-controls':{hidden:true},
+ 'report-user-name':{textContent:''}
  };
  const document={getElementById(id){return elements[id]||null},addEventListener(name,fn){events.document[name]=fn}};
  const bridge={
@@ -207,4 +210,55 @@ test('M2.2 shell: signup and admin commands stay inside the account portal, not 
  assert.match(source,/function portalNavigation\(\)/);
  assert.match(app,/prepareLogout\(\)/);
  assert.match(html,/id="return-dashboard"/);
+});
+
+
+test('M2.2.1: logout and inspector name appear persistently on portal header and report header',async()=>{
+ const html=readFileSync('index.html','utf8');
+ const styles=readFileSync('style.css','utf8');
+ assert.match(html,/id="report-user-name"/);
+ assert.match(html,/id="report-logout"/);
+ assert.match(source,/data-cloud-action="logout"/);
+ assert.match(source,/portal-session-controls/);
+ assert.match(styles,/\.portal-topbar\{position:sticky/);
+ assert.match(styles,/\.app \.topbar\{position:sticky/);
+ assert.match(styles,/\.session-controls\[hidden\]\{display:none!important\}/);
+ const h=createHarness();await h.ready();
+ assert.match(h.elements['cloud-content'].innerHTML,/portal-session-controls/);
+ assert.match(h.elements['cloud-content'].innerHTML,/تسجيل الخروج/);
+ await h.navigate('report');
+ assert.equal(h.elements['report-session-controls'].hidden,false);
+ assert.equal(h.elements['report-user-name'].textContent,'مفتش تجريبي');
+ assert.equal(typeof h.events.report.click,'function');
+ await h.navigate('dashboard');
+ assert.equal(h.elements['report-session-controls'].hidden,true);
+});
+test('M2.2.1: header logout uses same unsaved-report safeguard and does not sign out if cancelled',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('report');
+ let calls=0;
+ h.bridge.prepareLogout=()=>{calls++;return false};
+ await h.events.report.click();
+ assert.equal(calls,1);
+ assert.equal(h.requests.filter(x=>x.url.endsWith('/auth/v1/logout')).length,0);
+ assert.equal(h.elements['report-session-controls'].hidden,false);
+ assert.equal(h.elements['report-logout'].disabled,false);
+});
+test('M2.2.1: report header logout clears session and returns to login, without extra credentials',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('report');
+ let calls=0;
+ h.bridge.prepareLogout=()=>{calls++;return true};
+ await h.events.report.click();
+ assert.equal(calls,1);
+ assert.equal(h.requests.filter(x=>x.url.endsWith('/auth/v1/logout')).length,1);
+ assert.equal(h.elements['report-session-controls'].hidden,true);
+ assert.match(h.elements['cloud-content'].innerHTML,/تسجيل الدخول/);
+ assert.match(h.elements['cloud-content'].innerHTML,/إنشاء حساب/);
+ assert.equal(h.elements['report-user-name'].textContent,'');
+});
+test('M2.2.1: portal header logout works from dashboard without first opening account page',async()=>{
+ const h=createHarness();await h.ready();
+ h.bridge.prepareLogout=()=>true;
+ await h.action('logout');
+ assert.equal(h.requests.filter(x=>x.url.endsWith('/auth/v1/logout')).length,1);
+ assert.match(h.elements['cloud-content'].innerHTML,/تسجيل الدخول/);
 });
