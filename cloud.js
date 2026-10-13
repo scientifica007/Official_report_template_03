@@ -754,6 +754,8 @@ async function changeInspectorStatus(id,newStatus){
  feedback='تم تنفيذ القرار وتسجيل صاحبه وتاريخه في السجل.';
 }
 async function signOut(){
+ if(Object.values(contributionDrafts).some(d=>text(d.body))&&
+    !confirm('توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد. هل تريد تسجيل الخروج والتخلي عن هذه النصوص؟'))return;
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
  session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';missionContributions=[];contributionLoadedFor='';contributionError='';contributionDrafts=Object.create(null);selectedSharedId='';editingVersion=null;
