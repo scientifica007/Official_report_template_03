@@ -17,6 +17,9 @@ let missions=[],missionMembers=[],missionNotifications=[],missionEnabled=false,m
 let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
 let missionContributions=[],contributionLoadedFor='',contributionError='',contributionBusy=false;
 let contributionDrafts=Object.create(null);
+let embeddedDrafts=Object.create(null),activeReportMissionId='';
+let sharedFieldEvents=[],sharedAssessmentEvents=[],sharedDataLoadedFor='',sharedDataError='';
+let sharedReportBusy=false,pendingFieldSaves=0;
 let institutionDraft={institution:{},director:{}};
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
@@ -111,7 +114,7 @@ async function loadMissions(){
  }
  try{
   const [m,mm,n]=await Promise.all([
-   get('inspection_missions',{select:'id,title,purpose,institution_id,institution_snapshot,visit_start,visit_end,status,created_at,created_by',order:'created_at.desc',limit:'100'}),
+   get('inspection_missions',{select:'id,title,purpose,institution_id,institution_snapshot,director_snapshot,visit_start,visit_end,status,created_at,created_by',order:'created_at.desc',limit:'100'}),
    get('inspection_mission_members',{select:'mission_id,inspector_id,invited_by,membership_status,created_at,responded_at',order:'created_at.desc',limit:'500'}),
    get('inspection_mission_notifications',{select:'id,mission_id,recipient_id,actor_id,event_type,description,read_at,created_at',
     recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'100'})
@@ -126,11 +129,221 @@ async function loadMissions(){
  }
  if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId))selectedMissionId='';
  await loadMissionContributions();
+ await loadSharedReportExtras();
 }
 
 function selectedMission(){
  return missions.find(m=>m.id===selectedMissionId&&m.status==='draft')||null;
 }
+
+function reportActive(){return Boolean(verifiedUser()&&activeReportMissionId&&activeReportMissionId===selectedMissionId&&missions.some(m=>m.id===activeReportMissionId&&m.status==='draft'))}
+function eventLatest(rows,keyFn){
+ const result=new Map();
+ for(const row of rows){
+  const k=keyFn(row),old=result.get(k);
+  if(!old||row.created_at>old.created_at||row.created_at===old.created_at&&row.id>old.id)result.set(k,row);
+ }
+ return result;
+}
+async function loadSharedReportExtras(){
+ const id=selectedMissionId;
+ if(!verifiedUser()||!missionEnabled||!id||!missions.some(m=>m.id===id)){
+  sharedFieldEvents=[];sharedAssessmentEvents=[];sharedDataLoadedFor='';sharedDataError='';return;
+ }
+ try{
+  const [fields,assessments]=await Promise.all([
+   get('inspection_report_field_events',{select:'id,mission_id,field_group,field_key,field_value,author_id,created_at',
+    mission_id:'eq.'+id,order:'created_at.asc',limit:'5000'}),
+   get('inspection_assessment_events',{select:'id,mission_id,item_id,assessment,author_id,created_at',
+    mission_id:'eq.'+id,order:'created_at.asc',limit:'5000'})
+  ]);
+  if(!Array.isArray(fields)||!Array.isArray(assessments)||fields.length>=5000||assessments.length>=5000)
+   throw Error('سجل حقول التقرير أو التقييمات يحتاج إلى تصفح آمن على دفعات.');
+  if(selectedMissionId!==id)return;
+  sharedFieldEvents=fields;sharedAssessmentEvents=assessments;sharedDataLoadedFor=id;sharedDataError='';
+ }catch(err){
+  if(selectedMissionId!==id)return;
+  sharedDataLoadedFor='';sharedDataError='مزامنة حقول التقرير وتقييماته تتطلب تشغيل SQL رقم 005: '+err.message;
+ }
+}
+function effectiveSharedReport(){
+ if(!reportActive()||contributionLoadedFor!==selectedMissionId||sharedDataLoadedFor!==selectedMissionId||
+    contributionError||sharedDataError)return null;
+ const m=missions.find(x=>x.id===selectedMissionId);
+ const accepted=missionMembers.filter(x=>x.mission_id===m.id&&x.membership_status==='accepted');
+ const record=shared.find(x=>x.id===m.institution_id);
+ const fieldMap=eventLatest(sharedFieldEvents,x=>x.field_group+'.'+x.field_key);
+ const assessmentMap=eventLatest(sharedAssessmentEvents,x=>x.item_id);
+ const mission={
+  purpose:m.purpose,period:fieldMap.get('mission.period')?.field_value||'',
+  previousReports:fieldMap.get('mission.previousReports')?.field_value||'',
+  monthYear:fieldMap.get('mission.monthYear')?.field_value||'',
+  visitDates:[m.visit_start,m.visit_end].filter(Boolean).join(' — ')
+ };
+ const summary={
+  generalAssessment:fieldMap.get('summary.generalAssessment')?.field_value||'',
+  generalRecommendations:fieldMap.get('summary.generalRecommendations')?.field_value||''
+ };
+ const inspectors=accepted.map((mem,i)=>{
+  const person=profiles.find(p=>p.id===mem.inspector_id);
+  return {id:mem.inspector_id,profileId:mem.inspector_id,
+   name:person?text(person.first_name+' '+person.last_name):'مفتش مشارك',
+   role:person?.profession||'IFEP',district:person?.district||''};
+ });
+ const corrections=new Map();
+ for(const row of missionContributions)if(row.kind==='correction'){
+  const list=corrections.get(row.parent_id)||[];list.push(row);corrections.set(row.parent_id,list);
+ }
+ const entries={};
+ for(const row of missionContributions){
+  if(row.kind!=='finding'&&row.kind!=='recommendation')continue;
+  const additions=corrections.get(row.id)||[];
+  const revision=additions[additions.length-1];
+  const val={id:row.id,text:revision?.body||row.body,
+   originalText:row.body,authorId:row.author_id,authorName:contributionName(row.author_id),
+   createdAt:row.created_at,correctionIds:additions.map(x=>x.id)};
+  if(!entries[row.item_id])entries[row.item_id]={assessment:null,findings:[],recommendations:[]};
+  entries[row.item_id][row.kind==='finding'?'findings':'recommendations'].push(val);
+ }
+ for(const [item,row] of assessmentMap){
+  if(!entries[item])entries[item]={assessment:null,findings:[],recommendations:[]};
+  entries[item].assessment=row.assessment||null;
+ }
+ // A report is a snapshot of its mission, not of live institution records.
+ return {missionId:m.id,title:m.title,mission,institution:m.institution_snapshot||record?.institution_data||{},
+  director:m.director_snapshot||{},summary,inspectors,entries,
+  provenance:missionContributions.map(x=>({...x,authorName:contributionName(x.author_id)})),
+  assessments:sharedAssessmentEvents.map(x=>({...x,authorName:contributionName(x.author_id)})),
+  fieldHistory:sharedFieldEvents.map(x=>({...x,authorName:contributionName(x.author_id)}))};
+}
+function notifyReportEditor(force=false){
+ if(!reportActive())return;
+ const payload=effectiveSharedReport();
+ if(payload&&window.Report03CloudBridge?.applySharedReportData){
+  if(force||!document.activeElement?.matches?.('[data-group],[data-shared-body],[data-assessment]'))
+   window.Report03CloudBridge.applySharedReportData(payload);
+ }
+}
+async function loadSharedReportAll(){
+ await loadMissionContributions();
+ await loadSharedReportExtras();
+ if(contributionError||sharedDataError)throw Error([contributionError,sharedDataError].filter(Boolean).join(' | '));
+ notifyReportEditor(true);
+}
+async function enterMissionReport(){
+ if(!verifiedUser()||!selectedMission())throw Error('اختر مهمة مشتركة مفتوحة ومقبولة أولًا.');
+ // Reset the remote context only after the old report draft explicitly approves the switch.
+ const id=selectedMissionId;
+ const canOpen=window.Report03CloudBridge?.canOpenSharedMission?.(id);
+ if(canOpen===false)return;
+ activeReportMissionId=id;
+ try{
+  await loadSharedReportAll();
+  const payload=effectiveSharedReport();
+  if(!payload)throw Error('لم تكتمل بيانات المهمة.');
+  if(window.Report03CloudBridge?.enterSharedMission?.(payload)===false){
+   activeReportMissionId='';return;
+  }
+  currentPage='report';feedback='فُتح محرر التقرير المشترك. جميع إضافاتك محفوظة في المهمة.';
+ }catch(e){activeReportMissionId='';throw e}
+}
+function sharedDraft(itemId){
+ const key=activeReportMissionId+':'+itemId;
+ return embeddedDrafts[key]||(embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''});
+}
+function sharedEditorFor(itemId){
+ if(!reportActive())return '';
+ const draft=sharedDraft(itemId);
+ const originals=missionContributions.filter(x=>x.item_id===itemId&&['finding','recommendation'].includes(x.kind));
+ const children=missionContributions.filter(x=>x.item_id===itemId&&['reply','correction'].includes(x.kind));
+ return '<div class="shared-inline-editor">'+
+ '<div class="shared-editor-header"><strong>مساهمات المفتشين ('+originals.length+')</strong>'+
+ '<button type="button" class="btn subtle" data-shared-action="refresh">تحديث</button></div>'+
+ (originals.length?originals.map(x=>{
+   const notes=children.filter(child=>child.parent_id===x.id);
+   return '<div class="shared-inline-item"><div><strong>'+elt(contributionKinds(x.kind))+
+    ' — '+elt(contributionName(x.author_id))+'</strong></div>'+
+    '<details><summary>عرض نص المساهمة'+(notes.length?' وتعقيباتها ('+notes.length+')':'')+'</summary>'+
+    '<p class="shared-inline-text">'+elt(x.body)+'</p>'+
+    notes.map(note=>'<div class="shared-inline-reply"><strong>'+elt(contributionKinds(note.kind))+
+     ' — '+elt(contributionName(note.author_id))+'</strong><p>'+elt(note.body)+'</p></div>').join('')+
+    '</details><div class="portal-actions">'+
+    '<button type="button" class="btn subtle" data-shared-action="reply" data-item-id="'+elt(itemId)+
+    '" data-parent-id="'+elt(x.id)+'">إضافة تعقيب</button>'+
+    (x.author_id===session.user.id?'<button type="button" class="btn subtle" data-shared-action="correct" data-item-id="'+elt(itemId)+
+    '" data-parent-id="'+elt(x.id)+'">إضافة تصحيح</button>':'')+'</div></div>';
+ }).join(''):'<p class="empty">لا توجد مساهمات محفوظة لهذا العنصر.</p>')+
+ '<label>نوع الإضافة<select data-shared-kind="'+elt(itemId)+'">'+
+ [['finding','معاينة'],['recommendation','توصية'],['reply','تعقيب'],['correction','تصحيح']].map(([value,name])=>
+ '<option value="'+value+'"'+(value===draft.kind?' selected':'')+
+ (!draft.parentId&&['reply','correction'].includes(value)?' disabled':'')+'>'+name+'</option>').join('')+
+ '</select></label>'+
+ (draft.parentId?'<p class="cloud-tip">الإضافة مرتبطة بالنص الأصلي: '+elt(draft.parentId)+
+ ' <button type="button" class="btn subtle" data-shared-action="cancel" data-item-id="'+elt(itemId)+'">إلغاء</button></p>':'')+
+ '<textarea data-shared-body="'+elt(itemId)+'" rows="3" maxlength="30000" placeholder="اكتب هنا. لا يتم الحفظ إلا بعد الضغط على الزر.">'+elt(draft.body)+'</textarea>'+
+ '<button type="button" class="add-button" data-shared-action="save" data-item-id="'+elt(itemId)+'">حفظ الإضافة في المهمة</button>'+
+ '</div>';
+}
+async function saveEmbedded(itemId){
+ if(!reportActive()||contributionLoadedFor!==activeReportMissionId||contributionError)
+  throw Error('يلزم تحديث المهمة المشتركة أولًا.');
+ if(!catalogTargets().some(x=>x.id===itemId))throw Error('المؤشر غير معروف في الفهرس الرسمي.');
+ const d=sharedDraft(itemId),body=text(d.body);
+ if(!body||body.length>30000)throw Error('اكتب نصًا صالحًا للحفظ.');
+ if(!d.requestId)d.requestId=crypto.randomUUID();
+ const id=await raw('POST','/rest/v1/rpc/append_inspection_contribution',{
+  p_mission_id:activeReportMissionId,p_item_id:itemId,p_kind:d.kind,
+  p_body:body,p_parent_id:d.parentId||null,p_client_request_id:d.requestId
+ },true);
+ if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('لم تُؤكد قاعدة البيانات الحفظ.');
+ const key=activeReportMissionId+':'+itemId;
+ if(d.body===body)embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''};
+ else d.requestId='';
+ await loadMissionContributions();
+ if(contributionError)throw Error('حُفظ النص لكن تعذر تحديث عرضه؛ حاول التحديث.');
+ notifyReportEditor(true);
+}
+async function saveSharedField(group,key,value){
+ if(!reportActive()||sharedDataLoadedFor!==activeReportMissionId)throw Error('بيانات المهمة غير متزامنة.');
+ if(!((group==='mission'&&['period','previousReports','monthYear'].includes(key))||
+      (group==='summary'&&['generalAssessment','generalRecommendations'].includes(key))))
+  throw Error('هذا الحقل غير قابل للتعديل في المهمة المشتركة.');
+ const before=eventLatest(sharedFieldEvents,x=>x.field_group+'.'+x.field_key).get(group+'.'+key)?.id||null;
+ pendingFieldSaves++;
+ try{
+  await raw('POST','/rest/v1/rpc/set_inspection_report_field',{
+   p_mission_id:activeReportMissionId,p_group:group,p_key:key,p_value:value,
+   p_expected_event_id:before,p_request_id:crypto.randomUUID()
+  },true);
+  await loadSharedReportExtras();
+  if(sharedDataError)throw Error(sharedDataError);
+  notifyReportEditor(false);
+ }finally{pendingFieldSaves--}
+}
+async function saveSharedAssessment(itemId,value){
+ if(!reportActive()||sharedDataLoadedFor!==activeReportMissionId)throw Error('بيانات المهمة غير متزامنة.');
+ if(!catalogTargets().some(x=>x.id===itemId))throw Error('المؤشر غير معروف.');
+ const previous=eventLatest(sharedAssessmentEvents,x=>x.item_id).get(itemId)?.id||null;
+ pendingFieldSaves++;
+ try{
+  await raw('POST','/rest/v1/rpc/set_inspection_assessment',{
+   p_mission_id:activeReportMissionId,p_item_id:itemId,p_assessment:value,
+   p_expected_event_id:previous,p_request_id:crypto.randomUUID()
+  },true);
+  await loadSharedReportExtras();
+  if(sharedDataError)throw Error(sharedDataError);
+  notifyReportEditor(false);
+ }finally{pendingFieldSaves--}
+}
+async function prepareSharedExport(){
+ if(!reportActive())return null;
+ if(pendingFieldSaves)throw Error('انتظر اكتمال حفظ الحقول والتقييمات.');
+ if(Object.entries(embeddedDrafts).some(([key,d])=>key.startsWith(activeReportMissionId+':')&&text(d.body)))
+  throw Error('توجد مساهمة مكتوبة لم تحفظها بعد؛ احفظها أو امح النص قبل التصدير.');
+ await loadSharedReportAll();
+ return effectiveSharedReport();
+}
+
 function contributionDraft(){
  if(!selectedMissionId)return null;
  return contributionDrafts[selectedMissionId]||(
