@@ -122,7 +122,7 @@ function renderInstitutionBook(){
  '<label for="stored-institution">اختيار مؤسسة مشتركة أو محلية، أو إنشاء مؤسسة جديدة</label>'+
  '<select id="stored-institution" data-stored-institution="true">'+
  '<option value="" '+(!selectedInstitutionId&&!selectedCloudInstitutionId?'selected':'')+'>+ مؤسسة جديدة</option>'+
- '<optgroup label="المؤسسات المشتركة — السجل المركزي ('+central.length+')">'+centralOptions+'</optgroup>'+
+ '<optgroup data-institution-source="central" label="المؤسسات المشتركة — السجل المركزي ('+central.length+')">'+centralOptions+'</optgroup>'+
  '<optgroup label="المؤسسات المحلية — هذا الجهاز ('+institutionBook.length+')">'+localOptions+'</optgroup>'+
  '</select>'+
  '<div class="institution-actions"><button type="button" class="add-button" data-save-institution="true">حفظ المؤسسة ورئيسها محليًا</button>'+
@@ -131,6 +131,41 @@ function renderInstitutionBook(){
  (selectedInstitutionId?'<button type="button" class="btn danger-outline" data-delete-institution="true">حذف من السجل المحلي</button>':'')+
  '<input id="institutions-file" type="file" accept=".json,application/json" hidden></div>'+
  '<p class="helper">التعديل داخل التقرير لا يغيّر بيانات المؤسسة المركزية. لتعديل السجل المشترك استخدم قسم «المؤسسات» في لوحة القيادة. لا تُرفع معاينات التقرير أو توصياته إلى السحابة.</p></div>';
+}
+
+
+/* Only update the central options when Supabase finishes loading or changes.
+ * Never call render() here: it replaces editable form fields, potentially
+ * discarding in-progress typing, textarea selections and open dropdowns.
+ */
+function syncSharedInstitutionOptions(){
+ const select=$('stored-institution');
+ const group=select?.querySelector?.('optgroup[data-institution-source="central"]');
+ if(!group)return false;
+ const shared=window.Report03CloudUI?.listReportInstitutions?.()||[];
+ const desired=shared.map(record=>({
+  value:'central:'+record.id,
+  label:record.name+(record.wilaya?' — '+record.wilaya:'')+(record.code?' ('+record.code+')':'')
+ }));
+ const existing=Array.from(group.querySelectorAll('option')).map(x=>({value:x.value,label:x.textContent}));
+ const newLabel='المؤسسات المشتركة — السجل المركزي ('+desired.length+')';
+ if(group.label===newLabel&&existing.length===desired.length&&
+    existing.every((item,i)=>item.value===desired[i].value&&item.label===desired[i].label))return false;
+ const selected=select.value;
+ const elements=desired.map(row=>{
+  const option=document.createElement('option');
+  option.value=row.value;
+  option.textContent=row.label;
+  return option;
+ });
+ group.replaceChildren(...elements);
+ group.label=newLabel;
+ const options=Array.from(select.options||[]);
+ if(options.some(option=>option.value===selected))select.value=selected;
+ else if(selectedCloudInstitutionId&&desired.some(option=>option.value==='central:'+selectedCloudInstitutionId))
+  select.value='central:'+selectedCloudInstitutionId;
+ else select.value='';
+ return true;
 }
 
 function emptyState(){return {templateId:'OFFICIAL_REPORT_TEMPLATE_03',catalogVersion:'M1.4-UX-ATOMIC-2026-10-12',status:'draft',mission:{},institution:{},director:{},summary:{},inspectors:[{id:makeId(),name:'',role:'IFEP',district:''}],entries:{},legacyAssessments:[]}}
@@ -333,6 +368,7 @@ window.Report03CloudBridge={
   return true;
  },
  getIdentity(){return bookData(state)},
+ syncSharedInstitutionOptions(){return syncSharedInstitutionOptions()},
  applyIdentity(institution,director,metadata={}){
   if(!catalog)return {ok:false,message:'انتظر تحميل فهرس النموذج.'};
   if(hasInspectionInput())return {ok:false,message:'توجد معاينات أو تقييمات ضمن التقرير الحالي. صدّره ثم امحُ بياناته قبل تغيير المؤسسة.'};
