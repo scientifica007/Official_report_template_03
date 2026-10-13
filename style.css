@@ -398,3 +398,20 @@ body:not(.shared-draft-strong) .shared-draft-warning{
 }
 .draft-tone-toggle{font-weight:700}
 @media print{.draft-tone-toggle{display:none!important}}
+
+
+/* Summary fields in collaborative missions: restrained visual save confirmation.
+   The text itself keeps its normal color; only field background/border and status label change. */
+.shared-summary-field textarea{transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease}
+.shared-summary-field[data-save-state="editing"] textarea{border:2px solid #bb9464;background:#fffaf0}
+.shared-summary-field[data-save-state="saving"] textarea{border:2px solid #739baf;background:#f3f9fc}
+.shared-summary-field[data-save-state="saved"] textarea{border:2px solid #5b9b7c;background:#f2faf5}
+.shared-summary-field[data-save-state="error"] textarea{border:2px solid #b36a64;background:#fff5f2}
+.shared-summary-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap}
+.shared-summary-status{color:#5b6d63;font-size:12px;font-weight:600}
+.shared-summary-field[data-save-state="editing"] .shared-summary-status{color:#79572c}
+.shared-summary-field[data-save-state="saving"] .shared-summary-status{color:#336781}
+.shared-summary-field[data-save-state="saved"] .shared-summary-status{color:#246443}
+.shared-summary-field[data-save-state="error"] .shared-summary-status{color:#9a3c36}
+.shared-summary-save{font-size:12px;padding:6px 14px}
+@media print{.shared-summary-controls{display:none!important}}
