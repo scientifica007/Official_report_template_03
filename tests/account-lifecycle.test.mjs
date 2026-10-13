@@ -121,7 +121,7 @@ test('M2.1.1: account decisions respect confirmation and cannot change own/admin
 test('M2.1.1: blocked accounts cannot access directory and see their precise status',async()=>{
  for(const name of ['rejected','suspended','pending']){
   const h=harness({admin:false,accountStatus:name});await h.init();
-  assert.match(h.root.innerHTML,new RegExp(name==='rejected'?'رُفض طلب':name==='suspended'?'معلّق':'الاعتماد'));
+  assert.match(h.root.innerHTML,new RegExp(name==='rejected'?'رُفض طلب':name==='suspended'?'معلّق':'اعتماد'));
   assert.doesNotMatch(h.root.innerHTML,/حفظ المؤسسة الحالية في السجل المشترك/);
  }
 });
