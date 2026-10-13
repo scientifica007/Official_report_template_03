@@ -288,3 +288,20 @@
 .report-colleague-controls .add-button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:720px){.report-colleague-controls{grid-template-columns:1fr}.report-colleague-controls .add-button{white-space:normal}}
 @media print{.report-colleague-picker{display:none!important}}
+
+
+/* M3.1 — Shared mission invitations; no report-content cloud editing in this phase */
+.portal-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:15px}
+.portal-fields label:nth-child(2),.portal-fields label:nth-child(3){grid-column:1/-1}
+.portal-field textarea{display:block;margin-top:8px;width:100%;min-height:90px;resize:vertical;border:1px solid #c5d9ce;border-radius:8px;padding:10px 12px;background:#fff;font:inherit}
+.mission-invite{border:1px solid #d8e4dd;background:#f6faf8;border-radius:10px;padding:12px 14px;margin:12px 0}
+.mission-invite strong{font-size:13px;color:#14594b}
+.mission-invite .portal-actions{margin-top:8px}
+.mission-detail{border-top:1px solid #dce6df;margin-top:18px;padding-top:15px}
+.mission-detail h4{margin:12px 0;color:#1a594b}
+.mission-detail li{line-height:1.8}
+.portal-notice{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid #d8e4dd;border-radius:8px;margin:10px 0;padding:12px}
+.portal-notice strong{display:block;font-size:13px}
+.portal-notice small{font-size:12px;color:#58796a}
+@media(max-width:700px){.portal-fields{grid-template-columns:1fr}.portal-fields label:nth-child(2),.portal-fields label:nth-child(3){grid-column:auto}}
+@media print{.mission-invite,.mission-detail,.portal-notice,.portal-fields{display:none!important}}

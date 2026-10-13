@@ -13,6 +13,8 @@ const configured=/^https:\/\//.test(base)&&base.length<300&&key.length>20&&!key.
 const SESSION_KEY='official_report03_cloud_session_v1';
 let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],accountDecisions=[],myDecisions=[],mode='login';
 let selectedSharedId='',editingVersion=null,feedback='',busy=false,currentPage='dashboard';
+let missions=[],missionMembers=[],missionNotifications=[],missionEnabled=false,missionError='';
+let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
 let institutionDraft={institution:{},director:{}};
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
@@ -101,10 +103,32 @@ async function loadShared(){
  const ids=notifications.map(x=>x.change_id).filter(Boolean);
  changes=ids.length?await get('institution_changes',{select:'id,institution_id,actor_id,action,changes,created_at',id:'in.('+ids.join(',')+')'}):[];
 }
+async function loadMissions(){
+ if(!verifiedUser()){
+  missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';return;
+ }
+ try{
+  const [m,mm,n]=await Promise.all([
+   get('inspection_missions',{select:'id,title,purpose,institution_id,institution_snapshot,visit_start,visit_end,status,created_at,created_by',order:'created_at.desc',limit:'100'}),
+   get('inspection_mission_members',{select:'mission_id,inspector_id,invited_by,membership_status,created_at,responded_at',order:'created_at.desc',limit:'500'}),
+   get('inspection_mission_notifications',{select:'id,mission_id,recipient_id,actor_id,event_type,description,read_at,created_at',
+    recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'100'})
+  ]);
+  missions=Array.isArray(m)?m:[];missionMembers=Array.isArray(mm)?mm:[];
+  missionNotifications=Array.isArray(n)?n:[];missionEnabled=true;missionError='';
+ }catch(err){
+  missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;
+  missionError=err.httpStatus===404||err.httpStatus===400
+   ?'لم تُفعّل جداول المهام المشتركة في Supabase بعد. يحتاج مسؤول المنصة إلى تشغيل الترحيل 003.'
+   :'تعذّر تحميل بيانات المهام: '+err.message;
+ }
+ if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId))selectedMissionId='';
+}
 async function fetchAll(){
  if(!session)return;
  await loadProfile();
  await loadShared();
+ await loadMissions();
  render();
 }
 function fieldName(key){
@@ -244,7 +268,10 @@ function portalNavigation(){
  '<button type="button" class="portal-nav-btn'+(currentPage===id?' selected':'')+
  '" data-cloud-action="nav" data-page="'+id+'" aria-current="'+(currentPage===id?'page':'false')+'">'+
  '<span aria-hidden="true">'+ico+'</span><span>'+name+'</span>'+
- (id==='notifications'&&notifications.some(x=>!x.read_at)?'<b>'+notifications.filter(x=>!x.read_at).length+'</b>':'')+'</button>').join('')+'</nav>';
+ (id==='notifications'&&(notifications.some(x=>!x.read_at)||missionNotifications.some(x=>!x.read_at))?
+ '<b>'+(notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length)+'</b>':
+ id==='missions'&&missionMembers.some(x=>x.inspector_id===session.user.id&&x.membership_status==='invited')?
+ '<b>'+missionMembers.filter(x=>x.inspector_id===session.user.id&&x.membership_status==='invited').length+'</b>':'')+'</button>').join('')+'</nav>';
 }
 function dashboardCard(label,value,description,target){
  return '<button type="button" class="portal-metric" data-cloud-action="nav" data-page="'+target+'">'+
@@ -252,7 +279,7 @@ function dashboardCard(label,value,description,target){
 }
 function dashboardView(){
  const colleagues=profiles.filter(p=>p.approved).length;
- const unread=notifications.filter(x=>!x.read_at).length;
+ const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
  return '<div class="portal-page-heading"><h2>لوحة القيادة</h2><p>مرحبًا '+elt(profile.first_name)+
  '، هذه البيانات المتاحة حاليًا في السجل المركزي.</p></div>'+
  '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'عرض المؤسسات وتحرير بياناتها','institutions')+
@@ -261,9 +288,11 @@ function dashboardView(){
  dashboardCard('إعداد التقرير','النموذج 03','إصدار PDF أو DOCX أو JSON','report')+'</div>'+
  '<div class="portal-widgets"><section class="portal-widget"><h3>آخر المؤسسات المسجلة</h3>'+
  (shared.length?'<ul>'+shared.slice(0,6).map(x=>'<li><button data-cloud-action="open-institution" data-institution-id="'+elt(x.id)+'">'+elt(x.name)+' — '+elt(x.wilaya)+'</button></li>').join('')+'</ul>':'<p>لم تُسجل أي مؤسسة مشتركة بعد. يمكنك إضافة أول مؤسسة في قسم «المؤسسات».</p>')+
- '</section><section class="portal-widget"><h3>مهام التفتيش والعمل الجماعي</h3>'+
- '<p>إدارة المهام والرزنامة والفرق والمراسلات قيد التطوير؛ لا نعرض بيانات غير موجودة أو ندّعي حفظ مهام التفتيش.</p>'+
- '<button class="btn subtle" data-cloud-action="nav" data-page="missions">عرض خطة تطوير المهام</button></section></div>';
+ '</section><section class="portal-widget"><h3>مهام التفتيش المشتركة</h3>'+
+ (missionEnabled?'<p>مهام تشارك فيها: '+missions.length+' — دعوات تنتظر ردك: '+
+ missionMembers.filter(x=>x.inspector_id===session.user.id&&x.membership_status==='invited').length+'</p>':
+ '<p>خدمة المهام المشتركة لم تُفعّل بعد.</p>')+
+ '<button class="btn subtle" data-cloud-action="nav" data-page="missions">فتح مهام التفتيش</button></section></div>';
 }
 function institutionEditor(){
  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
@@ -304,6 +333,108 @@ function accountView(){
  '<p class="cloud-tip">تعديل بيانات الملف المهني وكلمة المرور سيضاف في إصدار مستقل بعد تحديد قواعد تحديث الهوية والصفة.</p>'+
  '<div class="portal-actions"><button class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div></section>';
 }
+
+function missionMemberName(id){
+ const peer=profiles.find(p=>p.id===id);
+ return peer?text(peer.first_name+' '+peer.last_name):'مفتش معتمد';
+}
+function missionStatusName(status){
+ return {invited:'بانتظار الموافقة',accepted:'مشارك',declined:'اعتذر عن المشاركة'}[status]||status;
+}
+function missionsView(){
+ const invited=missionMembers.filter(m=>m.inspector_id===session.user.id&&m.membership_status==='invited');
+ const accepted=missions;
+ const mission=accepted.find(m=>m.id===selectedMissionId);
+ const availablePeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&
+    p.id!==session.user.id&&(!mission||!missionMembers.some(m=>m.mission_id===mission.id&&m.inspector_id===p.id)));
+ return '<div class="portal-page-heading"><h2>مهام التفتيش المشتركة</h2>'+
+ '<p>يمكن للمفتشين المعتمدين إنشاء مهمة ودعوة زملائهم. لا يبدأ التحرير المشترك للمعاينات والتوصيات إلا في المرحلة M3.2.</p></div>'+
+ (!missionEnabled?'<section class="portal-widget"><h3>الخدمة غير مفعّلة</h3><p>'+elt(missionError||'يجب تشغيل ترحيل SQL رقم 003 في Supabase.')+'</p>'+
+ '<p>يمكنك الاستمرار في إعداد التقرير الفردي دون أي تغيير.</p></section>':
+ '<div class="portal-widgets"><section class="portal-widget"><h3>إنشاء مهمة جديدة</h3>'+
+ '<p class="helper">تُحفظ بيانات المهمة وأسماء المشاركين في Supabase. لا تُنقل إليها معاينات تقريرك المحلي.</p>'+
+ '<div class="portal-fields">'+
+ '<label class="portal-field">المؤسسة<select data-mission-field="institutionId"><option value="">— اختر مؤسسة مشتركة —</option>'+
+ shared.map(i=>'<option value="'+elt(i.id)+'" '+(missionDraft.institutionId===i.id?'selected':'')+'>'+elt(i.name+' ('+i.code+')')+'</option>').join('')+
+ '</select></label>'+
+ '<label class="portal-field">عنوان المهمة<input data-mission-field="title" maxlength="200" value="'+elt(missionDraft.title)+'" placeholder="مثال: التفتيش المعمق لمؤسسة..."></label>'+
+ '<label class="portal-field">الهدف<textarea data-mission-field="purpose" maxlength="3000" rows="3">'+elt(missionDraft.purpose)+'</textarea></label>'+
+ '<label class="portal-field">تاريخ البداية<input type="date" data-mission-field="visitStart" value="'+elt(missionDraft.visitStart)+'"></label>'+
+ '<label class="portal-field">تاريخ النهاية<input type="date" data-mission-field="visitEnd" value="'+elt(missionDraft.visitEnd)+'"></label></div>'+
+ '<button type="button" class="btn primary" data-cloud-action="mission-create">إنشاء مهمة مشتركة</button></section>'+
+ '<section class="portal-widget"><h3>الدعوات الواردة ('+invited.length+')</h3>'+
+ (invited.length?invited.map(member=>{
+  const event=missionNotifications.find(n=>n.mission_id===member.mission_id&&n.event_type==='invited');
+  return '<article class="mission-invite"><strong>'+elt(event?.description||'دعوة إلى مهمة تفتيش')+'</strong>'+
+   '<p>وصلتك دعوة من '+elt(missionMemberName(member.invited_by))+'</p>'+
+   '<div class="portal-actions"><button class="btn primary" data-cloud-action="mission-respond" data-mission-id="'+elt(member.mission_id)+'" data-accept="true">قبول المشاركة</button>'+
+   '<button class="btn subtle" data-cloud-action="mission-respond" data-mission-id="'+elt(member.mission_id)+'" data-accept="false">رفض الدعوة</button></div></article>';
+ }).join(''):'<p>لا توجد دعوات تنتظر ردك.</p>')+'</section></div>'+
+ '<section class="portal-widget"><h3>المهام التي تشارك فيها ('+accepted.length+')</h3>'+
+ '<button type="button" class="btn subtle" data-cloud-action="mission-refresh">تحديث المهام والدعوات</button>'+
+ (accepted.length?'<label class="portal-field">اختر مهمة<select id="mission-select"><option value="">— اختر مهمة —</option>'+
+ accepted.map(m=>'<option value="'+elt(m.id)+'" '+(selectedMissionId===m.id?'selected':'')+'>'+elt(m.title+' — '+(m.institution_snapshot?.name||''))+'</option>').join('')+
+ '</select></label>':'<p>لم تشارك في أي مهمة بعد.</p>')+
+ (mission?'<div class="mission-detail"><h3>'+elt(mission.title)+'</h3><p>'+elt(mission.institution_snapshot?.name||'')+'</p>'+
+ '<p>'+elt(mission.purpose||'لم يحدد الهدف')+'</p>'+
+ '<p>الفترة: '+elt(mission.visit_start||'غير محددة')+' — '+elt(mission.visit_end||'غير محددة')+'</p>'+
+ '<h4>أعضاء المهمة</h4><ul>'+missionMembers.filter(m=>m.mission_id===mission.id).map(m=>
+  '<li>'+elt(missionMemberName(m.inspector_id))+' — '+elt(missionStatusName(m.membership_status))+'</li>').join('')+'</ul>'+
+ '<label class="portal-field">دعوة مفتش معتمد آخر<select id="mission-peer"><option value="">— اختر الزميل —</option>'+
+ availablePeers.map(p=>'<option value="'+elt(p.id)+'">'+elt(text(p.first_name+' '+p.last_name)+' — '+title(p.profession))+'</option>').join('')+'</select></label>'+
+ '<button type="button" class="btn subtle" data-cloud-action="mission-invite" '+(!availablePeers.length?'disabled':'')+
+ '>إرسال الدعوة</button>'+
+ '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. المساهمات المشتركة والاقتراحات ستُفعّل بعد اختبار الدعوات والصلاحيات.</p></div>':'')+
+ '</section>');
+}
+async function createMission(){
+ if(!verifiedUser()||!missionEnabled)throw Error('خدمة المهام المشتركة غير جاهزة.');
+ const d=missionDraft;
+ if(!shared.some(x=>x.id===d.institutionId))throw Error('اختر مؤسسة موجودة في السجل المركزي.');
+ if(text(d.title).length<3||text(d.title).length>200)throw Error('عنوان المهمة يجب أن يتكون من 3 إلى 200 حرف.');
+ if(text(d.purpose).length>3000)throw Error('الهدف يتجاوز 3000 حرف.');
+ if(d.visitStart&&d.visitEnd&&d.visitEnd<d.visitStart)throw Error('تاريخ النهاية يسبق تاريخ البداية.');
+ const id=await raw('POST','/rest/v1/rpc/create_inspection_mission',{
+  p_institution_id:d.institutionId,p_title:text(d.title),p_purpose:text(d.purpose),
+  p_visit_start:d.visitStart||null,p_visit_end:d.visitEnd||null
+ },true);
+ if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('لم تُعد قاعدة البيانات معرّف مهمة صالحًا.');
+ missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
+ await loadMissions();
+ selectedMissionId=id;
+ feedback='أُنشئت المهمة. يمكنك الآن دعوة المفتشين المعتمدين.';
+}
+async function inviteMissionPeer(){
+ if(!missionEnabled||!verifiedUser())throw Error('الحساب غير معتمد أو الخدمة غير مفعلة.');
+ const m=missions.find(x=>x.id===selectedMissionId);
+ if(!m||m.status!=='draft')throw Error('اختر مهمة مفتوحة تشارك فيها.');
+ const id=text(document.getElementById('mission-peer')?.value);
+ if(!profiles.some(x=>x.id===id&&x.approved===true&&x.account_status==='approved'&&x.id!==session.user.id))
+  throw Error('اختر زميلًا معتمدًا من الدليل.');
+ if(missionMembers.some(x=>x.mission_id===m.id&&x.inspector_id===id))
+  throw Error('هذا المفتش مدعو أو مشارك سابقًا.');
+ await raw('POST','/rest/v1/rpc/invite_inspection_member',{p_mission_id:m.id,p_inspector_id:id},true);
+ await loadMissions();
+ feedback='أُرسلت الدعوة إلى حساب الزميل؛ يتعين عليه قبولها قبل مشاهدة المهمة.';
+}
+async function respondMissionInvite(id,accept){
+ if(!missionEnabled||!verifiedUser())throw Error('خدمة الدعوات غير متاحة.');
+ if(!missionMembers.some(x=>x.mission_id===id&&x.inspector_id===session.user.id&&x.membership_status==='invited'))
+  throw Error('لا توجد دعوة معلقة لهذا الحساب.');
+ await raw('POST','/rest/v1/rpc/respond_inspection_invitation',{p_mission_id:id,p_accept:accept},true);
+ await loadMissions();
+ if(accept)selectedMissionId=id;
+ feedback=accept?'قُبلت الدعوة وأصبحت عضوًا في المهمة.':'رُفضت الدعوة.';
+}
+async function readMissionNotification(id){
+ const n=missionNotifications.find(x=>x.id===id);
+ if(!n||n.recipient_id!==session.user.id)throw Error('الإشعار غير موجود.');
+ await submit('inspection_mission_notifications',{read_at:now()},
+  {id:'eq.'+id,recipient_id:'eq.'+session.user.id,select:'id'},'PATCH');
+ await loadMissions();
+ feedback='تم تعليم إشعار المهمة كمقروء.';
+}
+
 function reservedView(page){
  const content={
  missions:['مهام التفتيش','سنضيف إنشاء المهام وربطها بالمؤسسات والمفتشين، وتحديد حالتها وتواريخها في مرحلة مستقلة.'],
@@ -316,10 +447,15 @@ function reservedView(page){
  '</p><p>لم تُنشأ أي بيانات تجريبية باسم مفتش أو مهمة.</p></section>';
 }
 function notificationsView(){
- const unread=notifications.filter(x=>!x.read_at).length;
+ const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
  return '<div class="portal-page-heading"><h2>الإشعارات</h2><p>'+unread+' غير مقروء</p></div>'+
  '<section class="portal-widget"><button class="btn subtle" data-cloud-action="refresh">تحديث الإشعارات</button>'+
- (notifications.length?notifications.slice(0,25).map(noticeCard).join(''):'<p>لا توجد إشعارات حاليًا.</p>')+'</section>';
+ (notifications.length?notifications.slice(0,25).map(noticeCard).join(''):'<p>لا توجد إشعارات مؤسسات حاليًا.</p>')+
+ '<h3>إشعارات المهام المشتركة</h3>'+
+ (missionNotifications.length?missionNotifications.slice(0,40).map(n=>
+ '<article class="portal-notice"><strong>'+elt(n.description)+'</strong><small>'+elt(n.created_at?.slice(0,10)||'')+'</small>'+
+ (!n.read_at?'<button type="button" class="btn subtle" data-cloud-action="mission-read" data-notification-id="'+elt(n.id)+'">تعليم كمقروء</button>':'')+'</article>').join(''):
+ '<p>لا توجد إشعارات مهام.</p>')+'</section>';
 }
 function guardedView(){
  const label=accountStatusLabel(profile?.account_status||'pending'),status=profile?.account_status||'pending';
@@ -337,6 +473,7 @@ function portalView(){
  const content=currentPage==='dashboard'?dashboardView():
   currentPage==='institutions'?institutionEditor():
   currentPage==='colleagues'?colleaguesView():
+  currentPage==='missions'?missionsView():
   currentPage==='notifications'?notificationsView():
   currentPage==='account'?accountView():
   currentPage==='admin'&&profile.is_admin?renderAccountsManagement():
@@ -370,7 +507,7 @@ function render(){
  if(reportControls)reportControls.hidden=!report;
  if(reportUser)reportUser.textContent=report?text(profile.first_name+' '+profile.last_name):'';
  const unreadEl=document.getElementById('cloud-unread');
- if(unreadEl)unreadEl.textContent=approved?String(notifications.filter(x=>!x.read_at).length):'';
+ if(unreadEl)unreadEl.textContent=approved?String(notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length):'';
  if(!configured){
   root.innerHTML='<div class="portal-access-card"><h2>تهيئة المنصة مطلوبة</h2><p>لا يمكن استعمال محرر التقارير دون حساب معتمد واتصال مصادقة. اتصل بمسؤول المنصة لإتمام إعداد الخدمة.</p></div>';
   return;
@@ -468,7 +605,7 @@ async function changeInspectorStatus(id,newStatus){
 async function signOut(){
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];selectedSharedId='';editingVersion=null;
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
@@ -484,10 +621,20 @@ if(reportLogout)reportLogout.addEventListener('click',async()=>{
 });
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
 root.addEventListener('input',e=>{
+ const missionField=e.target.dataset?.missionField;
+ if(missionField&&Object.hasOwn(missionDraft,missionField))missionDraft[missionField]=e.target.value;
  const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
  if(group&&key&&institutionDraft[group])institutionDraft[group][key]=e.target.value;
 });
-root.addEventListener('change',e=>{if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render()}});
+root.addEventListener('change',e=>{
+ if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
+ if(e.target.id==='mission-select'){
+  selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
+  render();return;
+ }
+ const field=e.target.dataset?.missionField;
+ if(field&&Object.hasOwn(missionDraft,field))missionDraft[field]=e.target.value;
+});
 root.addEventListener('click',async e=>{
  const button=e.target.closest('[data-cloud-action]');if(!button||busy)return;
  const action=button.dataset.cloudAction;
@@ -507,6 +654,14 @@ root.addEventListener('click',async e=>{
   else if(action==='load')await loadSelected();
   else if(action==='refresh'){await fetchAll();feedback='القائمة والإشعارات محدثة.'}
   else if(action==='read')await markRead(button.dataset.notificationId);
+  else if(action==='mission-create')await createMission();
+  else if(action==='mission-invite')await inviteMissionPeer();
+  else if(action==='mission-respond'){
+   const accept=button.dataset.accept==='true';
+   await respondMissionInvite(button.dataset.missionId,accept);
+  }
+  else if(action==='mission-refresh'){await loadMissions();feedback='المهام والدعوات محدّثة.'}
+  else if(action==='mission-read')await readMissionNotification(button.dataset.notificationId);
   else if(action==='set-status')await changeInspectorStatus(button.dataset.userId,button.dataset.newStatus);
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
