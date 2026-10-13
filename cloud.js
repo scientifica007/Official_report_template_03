@@ -498,7 +498,7 @@ function missionsView(){
  const availablePeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&
     p.id!==session.user.id&&(!mission||!missionMembers.some(m=>m.mission_id===mission.id&&m.inspector_id===p.id)));
  return '<div class="portal-page-heading"><h2>مهام التفتيش المشتركة</h2>'+
- '<p>يمكن للمفتشين المعتمدين إنشاء مهمة ودعوة زملائهم. لا يبدأ التحرير المشترك للمعاينات والتوصيات إلا في المرحلة M3.2.</p></div>'+
+ '<p>أنشئ مهمة، ادعُ زملاءك، ثم سجل المعاينات والتوصيات المشتركة داخلها مع حفظ صاحب كل مساهمة.</p></div>'+
  (!missionEnabled?'<section class="portal-widget"><h3>الخدمة غير مفعّلة</h3><p>'+elt(missionError||'يجب تشغيل ترحيل SQL رقم 003 في Supabase.')+'</p>'+
  '<p>يمكنك الاستمرار في إعداد التقرير الفردي دون أي تغيير.</p></section>':
  '<div class="portal-widgets"><section class="portal-widget"><h3>إنشاء مهمة جديدة</h3>'+
@@ -534,7 +534,7 @@ function missionsView(){
  availablePeers.map(p=>'<option value="'+elt(p.id)+'">'+elt(text(p.first_name+' '+p.last_name)+' — '+title(p.profession))+'</option>').join('')+'</select></label>'+
  '<button type="button" class="btn subtle" data-cloud-action="mission-invite" '+(!availablePeers.length?'disabled':'')+
  '>إرسال الدعوة</button>'+
- '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. المساهمات المشتركة والاقتراحات ستُفعّل بعد اختبار الدعوات والصلاحيات.</p></div>':'')+
+ '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. يعتمد حفظ المساهمات المشتركة على ترحيل قاعدة البيانات 004؛ لن تُستبدل بيانات التقرير المحلي.</p>'+sharedContributionEditor()+'</div>':'')+
  '</section>');
 }
 async function createMission(){
@@ -755,7 +755,7 @@ async function changeInspectorStatus(id,newStatus){
 async function signOut(){
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';selectedSharedId='';editingVersion=null;
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';missionContributions=[];contributionLoadedFor='';contributionError='';contributionDrafts=Object.create(null);selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
@@ -771,6 +771,14 @@ if(reportLogout)reportLogout.addEventListener('click',async()=>{
 });
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
 root.addEventListener('input',e=>{
+ const contribField=e.target.dataset?.contribField;
+ if(contribField&&['itemId','kind','body'].includes(contribField)){
+  const d=contributionDraft();
+  if(d&&d[contribField]!==e.target.value){
+   if(d.parentId&&contribField==='itemId')return;
+   d[contribField]=e.target.value;d.requestId='';
+  }
+ }
  const missionField=e.target.dataset?.missionField;
  if(missionField&&Object.hasOwn(missionDraft,missionField))missionDraft[missionField]=e.target.value;
  const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
@@ -780,7 +788,20 @@ root.addEventListener('change',e=>{
  if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
  if(e.target.id==='mission-select'){
   selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
-  render();return;
+  missionContributions=[];contributionLoadedFor='';contributionError='';
+  // Preserve any unsent draft for the prior mission separately.
+  await loadMissionContributions();render();return;
+ }
+ const contrib=e.target.dataset?.contribField;
+ if(contrib&&['itemId','kind','body'].includes(contrib)){
+  const d=contributionDraft();
+  if(d&&d[contrib]!==e.target.value){
+   if(d.parentId&&contrib==='itemId'){render();return}
+   d[contrib]=e.target.value;d.requestId='';
+  }
+  if(contrib==='kind'&&!d.parentId&&['reply','correction'].includes(d.kind)){
+   d.kind='finding';render();return;
+  }
  }
  const field=e.target.dataset?.missionField;
  if(field&&Object.hasOwn(missionDraft,field))missionDraft[field]=e.target.value;
@@ -812,6 +833,13 @@ root.addEventListener('click',async e=>{
   }
   else if(action==='mission-refresh'){await loadMissions();feedback='المهام والدعوات محدّثة.'}
   else if(action==='mission-read')await readMissionNotification(button.dataset.notificationId);
+  else if(action==='contribution-refresh'){await loadMissionContributions();feedback=contributionError?contributionError:'المساهمات المشتركة محدّثة.'}
+  else if(action==='contribution-reply'){setContributionParent(button.dataset.contributionId,'reply');feedback='أضف تعقيبك ثم اضغط حفظ المساهمة.'}
+  else if(action==='contribution-correct'){setContributionParent(button.dataset.contributionId,'correction');feedback='أدخل التصحيح الملحق بالمساهمة الأصلية.'}
+  else if(action==='contribution-cancel-parent'){
+   const d=contributionDraft();d.parentId=null;d.kind='finding';d.requestId='';
+  }
+  else if(action==='contribution-add')await appendContribution();
   else if(action==='set-status')await changeInspectorStatus(button.dataset.userId,button.dataset.newStatus);
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
@@ -865,6 +893,8 @@ async function init(){
 }
 document.addEventListener('DOMContentLoaded',init);
 setInterval(async()=>{if(!verifiedUser()||busy||document?.hidden)return;
+ // Do not steal focus while a collaborator is typing an unsubmitted finding.
+ if(currentPage==='missions'&&document.activeElement?.matches?.('[data-contrib-field]'))return;
  try{await fetchAll();render()}catch(e){status('تعذر تحديث الحساب والإشعارات مؤقتًا: '+e.message)}
 },120000);
 })();
