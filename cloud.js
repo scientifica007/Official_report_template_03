@@ -93,7 +93,7 @@ async function loadShared(){
  if(!verifiedUser()){shared=[];notifications=[];changes=[];profiles=[];accountDecisions=[];return}
  const [institutions,people,pings,decisionRows]=await Promise.all([
   get('shared_institutions',{select:'id,name,wilaya,code,institution_data,director_data,version,updated_at,updated_by',order:'name.asc',limit:'500'}),
-  get('inspector_profiles',{select:'id,email,first_name,last_name,profession,approved,is_admin,account_status',order:'first_name.asc'}),
+  get('inspector_profiles',{select:'id,email,first_name,last_name,profession,district,approved,is_admin,account_status',order:'first_name.asc'}),
   get('institution_notifications',{select:'id,change_id,read_at,created_at',recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'40'}),
  profile.is_admin?get('inspector_account_decisions',{select:'id,inspector_id,decided_by,previous_status,new_status,reason,decided_at',order:'decided_at.desc',limit:'60'}):Promise.resolve([])
  ]);
@@ -364,7 +364,7 @@ function render(){
   first_name:profile.first_name,last_name:profile.last_name,
   profession:profile.profession,district:profile.district
  });
- if(report)window.Report03CloudBridge?.syncSharedInstitutionOptions?.();
+ if(report){window.Report03CloudBridge?.syncSharedInstitutionOptions?.();window.Report03CloudBridge?.syncReportColleagueOptions?.();}
  const reportUser=document.getElementById('report-user-name');
  const reportControls=document.getElementById('report-session-controls');
  if(reportControls)reportControls.hidden=!report;
@@ -519,8 +519,20 @@ window.Report03CloudUI={
  showView(page){if(verifiedUser()){currentPage=page;render()}},
  getReportOwner(){
   if(!verifiedUser())return null;
-  return {first_name:profile.first_name,last_name:profile.last_name,
+  return {id:profile.id,first_name:profile.first_name,last_name:profile.last_name,
    profession:profile.profession,district:profile.district};
+ },
+ listReportColleagues(){
+  if(!verifiedUser())return [];
+  return profiles.filter(p=>p.approved===true&&p.id!==session?.user?.id)
+   .map(p=>({id:p.id,first_name:p.first_name,last_name:p.last_name,
+    profession:p.profession,district:p.district||''}));
+ },
+ findReportColleague(id){
+  if(!verifiedUser())return null;
+  const colleague=profiles.find(p=>p.id===id&&p.approved===true&&p.id!==session?.user?.id);
+  return colleague?{id:colleague.id,first_name:colleague.first_name,last_name:colleague.last_name,
+   profession:colleague.profession,district:colleague.district||''}:null;
  },
  listReportInstitutions(){
   if(!verifiedUser())return [];
