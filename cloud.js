@@ -342,8 +342,10 @@ function portalView(){
   currentPage==='admin'&&profile.is_admin?renderAccountsManagement():
   reservedView(currentPage);
  return '<header class="portal-topbar"><div><strong>منصة التفتيش المعمق</strong>'+
- '<small>النموذج 03 — فضاء المفتشين المعتمدين</small></div><span>'+elt(text(profile.first_name+' '+profile.last_name))+
- '</span></header><div class="portal-body">'+portalNavigation()+
+ '<small>النموذج 03 — فضاء المفتشين المعتمدين</small></div>'+
+ '<div class="session-controls portal-session-controls"><span class="session-name">'+elt(text(profile.first_name+' '+profile.last_name))+
+ '</span><button type="button" class="btn session-logout" data-cloud-action="logout" aria-label="تسجيل الخروج من حساب المفتش">تسجيل الخروج</button></div>'+
+ '</header><div class="portal-body">'+portalNavigation()+
  '<main class="portal-main" id="portal-main" tabindex="-1">'+content+
  '<p id="cloud-message" class="cloud-message" role="status" aria-live="polite">'+elt(feedback)+'</p></main></div>';
 }
@@ -353,6 +355,10 @@ function render(){
  const report=approved&&currentPage==='report';
  if(app)app.hidden=!report;
  shell.hidden=report;
+ const reportUser=document.getElementById('report-user-name');
+ const reportControls=document.getElementById('report-session-controls');
+ if(reportControls)reportControls.hidden=!report;
+ if(reportUser)reportUser.textContent=report?text(profile.first_name+' '+profile.last_name):'';
  const unreadEl=document.getElementById('cloud-unread');
  if(unreadEl)unreadEl.textContent=approved?String(notifications.filter(x=>!x.read_at).length):'';
  if(!configured){
@@ -456,6 +462,16 @@ async function signOut(){
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
+// Report editor is outside the portal root: bind its header control to the
+// exact same logout path and unsaved-report confirmation as the account page.
+const reportLogout=document.getElementById('report-logout');
+if(reportLogout)reportLogout.addEventListener('click',async()=>{
+ if(busy||!verifiedUser())return;
+ busy=true;reportLogout.disabled=true;
+ try{await signOut()}
+ catch(err){feedback='تعذر تسجيل الخروج: '+err.message}
+ finally{busy=false;reportLogout.disabled=false;render()}
+});
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
 root.addEventListener('input',e=>{
  const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
