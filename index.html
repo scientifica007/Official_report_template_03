@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#14564b" />
-  <meta name="description" content="محرر تقارير التفتيش المعمق وفق النموذج الرسمي 03؛ دون تخزين بيانات التقرير على الخادم." />
+  <meta name="description" content="محرر تقرير التفتيش المعمق وفق النموذج 03؛ فردي محلي أو تعاوني بمساهمات موثقة." />
   <title>النموذج 03 | محرر تقرير التفتيش المعمق</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
@@ -20,7 +20,7 @@
     <div class="sidebar-heading">الأبواب الرسمية</div>
     <div id="section-nav" class="section-nav"></div>
     <div class="sidebar-footer">
-      <span class="privacy-dot"></span> لا تخزين سحابي لبيانات التقرير
+      <span id="report-storage-label"><span class="privacy-dot"></span> تقرير فردي محفوظ داخل التبويب فقط</span>
       <small>إصدار تجريبي — يحتاج تدقيقًا مرجعيًا نهائيًا</small>
     </div>
   </aside>
@@ -52,7 +52,7 @@
 <dialog id="export-dialog">
   <div class="dialog-content">
     <div class="dialog-head"><h2>إصدار التقرير</h2><button id="close-dialog" type="button" class="icon-btn" aria-label="إغلاق">×</button></div>
-    <p class="muted">الصيغ الثلاث تستخدم بيانات التقرير الحالية. لا تُرسل إلى خادم لحفظها.</p>
+    <p class="muted">التقرير الفردي يستخدم بيانات التبويب المحلية. عند تحرير مهمة مشتركة، تُنشأ الصادرات من البيانات المحفوظة في Supabase بعد تحديثها.</p>
     <div class="export-grid">
       <button id="do-json" type="button" class="export-choice"><strong>JSON</strong><span>نسخة بيانات قابلة لإعادة الاستيراد</span></button>
       <button id="do-docx" type="button" class="export-choice"><strong>DOCX</strong><span>مستند Word قابل للتحرير</span></button>

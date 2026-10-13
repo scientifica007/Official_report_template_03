@@ -326,3 +326,26 @@
 .mission-sync-error{border:1px solid #dca79e;color:#8b2b1f;padding:12px;border-radius:8px;background:#fff5f2}
 @media(max-width:720px){.mission-new-entry{padding:12px}.mission-contribution{padding:12px}.mission-contribution-replies{margin-right:5px;padding-right:10px}}
 @media print{.mission-collaboration{display:none!important}}
+
+
+/* M3.3 — shared report editor using official catalog sections */
+.shared-report-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:13px 18px;margin-bottom:20px;background:#e5f2eb;border:1px solid #9fc6b0;border-radius:12px;color:#184e3d}
+.shared-report-banner strong{font-size:1rem}
+.shared-report-banner span{flex:1;min-width:180px;font-size:.84rem}
+.shared-editor-card{border:1px solid #d0e1d8;border-radius:10px;background:#f8fbf9;margin-top:10px}
+.shared-editor-card>summary{cursor:pointer;padding:12px 16px;font-weight:700;color:#155343}
+.shared-editor-card[open]>summary{border-bottom:1px solid #d0e1d8}
+.shared-inline-editor{padding:12px 14px}
+.shared-editor-header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.shared-inline-item{border:1px solid #d3e0d9;background:white;border-radius:8px;padding:10px;margin-bottom:9px}
+.shared-inline-item>details{margin:8px 0}
+.shared-inline-item>details>summary{cursor:pointer;color:#255e4d;font-size:.86rem}
+.shared-inline-text,.shared-inline-reply p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75}
+.shared-inline-reply{padding:9px 12px;border-right:3px solid #91b3a0;background:#f4f9f6;margin:8px 6px}
+.shared-inline-editor>label{display:block;margin:12px 0;font-size:.86rem}
+.shared-inline-editor select,.shared-inline-editor textarea{display:block;width:100%;max-width:100%;margin:7px 0;border:1px solid #aec9bb;border-radius:9px;padding:9px;font:inherit;background:white}
+.shared-inline-editor textarea{min-height:82px;resize:vertical}
+.shared-report-banner button{white-space:normal}
+.print-author{font-size:9pt;white-space:nowrap;font-weight:400}
+@media(max-width:700px){.shared-inline-editor{padding:9px}.shared-report-banner{padding:10px}}
+@media print{.shared-report-banner,.shared-editor-card{display:none!important}}
