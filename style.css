@@ -366,3 +366,35 @@
 .shared-draft-warning{padding:8px 12px;margin:6px 0;color:#832f00;font-weight:700;border-right:4px solid #dd6000;background:#ffe7ab;border-radius:5px}
 @media(max-width:700px){.shared-draft-links{width:100%}.shared-draft-link{max-width:100%;width:100%}}
 @media print{.shared-draft-review{display:none!important}}
+
+
+/* M3.3 UX comparison: calmer default keeps unsaved work clearly identifiable.
+   A user-triggered body.shared-draft-strong class restores the original high-contrast alert.
+   This changes presentation only, never the save/export guard or stored data. */
+body:not(.shared-draft-strong) .shared-draft-review.has-unsent{
+ background:#fff9ef;border:1.5px solid #c49d6a;color:#624625
+}
+body:not(.shared-draft-strong) .shared-draft-link{
+ border:1px solid #b8966e;background:#fffefa;color:#624625
+}
+body:not(.shared-draft-strong) .shared-draft-link:hover,
+body:not(.shared-draft-strong) .shared-draft-link:focus-visible{
+ outline:2px solid #a27c4c;outline-offset:2px;background:#fff6e9
+}
+body:not(.shared-draft-strong) .shared-editor-card.unsaved-draft{
+ border:2px solid #c49d6a;background:#fffdfa
+}
+body:not(.shared-draft-strong) .shared-editor-card.unsaved-draft>summary{
+ background:#f7eee2;color:#624625
+}
+body:not(.shared-draft-strong) .shared-editor-card.unsaved-draft [data-shared-body]{
+ border:2px solid #b88f60;background:#fffefa;box-shadow:0 0 0 1px #eadbca
+}
+body:not(.shared-draft-strong) .shared-editor-card.unsaved-draft [data-shared-body]:focus-visible{
+ outline:2px solid #87673e;outline-offset:2px
+}
+body:not(.shared-draft-strong) .shared-draft-warning{
+ color:#624625;background:#fcf2e5;border-right:3px solid #bb9362
+}
+.draft-tone-toggle{font-weight:700}
+@media print{.draft-tone-toggle{display:none!important}}
