@@ -72,6 +72,10 @@ function makeClient(database,uid){
      kind:body.p_kind,body:body.p_body,author_id:uid,parent_id:body.p_parent_id,
      client_request_id:body.p_client_request_id,created_at:new Date().toISOString()});
     response=id;
+    if(database.failAfterAppendOnce){
+     database.failAfterAppendOnce=false;
+     throw Error('Network connection lost after commit');
+    }
    }
   }else if(table==='create_inspection_mission'){
    if(uid===C)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Approved inspector required'})};
@@ -320,4 +324,31 @@ test('M3.2: report bridge exposes stable IDs; individual editor remains tab-loca
  assert.match(cloud,/if\(currentPage==='missions'&&document\.activeElement\?\.matches\?\.\('\[data-contrib-field\]'\)\)return/);
  execFileSync(process.execPath,['--check','app.js']);
  execFileSync(process.execPath,['--check','cloud.js']);
+});
+
+
+test('M3.2: ambiguous network loss retries same UUID and never duplicates a contribution',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.contribute('itemId','III-01-I001');
+ await a.contribute('body','معاينة ينبغي عدم تكرارها');
+ data.failAfterAppendOnce=true;
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,1);
+ assert.match(a.elements['cloud-content'].innerHTML,/تعذر تنفيذ العملية/);
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,1);
+ const calls=data.requests.filter(x=>x.table==='append_inspection_contribution');
+ assert.equal(calls.length,2);
+ assert.equal(calls[0].body.p_client_request_id,calls[1].body.p_client_request_id);
+ assert.match(a.elements['cloud-content'].innerHTML,/حُفظت المساهمة المشتركة باسمك/);
+});
+test('M3.2: pending text is stored in client draft rather than auto-submitted by background refresh',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.contribute('itemId','II-MAIN-I001');
+ await a.contribute('body','مسودة لم يتم الضغط على حفظها');
+ await a.action('mission-refresh');
+ assert.equal(data.contributions.length,0);
+ assert.match(a.elements['cloud-content'].innerHTML,/مسودة لم يتم الضغط على حفظها/);
+ assert.ok(!data.requests.some(x=>x.table==='append_inspection_contribution'));
+ assert.match(cloud,/توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد/);
 });
