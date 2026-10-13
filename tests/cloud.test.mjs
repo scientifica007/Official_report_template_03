@@ -186,3 +186,25 @@ test('M2.2 shell: reserved teamwork/calendar/messaging sections explicitly discl
   assert.match(h.elements['cloud-content'].innerHTML,/قيد التطوير/);
  }
 });
+
+
+test('M2.2 shell: selected version remains pinned until successful write, independent of refreshed list',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('institutions');
+ h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ // A newer server version is now visible; the editor must not blindly write with that version.
+ await h.navigate('dashboard');await h.navigate('institutions');
+ await h.action('save');
+ const patch=h.requests.find(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions'));
+ assert.ok(patch);
+ assert.equal(new URL(patch.url).searchParams.get('version'),'eq.1');
+ assert.equal(patch.body.version,2);
+});
+test('M2.2 shell: signup and admin commands stay inside the account portal, not within report entry',()=>{
+ const html=readFileSync('index.html','utf8');
+ assert.ok(html.indexOf('id="cloud-shell"')>html.indexOf('id="workspace"'));
+ assert.match(source,/function accountView\(\)/);
+ assert.match(source,/function renderAccountsManagement\(\)/);
+ assert.match(source,/function portalNavigation\(\)/);
+ assert.match(app,/prepareLogout\(\)/);
+ assert.match(html,/id="return-dashboard"/);
+});
