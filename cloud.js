@@ -27,7 +27,7 @@ const text=val=>String(val==null?'':val).trim();
 const verifiedUser=()=>profile&&profile.approved;
 const title=role=>({IFEP:'مفتش التكوين والتعليم المهنيين',ITP:'مفتش تقني وبيداغوجي',IAF:'مفتش إداري ومالي'})[role]||role||'';
 const now=()=>new Date().toISOString();
-function status(message){feedback=String(message||'');const o=document.getElementById('cloud-message');if(o)o.textContent=feedback}
+function status(message){feedback=String(message||'');for(const id of ['cloud-message','shared-report-status']){const o=document.getElementById(id);if(o)o.textContent=feedback}}
 function storageSet(value){
  try{if(value)sessionStorage.setItem(SESSION_KEY,JSON.stringify(value));else sessionStorage.removeItem(SESSION_KEY)}catch(e){status('تعذر تخزين جلسة تسجيل الدخول في هذا التبويب: '+e.message)}
 }
