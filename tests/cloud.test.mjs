@@ -11,7 +11,7 @@ const institutionId='966acf35-fc0f-45fa-9123-9c68fc272d82';
 const entry={id:institutionId,name:'مركز تبسة 1',wilaya:'تبسة',code:'1201',
  institution_data:{name:'مركز تبسة 1',wilaya:'تبسة',code:'1201',address:'تبسة'},
  director_data:{fullName:'الرئيس القديم'},version:1,updated_at:'2026-10-13T10:00:00Z',updated_by:uid};
-function createHarness(configured=true,conflict=false){
+function createHarness(configured=true,conflict=false,otherProfiles=[]){
  const events={root:{},document:{},report:{}},requests=[],values=new Map();
  const elements={
  'cloud-shell':{open:true},
@@ -35,7 +35,7 @@ function createHarness(configured=true,conflict=false){
   let data=[];
   if(path.pathname.endsWith('/inspector_profiles')){
    if(path.searchParams.has('id'))data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',district:'تبسة',approved:true,is_admin:false}];
-   else data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',approved:true,is_admin:false}];
+   else data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',district:'تبسة',approved:true,is_admin:false},...otherProfiles];
   }else if(path.pathname.endsWith('/shared_institutions')){
    if(request.method==='PATCH')data=conflict?[]:[{id:institutionId,name:'مركز تبسة 1',version:2}];
    else data=[entry];
@@ -404,5 +404,47 @@ test('M2.2.3: cloud renders live report dropdown on entry and when remote data i
  const unchanged=calls;
  await h.action('refresh');
  assert.equal(calls,unchanged);
- assert.match(source,/if\(report\)window\.Report03CloudBridge\?\.syncSharedInstitutionOptions\?\.\(\)/);
+ assert.match(source,/if\(report\)\{window\.Report03CloudBridge\?\.syncSharedInstitutionOptions\?\.\(\)/);
+});
+
+
+test('M2.2.5: colleague directory exposes approved peers with name, role and district only',async()=>{
+ const extra=[
+  {id:'818b3f29-a934-45e0-a6ab-4ec731430001',first_name:'فاطمة',last_name:'خالد',profession:'ITP',district:'12',email:'fatima@example.dz',approved:true},
+  {id:'818b3f29-a934-45e0-a6ab-4ec731430002',first_name:'خالد',last_name:'علي',profession:'IAF',district:'15',email:'khaled@example.dz',approved:true},
+  {id:'818b3f29-a934-45e0-a6ab-4ec731430003',first_name:'معلقة',last_name:'التجربة',profession:'IFEP',district:'99',approved:false,account_status:'suspended'},
+  {id:'818b3f29-a934-45e0-a6ab-4ec731430004',first_name:'مرفوض',last_name:'الطلب',profession:'ITP',approved:false,account_status:'rejected'}
+ ];
+ const h=createHarness(true,false,extra);await h.ready();
+ const directory=h.context.window.Report03CloudUI.listReportColleagues();
+ assert.equal(directory.length,2);
+ assert.deepEqual([...directory.map(p=>p.first_name)],['فاطمة','خالد']);
+ assert.equal(directory[0].profession,'ITP');
+ assert.equal(directory[0].district,'12');
+ assert.equal(directory[1].profession,'IAF');
+ assert.ok(!Object.hasOwn(directory[0],'email'));
+ assert.equal(h.context.window.Report03CloudUI.findReportColleague(extra[2].id),null);
+ assert.equal(h.context.window.Report03CloudUI.findReportColleague(uid),null);
+ assert.equal(h.context.window.Report03CloudUI.findReportColleague(extra[1].id).last_name,'علي');
+});
+test('M2.2.5: directory interface refuses to expose coworkers without approved account',async()=>{
+ const h=createHarness();await h.ready();
+ assert.deepEqual([...h.context.window.Report03CloudUI.listReportColleagues()],[]);
+ assert.equal(h.context.window.Report03CloudUI.findReportColleague(uid),null);
+ assert.match(source,/if\(!verifiedUser\(\)\)return \[\];\s*return profiles\.filter/);
+ assert.match(source,/if\(!verifiedUser\(\)\)return null;\s*const colleague=profiles\.find/);
+ assert.match(source,/select:'id,email,first_name,last_name,profession,district,approved,is_admin,account_status'/);
+});
+test('M2.2.5: live report directory updates independently on authenticated portal refresh',async()=>{
+ const h=createHarness();let calls=0;
+ h.bridge.syncReportColleagueOptions=()=>{calls++;return true};
+ await h.ready();
+ await h.navigate('report');
+ assert.equal(calls,1);
+ await h.action('refresh');
+ assert.ok(calls>=2);
+ const unchanged=calls;
+ await h.navigate('dashboard');
+ await h.action('refresh');
+ assert.equal(calls,unchanged);
 });
