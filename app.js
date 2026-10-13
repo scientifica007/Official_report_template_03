@@ -13,6 +13,42 @@ let pendingDrafts = Object.create(null);
 let sharedReportMissionId='',individualReportContext=null,sharedProvenance=null;
 // Presentation-only toggle; soft highlights are the default, no effect on Supabase data.
 let useStrongDraftHighlight=false;
+// Visible persistence status for the two collaborative report-summary textareas.
+let sharedSummaryStatus=Object.create(null),sharedSummaryCommitted=Object.create(null);
+const SUMMARY_KEYS=['generalAssessment','generalRecommendations'];
+const summaryLabel=key=>key==='generalAssessment'?'التقدير العام حول سير المؤسسة والاختلالات':'التوصيات العامة الإضافية';
+function pendingSharedSummaryFields(){
+ if(!isSharedReport())return [];
+ return SUMMARY_KEYS.filter(key=>['editing','saving','error'].includes(sharedSummaryStatus[key])).map(key=>({key,label:summaryLabel(key),status:sharedSummaryStatus[key]}));
+}
+function sharedSummaryText(key){
+ return ({editing:'تعديل غير محفوظ — يُحفظ عند مغادرة الحقل أو بالضغط على «حفظ»',
+ saving:'جارٍ حفظ التعديل في المهمة المشتركة…',
+ saved:'حُفظ التعديل في المهمة المشتركة',
+ error:'تعذر حفظ التعديل. النص ما زال هنا؛ حاول الحفظ مرة أخرى.'})[sharedSummaryStatus[key]]||'';
+}
+function setSharedSummaryStatus(key,status,value){
+ if(!isSharedReport()||!SUMMARY_KEYS.includes(key))return false;
+ if(status==='saved'){
+  sharedSummaryCommitted[key]=String(value??'');
+  if(state.summary[key]!==sharedSummaryCommitted[key])status='editing';
+ }else if(status==='editing'&&String(value??'')===String(sharedSummaryCommitted[key]??''))status=sharedSummaryStatus[key]==='saved'?'saved':'';
+ sharedSummaryStatus[key]=status;
+ const input=document.getElementById('summary-'+key);
+ const wrap=input?.closest?.('.shared-summary-field');
+ if(wrap)wrap.dataset.saveState=status;
+ const line=document.querySelector?.('[data-summary-status="'+key+'"]');
+ if(line)line.textContent=sharedSummaryText(key);
+ return true;
+}
+function focusSharedSummary(key){
+ if(!isSharedReport()||!SUMMARY_KEYS.includes(key))return false;
+ if(currentView!=='meta'){currentView='meta';render();}
+ const input=document.getElementById('summary-'+key);
+ input?.scrollIntoView?.({behavior:'smooth',block:'center'});
+ input?.focus?.({preventScroll:true});
+ return Boolean(input);
+}
 const isSharedReport=()=>Boolean(sharedReportMissionId);
 function sharedReportHasInputs(){
  return Object.values(pendingDrafts).some(d=>d&&Object.values(d).some(x=>text(x)))||
@@ -328,12 +364,14 @@ function render(){if(!valid())return;
  const storageLabel=$('report-storage-label');
  if(storageLabel)storageLabel.textContent=isSharedReport()?'مهمة مشتركة — بيانات التقرير محفوظة في Supabase':'تقرير فردي محفوظ داخل التبويب فقط';
  renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+(currentView==='meta'?renderMeta():renderChapter());}
-function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''}"><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
+function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
 function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
  const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
 function renderEntryEditor(id,label){if(isSharedReport())return window.Report03CloudUI?.renderSharedEntry?.(id)||'<p>تعذر تحميل محرر المهمة المشتركة.</p>';const e=getEntry(id);return `<div class="entry-area">${[['findings','المعاينات','المعاينة'],['recommendations','التوصيات','التوصية']].map(([kind,title,placeholder])=>`<div class="entry-box"><h3>${title} <span class="pill count">${(e[kind]||[]).length}</span></h3>${(e[kind]||[]).length?`<ul class="item-list">${e[kind].map(v=>`<li>${safe(v.text)}<button type="button" class="remove-entry" data-remove="${id}" data-kind="${kind}" data-entry="${v.id}" title="حذف">×</button></li>`).join('')}</ul>`:'<p class="empty">لا يوجد إدخال بعد</p>'}<textarea data-input-target="${id}" data-input-kind="${kind}" placeholder="اكتب ${placeholder}؛ سيُضم النص عند التصدير حتى دون الضغط على زر الإضافة">${safe(pendingDrafts[id]?.[kind]||'')}</textarea><button type="button" class="add-button" data-add="${id}" data-kind="${kind}">+ إضافة ${placeholder}</button></div>`).join('')}</div>`}
 function commitPendingEntries(){let committed=0;for(const [id,kinds] of Object.entries(pendingDrafts)){if(id!=='X'&&id!=='XI'&&!target(id))continue;for(const kind of ['findings','recommendations']){const content=text(kinds[kind]);if(!content)continue;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:content.slice(0,30000)});committed++}}pendingDrafts=Object.create(null);if(committed){changed=true;updateProgress()}return committed}
-function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true}else if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
+function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
+ if(isSharedReport()&&n.dataset.group==='summary')setSharedSummaryStatus(n.dataset.field,'editing',n.value);
+ }else if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
  if(inspector&&inspector[n.dataset.prop]!==n.value){
   inspector[n.dataset.prop]=n.value;
   delete inspector.profileId;mayPrefillAccountInspector=false;changed=true;
@@ -519,6 +557,12 @@ function exportDOCX(){commitPendingEntries();const qr=reportQrForExport(true),qr
  * Inspection mission, collaborators, findings and recommendations are never exposed.
  */
 window.Report03CloudBridge={
+ setSharedFieldStatus(group,key,status,value){
+  if(group!=='summary')return false;
+  return setSharedSummaryStatus(key,status,value);
+ },
+ pendingSharedSummaryFields(){return pendingSharedSummaryFields();},
+ focusSharedSummaryField(key){return focusSharedSummary(key);},
  updateSharedDraftStatus(){
   if(!isSharedReport())return;
   const list=window.Report03CloudUI?.pendingSharedDrafts?.()||[];
@@ -558,14 +602,18 @@ window.Report03CloudBridge={
    state=emptyState();pendingDrafts=Object.create(null);
   }
   sharedReportMissionId=payload.missionId;
+  sharedSummaryStatus=Object.create(null);
+  sharedSummaryCommitted=Object.create(null);
   this.applySharedReportData(payload);
   currentView='meta';currentDomain=null;render();
   return true;
  },
  applySharedReportData(payload){
   if(!isSharedReport()||payload?.missionId!==sharedReportMissionId)return false;
+  if(pendingSharedSummaryFields().length)return false;
   state.mission={...payload.mission};state.institution={...payload.institution};
   state.director={...payload.director};state.summary={...payload.summary};
+  for(const key of SUMMARY_KEYS)sharedSummaryCommitted[key]=String(state.summary[key]??'');
   state.inspectors=payload.inspectors.map(x=>({...x}));
   state.entries=payload.entries||{};
   sharedProvenance={missionId:payload.missionId,title:payload.title,
@@ -575,13 +623,14 @@ window.Report03CloudBridge={
  rerenderShared(){if(isSharedReport())render()},
  exitSharedMission(force=false){
   if(!isSharedReport())return true;
-  if(!force&&window.Report03CloudUI?.hasUnsentSharedDrafts?.()&&
-    !confirm('توجد نصوص مشتركة لم تُحفظ. هل تريد مغادرة محرر المهمة دون حفظها؟'))return false;
+  if(!force&&(window.Report03CloudUI?.hasUnsentSharedDrafts?.()||pendingSharedSummaryFields().length)&&
+    !confirm('توجد نصوص أو حقول مشتركة لم يُؤكد حفظها. هل تريد مغادرة محرر المهمة دون حفظها؟'))return false;
   if(individualReportContext){
    ({state,pendingDrafts,currentView,currentDomain,changed,
     selectedInstitutionId,selectedCloudInstitutionId,mayPrefillAccountInspector}=individualReportContext);
   }else{state=emptyState();pendingDrafts=Object.create(null);currentView='meta';currentDomain=null;changed=false;}
   individualReportContext=null;sharedReportMissionId='';sharedProvenance=null;
+  sharedSummaryStatus=Object.create(null);sharedSummaryCommitted=Object.create(null);
   render();return true;
  },
  listSharedCatalogTargets(){

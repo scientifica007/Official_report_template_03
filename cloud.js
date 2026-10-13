@@ -363,6 +363,11 @@ async function saveSharedAssessment(itemId,value){
 }
 async function prepareSharedExport(){
  if(!reportActive())return null;
+ const summaryPending=window.Report03CloudBridge?.pendingSharedSummaryFields?.()||[];
+ if(summaryPending.length){
+  window.Report03CloudBridge?.focusSharedSummaryField?.(summaryPending[0].key);
+  throw Error('هناك '+summaryPending.length+' حقل في خلاصة التقرير لم يُؤكد حفظه: '+summaryPending.map(x=>x.label).join('، ')+'. احفظ التعديل أولًا.');
+ }
  if(pendingFieldSaves)throw Error('انتظر اكتمال حفظ الحقول والتقييمات.');
  const pending=pendingEmbeddedDrafts();
  if(pending.length){
@@ -1022,28 +1027,48 @@ document.addEventListener('input',e=>{
   updateSharedDraftIndicators();
  }
 });
+async function persistSharedReportControl(input){
+ const group=input?.dataset?.group,key=input?.dataset?.field;
+ const assessment=input?.dataset?.assessment;
+ if(!((group&&key)||assessment))return;
+ if(group&&key&&!((group==='mission'&&['period','previousReports','monthYear'].includes(key))||
+          (group==='summary'&&['generalAssessment','generalRecommendations'].includes(key))))return;
+ const summary=group==='summary';
+ const value=input.value;
+ const pendingSummary=window.Report03CloudBridge?.pendingSharedSummaryFields?.();
+ if(summary&&Array.isArray(pendingSummary)&&!pendingSummary.some(x=>x.key===key))return;
+ input.disabled=true;
+ if(summary)window.Report03CloudBridge?.setSharedFieldStatus?.(group,key,'saving',value);
+ try{
+  if(assessment)await saveSharedAssessment(assessment,value);
+  else await saveSharedField(group,key,value);
+  if(summary)window.Report03CloudBridge?.setSharedFieldStatus?.(group,key,'saved',value);
+  status('تم حفظ التعديل في المهمة المشتركة.');
+ }catch(err){
+  if(summary)window.Report03CloudBridge?.setSharedFieldStatus?.(group,key,'error',value);
+  status('تعذر حفظ التعديل: '+err.message+'. بقي النص غير المحفوظ داخل الحقل؛ حاول مرة أخرى.');
+  // Keep the unconfirmed text in place: a forced reload would silently erase it.
+  if(!summary){await loadSharedReportExtras();notifyReportEditor(true);}
+ }finally{input.disabled=false;}
+}
 document.addEventListener('change',async e=>{
  if(!reportActive())return;
  const kindItem=e.target?.dataset?.sharedKind;
  if(kindItem){const d=sharedDraft(kindItem);d.kind=e.target.value;d.requestId='';return;}
- const group=e.target?.dataset?.group,key=e.target?.dataset?.field;
- const assessment=e.target?.dataset?.assessment;
- if((group&&key)||assessment){
-  if(group&&key&&!((group==='mission'&&['period','previousReports','monthYear'].includes(key))||
-           (group==='summary'&&['generalAssessment','generalRecommendations'].includes(key))))return;
-  const input=e.target;
-  input.disabled=true;
-  try{
-   if(assessment)await saveSharedAssessment(assessment,input.value);
-   else await saveSharedField(group,key,input.value);
-   status('تم حفظ التعديل في المهمة المشتركة.');
-  }catch(err){
-   status('تعذر حفظ التعديل: '+err.message+'. حدّث المهمة وأعد المحاولة.');
-   await loadSharedReportExtras();notifyReportEditor(true);
-  }finally{input.disabled=false;}
- }
+ await persistSharedReportControl(e.target);
 });
 document.addEventListener('click',async e=>{
+ const saveFieldButton=e.target?.closest?.('[data-save-shared-summary]');
+ if(saveFieldButton&&reportActive()){
+  const key=saveFieldButton.dataset.saveSharedSummary;
+  if(!['generalAssessment','generalRecommendations'].includes(key))return;
+  const input=document.getElementById('summary-'+key);
+  if(!input||input.disabled)return;
+  saveFieldButton.disabled=true;
+  try{await persistSharedReportControl(input)}
+  finally{saveFieldButton.disabled=false;}
+  return;
+ }
  const button=e.target?.closest?.('[data-shared-action]');
  if(!button||!reportActive()||sharedReportBusy)return;
  const action=button.dataset.sharedAction,id=button.dataset.itemId,parentId=button.dataset.parentId;

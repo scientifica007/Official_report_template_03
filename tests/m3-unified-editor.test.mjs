@@ -236,3 +236,46 @@ test('M3.3 print: preserve named portrait and landscape sections, and explain Ed
  assert.match(html,/id="pdf-orientation-guide"/);
  assert.match(html,/جداول الفحص والرقابة أفقية A4/);
 });
+
+
+test('M3.4: shared summary fields visibly change save state and retain normal text color',()=>{
+ const h=appHarness();h.context.__payload=payload;
+ h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ for(const key of ['generalAssessment','generalRecommendations']){
+  assert.match(h.elements.workspace.innerHTML,new RegExp('data-summary-status="'+key+'"'));
+  assert.match(h.elements.workspace.innerHTML,new RegExp('data-save-shared-summary="'+key+'"'));
+  const edit="مسودة جديدة "+key;
+  h.run('state.summary.'+key+'='+JSON.stringify(edit));
+  h.run('setSharedSummaryStatus('+JSON.stringify(key)+',"editing",'+JSON.stringify(edit)+')');
+  assert.match(h.run('sharedSummaryText('+JSON.stringify(key)+')'),/غير محفوظ/);
+  assert.equal(h.run('pendingSharedSummaryFields().length')>=1,true);
+  h.run('render()');
+  assert.match(h.elements.workspace.innerHTML,new RegExp('data-save-state="editing"'));
+  h.run('setSharedSummaryStatus('+JSON.stringify(key)+',"saving",'+JSON.stringify(edit)+')');
+  assert.match(h.run('sharedSummaryText('+JSON.stringify(key)+')'),/جارٍ حفظ/);
+  h.run('setSharedSummaryStatus('+JSON.stringify(key)+',"saved",'+JSON.stringify(edit)+')');
+  assert.match(h.run('sharedSummaryText('+JSON.stringify(key)+')'),/حُفظ/);
+ }
+ assert.equal(h.run('pendingSharedSummaryFields().length'),0);
+ const css=readFileSync('style.css','utf8');
+ for(const state of ['editing','saving','saved','error'])
+  assert.match(css,new RegExp('shared-summary-field\\[data-save-state="'+state+'"\\] textarea'));
+ assert.match(css,/\.shared-summary-field textarea\{transition/);
+ assert.doesNotMatch(css,/\.shared-summary-field\[data-save-state="(editing|saving|saved|error)"\] textarea\{[^}]*color:/);
+});
+test('M3.4: failed shared summary save blocks export and keeps the unsaved text',()=>{
+ const h=appHarness();h.context.__payload=payload;
+ h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ h.run("state.summary.generalAssessment='تقدير جديد لم يحفظ بعد'");
+ h.run("setSharedSummaryStatus('generalAssessment','editing','تقدير جديد لم يحفظ بعد')");
+ assert.equal(h.run('window.Report03CloudBridge.applySharedReportData(__payload)'),false,
+  'a background refresh must not overwrite the dirty field');
+ assert.equal(h.run('state.summary.generalAssessment'),'تقدير جديد لم يحفظ بعد');
+ h.run("setSharedSummaryStatus('generalAssessment','error','تقدير جديد لم يحفظ بعد')");
+ assert.equal(h.run('pendingSharedSummaryFields().length'),1);
+ assert.equal(h.run('pendingSharedSummaryFields()[0].label'),'التقدير العام حول سير المؤسسة والاختلالات');
+ assert.match(h.run('sharedSummaryText("generalAssessment")'),/تعذر حفظ/);
+ h.run("setSharedSummaryStatus('generalAssessment','saved','تقدير جديد لم يحفظ بعد')");
+ assert.equal(h.run('pendingSharedSummaryFields().length'),0);
+ assert.equal(h.run('window.Report03CloudBridge.applySharedReportData(__payload)'),true);
+});
