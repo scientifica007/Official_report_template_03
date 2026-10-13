@@ -488,7 +488,7 @@ test('M3.3 regression: pending drafts list precisely identifies each official ta
  await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/2 مسودة غير محفوظة/);
  assert.equal(data.contributions.length,0);
  await a.embedded('save','III-01-I001');
- assert.deepEqual(a.context.window.Report03CloudUI.pendingSharedDrafts().map(d=>d.itemId),['II-MAIN-I001']);
+ assert.deepEqual(Array.from(a.context.window.Report03CloudUI.pendingSharedDrafts(),d=>d.itemId),['II-MAIN-I001']);
  await a.embedded('save','II-MAIN-I001');
  assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,0);
  const output=await a.context.window.Report03CloudUI.prepareSharedExport();
