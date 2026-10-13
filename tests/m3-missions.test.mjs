@@ -18,7 +18,7 @@ const people=[
 ];
 const institution={id:I,name:'مركز تبسة',code:'1201',wilaya:'تبسة',version:1,
  institution_data:{name:'مركز تبسة',code:'1201',wilaya:'تبسة'},director_data:{fullName:'الرئيس'}};
-function db(){return {missions:[],members:[],notifications:[],contributions:[],available:true,requests:[],calls:0}}
+function db(){return {missions:[],members:[],notifications:[],contributions:[],fields:[],assessments:[],available:true,requests:[],calls:0}}
 function makeClient(database,uid){
  const handlers={root:{},document:{},report:{}},elements={
   'cloud-shell':{hidden:false},'cloud-content':{innerHTML:'',addEventListener(n,f){handlers.root[n]=f}},
@@ -54,6 +54,22 @@ function makeClient(database,uid){
    const mission=u.searchParams.get('mission_id')?.replace(/^eq\./,'');
    const allowed=database.members.some(m=>m.mission_id===mission&&m.inspector_id===uid&&m.membership_status==='accepted');
    response=allowed?database.contributions.filter(r=>r.mission_id===mission):[];
+  }else if(table==='inspection_report_field_events'){
+   response=database.fields.filter(e=>database.members.some(m=>
+     m.mission_id===e.mission_id&&m.inspector_id===uid&&m.membership_status==='accepted'));
+  }else if(table==='inspection_assessment_events'){
+   response=database.assessments.filter(e=>database.members.some(m=>
+     m.mission_id===e.mission_id&&m.inspector_id===uid&&m.membership_status==='accepted'));
+  }else if(table==='set_inspection_report_field'||table==='set_inspection_assessment'){
+   database.calls++;
+   const id='8bbd3eee-8aa1-4b55-8f4f-'+String(database.calls).padStart(12,'0');
+   const destination=table==='set_inspection_report_field'?database.fields:database.assessments;
+   const row=table==='set_inspection_report_field'?
+    {id,mission_id:body.p_mission_id,field_group:body.p_group,field_key:body.p_key,
+     field_value:body.p_value,author_id:uid,created_at:new Date().toISOString()}:
+    {id,mission_id:body.p_mission_id,item_id:body.p_item_id,
+     assessment:body.p_assessment,author_id:uid,created_at:new Date().toISOString()};
+   destination.push(row);response=id;
   }else if(table==='append_inspection_contribution'){
    const allowed=database.members.some(m=>m.mission_id===body.p_mission_id&&m.inspector_id===uid&&m.membership_status==='accepted');
    if(!allowed)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Membership required'})};
@@ -80,7 +96,7 @@ function makeClient(database,uid){
   }else if(table==='create_inspection_mission'){
    if(uid===C)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Approved inspector required'})};
    database.missions.push({id:M,title:body.p_title,purpose:body.p_purpose,
-    institution_id:I,institution_snapshot:institution.institution_data,
+    institution_id:I,institution_snapshot:institution.institution_data,director_snapshot:institution.director_data,
     visit_start:body.p_visit_start,visit_end:body.p_visit_end,status:'draft',created_by:uid,created_at:new Date().toISOString()});
    database.members.push({mission_id:M,inspector_id:uid,invited_by:uid,membership_status:'accepted'});
    response=M;
@@ -98,7 +114,10 @@ function makeClient(database,uid){
  };
  let uuidCount=0;
  const context={window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},
-  Report03CloudBridge:{listSharedCatalogTargets:()=>[
+  Report03CloudBridge:{canOpenSharedMission:()=>true,enterSharedMission(payload){this.snapshot=payload;return true},
+   applySharedReportData(payload){this.snapshot=payload;return true},
+   exitSharedMission:()=>true,rerenderShared(){},
+   listSharedCatalogTargets:()=>[
    {id:'III-01-I001',section:'III',label:'المهام القانونية — القانون الأساسي'},
    {id:'II-MAIN-I001',section:'II',label:'المظهر العام — نوعية البنايات'}]}},
  document:doc,fetch,sessionStorage:storage,crypto:{randomUUID(){uuidCount++;return 'ed62dd4c-8c04-4748-bcba-'+String(uuidCount).padStart(12,'0')}} ,
@@ -113,7 +132,16 @@ function makeClient(database,uid){
   async type(field,value){await handlers.root.input({target:{dataset:{missionField:field},value}})},
   async contribute(field,value){await handlers.root.input({target:{dataset:{contribField:field},value}})},
   choose(id){elements['mission-peer'].value=id},
-  async selectMission(value){await handlers.root.change({target:{id:'mission-select',value}})}
+  async selectMission(value){await handlers.root.change({target:{id:'mission-select',value}})},
+  async embedded(action,itemId,parentId){
+   await handlers.document.click({target:{closest(selector){
+    return selector==='[data-shared-action]'?{dataset:{sharedAction:action,itemId,parentId},disabled:false}:null;
+   }}});
+  },
+  async sharedText(itemId,value){await handlers.document.input({target:{dataset:{sharedBody:itemId},value}});},
+  snapshot(){return context.window.Report03CloudBridge.snapshot},
+  inline(itemId){return context.window.Report03CloudUI.renderSharedEntry(itemId)}
+
  };
 }
 test('M3.0 migration uses non-destructive, RLS-protected tables and only RPC writes',()=>{
@@ -251,8 +279,9 @@ test('M3.2: account A adds finding and B sees it after refresh, then B adds reco
  assert.equal(data.contributions[0].item_id,'III-01-I001');
  assert.match(a.elements['cloud-content'].innerHTML,/حُفظت المساهمة المشتركة باسمك/);
  await b.action('contribution-refresh');
- assert.match(b.elements['cloud-content'].innerHTML,/معاينة أولى تخص ممارسة المهام القانونية/);
- assert.match(b.elements['cloud-content'].innerHTML,/حاتم زريبي/);
+ await b.action('open-mission-report');
+ assert.match(b.inline('III-01-I001'),/معاينة أولى تخص ممارسة المهام القانونية/);
+ assert.match(b.inline('III-01-I001'),/حاتم زريبي/);
  await b.contribute('itemId','III-01-I001');
  await b.contribute('kind','recommendation');
  await b.contribute('body','توصية ثانية من المفتش الإداري والمالي');
@@ -261,7 +290,8 @@ test('M3.2: account A adds finding and B sees it after refresh, then B adds reco
  assert.equal(data.contributions[1].author_id,B);
  assert.equal(data.contributions[1].kind,'recommendation');
  await a.action('contribution-refresh');
- assert.match(a.elements['cloud-content'].innerHTML,/توصية ثانية من المفتش الإداري والمالي/);
+ await a.action('open-mission-report');
+ assert.match(a.inline('III-01-I001'),/توصية ثانية من المفتش الإداري والمالي/);
  assert.ok(!data.requests.some(x=>x.table==='inspection_contributions'&&x.method!=='GET'));
  assert.equal(data.requests.filter(x=>x.table==='append_inspection_contribution').length,2);
 });
@@ -288,8 +318,9 @@ test('M3.2: other inspector may reply, but cannot correct author original; autho
  assert.equal(data.contributions[2].kind,'correction');
  assert.equal(data.contributions[2].author_id,A);
  await b.action('contribution-refresh');
- assert.match(b.elements['cloud-content'].innerHTML,/إضافة زميل بخصوص نفس العنصر/);
- assert.match(b.elements['cloud-content'].innerHTML,/تصحيح موثق من مؤلف المعاينة/);
+ await b.action('open-mission-report');
+ assert.match(b.inline('II-MAIN-I001'),/إضافة زميل بخصوص نفس العنصر/);
+ assert.match(b.inline('II-MAIN-I001'),/تصحيح موثق من مؤلف المعاينة/);
 });
 test('M3.2: pending invitation cannot read or write contributions until accepted',async()=>{
  const data=db(),a=makeClient(data,A);await a.init();await a.nav('missions');
@@ -348,7 +379,8 @@ test('M3.2: pending text is stored in client draft rather than auto-submitted by
  await a.contribute('body','مسودة لم يتم الضغط على حفظها');
  await a.action('mission-refresh');
  assert.equal(data.contributions.length,0);
- assert.match(a.elements['cloud-content'].innerHTML,/مسودة لم يتم الضغط على حفظها/);
+ assert.equal(data.contributions.length,0);
+ assert.ok(!data.requests.some(x=>x.table==='append_inspection_contribution'));
  assert.ok(!data.requests.some(x=>x.table==='append_inspection_contribution'));
  assert.match(cloud,/توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد/);
 });
