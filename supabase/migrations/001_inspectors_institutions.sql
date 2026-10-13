@@ -68,7 +68,7 @@ create table if not exists public.shared_institutions (
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
  constraint institution_identity_consistency check (
-   institution_data->>'name'=name
+   coalesce(institution_data->>'name','')=name
    and coalesce(institution_data->>'code','')=code
    and coalesce(institution_data->>'wilaya','')=wilaya
  )
