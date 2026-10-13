@@ -133,7 +133,7 @@ test('M3.1: inspector A creates task and safely invites B, without uploading loc
  assert.equal(database.members[1].membership_status,'invited');
  assert.equal(database.notifications.length,1);
  assert.equal(database.notifications[0].recipient_id,B);
- assert.equal(database.requests.filter(x=>x.table==='inspection_contributions').length,1); // read only
+ assert.equal(database.requests.filter(x=>x.table==='inspection_contributions').length,0); // M3.2 not activated
  assert.ok(!database.requests.some(x=>x.table==='inspection_contributions'&&x.method!=='GET'));
 });
 test('M3.1: second inspector accepts and sees membership, while A sees the accepted team after refresh',async()=>{
