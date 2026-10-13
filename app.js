@@ -18,11 +18,21 @@ function sharedReportHasInputs(){
   Object.values(state.summary||{}).some(x=>text(x))||
   Object.values(state.mission||{}).some(x=>text(x));
 }
+function sharedDraftReview(){
+ const drafts=window.Report03CloudUI?.pendingSharedDrafts?.()||[];
+ if(!drafts.length)return '<span class="shared-draft-clean">لا توجد مساهمات معلّقة للحفظ في هذا التبويب.</span>';
+ return '<strong>تنبيه: '+drafts.length+' مسودة غير محفوظة قد تمنع التصدير.</strong>'+
+ '<span>اختر الموضع، ثم احفظ المساهمة أو امح نصها إذا كنت لا تريد إدراجها:</span>'+
+ '<div class="shared-draft-links">'+drafts.map((draft,i)=>
+ '<button type="button" class="shared-draft-link" data-shared-action="goto" data-item-id="'+safe(draft.itemId)+'"'+
+ ' title="'+safe(draft.label)+'">'+(i+1)+'. '+safe(draft.label)+'</button>').join('')+'</div>';
+}
 function sharedMissionBanner(){
  return '<div class="shared-report-banner" role="status"><strong>محرر التقرير المشترك — '+safe(sharedProvenance?.title||'مهمة تفتيش')+
  '</strong><span>كل معاينة وتوصية تُحفظ في المهمة باسم صاحبها، وتظهر لزملائه عند التحديث.</span>'+ '<span id="shared-report-status" role="status" aria-live="polite" class="shared-report-status"></span>'+
  '<button type="button" class="btn subtle" data-shared-action="refresh">تحديث المساهمات</button>'+
- '<button type="button" class="btn subtle" data-shared-action="exit">العودة إلى مهام التفتيش</button></div>';
+ '<button type="button" class="btn subtle" data-shared-action="exit">العودة إلى مهام التفتيش</button>'+
+ '<div id="shared-draft-review" class="shared-draft-review'+((window.Report03CloudUI?.pendingSharedDrafts?.()||[]).length?' has-unsent':'')+'" role="status" aria-live="polite">'+sharedDraftReview()+'</div></div>';
 }
 const $ = id => document.getElementById(id);
 const FIELDSETS = [
@@ -504,6 +514,31 @@ function exportDOCX(){commitPendingEntries();const qr=reportQrForExport(true),qr
  * Inspection mission, collaborators, findings and recommendations are never exposed.
  */
 window.Report03CloudBridge={
+ updateSharedDraftStatus(){
+  if(!isSharedReport())return;
+  const list=window.Report03CloudUI?.pendingSharedDrafts?.()||[];
+  const alert=document.getElementById('shared-draft-review');
+  if(alert){alert.classList.toggle('has-unsent',list.length>0);alert.innerHTML=sharedDraftReview();}
+  for(const textarea of document.querySelectorAll('[data-shared-body]')){
+   const pending=Boolean(textarea.value.trim());
+   textarea.closest('.shared-editor-card')?.classList.toggle('unsaved-draft',pending);
+  }
+ },
+ focusSharedDraft(id){
+  if(!isSharedReport())return false;
+  const info=target(id);
+  if(!info&&id!=='X'&&id!=='XI')return false;
+  currentView=info?.section.id||id;
+  currentDomain=info?.domain.id||null;
+  render();
+  const area=[...document.querySelectorAll('[data-shared-body]')].find(node=>node.dataset.sharedBody===id);
+  if(!area)return false;
+  const wrapper=area.closest('.shared-editor-card');
+  if(wrapper)wrapper.open=true;
+  area.scrollIntoView?.({behavior:'smooth',block:'center'});
+  area.focus?.({preventScroll:true});
+  return true;
+ },
  canOpenSharedMission(id){
   if(isSharedReport())return sharedReportMissionId===id||this.exitSharedMission();
   if(sharedReportHasInputs()&&
