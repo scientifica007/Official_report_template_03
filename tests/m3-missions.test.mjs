@@ -451,7 +451,54 @@ test('M3.3: pending unsaved text blocks unified export without uploading anythin
  const {data,a}=await twoAccounts();
  await a.action('open-mission-report');
  await a.sharedText('III-01-I001','نص لم يتم حفظه');
- await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/لم تحفظها بعد/);
+ await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/مسودة غير محفوظة/);
  assert.equal(data.contributions.length,0);
  assert.match(a.inline('III-01-I001'),/نص لم يتم حفظه/);
+});
+
+
+test('M3.3 regression: server-confirmed contribution ending with newline/whitespace clears draft and exports',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.action('open-mission-report');
+ await a.sharedText('III-01-I001','معاينة مؤكدة بعد إزالة الفراغات \n \n');
+ assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,1);
+ await a.embedded('save','III-01-I001');
+ assert.equal(data.contributions.length,1);
+ assert.equal(data.contributions[0].body,'معاينة مؤكدة بعد إزالة الفراغات');
+ assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,0,
+  'a successful trimmed save must not retain a phantom pending draft');
+ const snapshot=await a.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(snapshot.entries['III-01-I001'].findings[0].text,
+  'معاينة مؤكدة بعد إزالة الفراغات');
+ await b.action('open-mission-report');
+ const peer=await b.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(peer.entries['III-01-I001'].findings.length,1);
+});
+test('M3.3 regression: pending drafts list precisely identifies each official target and clears individually',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.action('open-mission-report');
+ await a.sharedText('III-01-I001','مسودة في الباب الثالث');
+ await a.sharedText('II-MAIN-I001','مسودة في الباب الثاني');
+ const drafts=a.context.window.Report03CloudUI.pendingSharedDrafts();
+ assert.equal(drafts.length,2);
+ assert.deepEqual(new Set(drafts.map(d=>d.itemId)),new Set(['III-01-I001','II-MAIN-I001']));
+ for(const d of drafts){assert.ok(d.label.length>2);assert.ok(d.preview.includes('مسودة'))}
+ assert.match(a.inline('II-MAIN-I001'),/unsaved-draft/);
+ assert.match(a.inline('II-MAIN-I001'),/هذه المسودة غير محفوظة/);
+ await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/2 مسودة غير محفوظة/);
+ assert.equal(data.contributions.length,0);
+ await a.embedded('save','III-01-I001');
+ assert.deepEqual(Array.from(a.context.window.Report03CloudUI.pendingSharedDrafts(),d=>d.itemId),['II-MAIN-I001']);
+ await a.embedded('save','II-MAIN-I001');
+ assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,0);
+ const output=await a.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(output.entries['III-01-I001'].findings.length,1);
+ assert.equal(output.entries['II-MAIN-I001'].findings.length,1);
+});
+test('M3.3 regression: empty and whitespace-only draft must not block otherwise valid export',async()=>{
+ const {a}=await twoAccounts();
+ await a.action('open-mission-report');
+ await a.sharedText('III-01-I001',' \n   ');
+ assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,0);
+ assert.ok((await a.context.window.Report03CloudUI.prepareSharedExport()).missionId);
 });

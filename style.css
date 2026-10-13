@@ -349,3 +349,20 @@
 .print-author{font-size:9pt;white-space:nowrap;font-weight:400}
 @media(max-width:700px){.shared-inline-editor{padding:9px}.shared-report-banner{padding:10px}}
 @media print{.shared-report-banner,.shared-editor-card{display:none!important}}
+
+
+/* M3.3 patch: visible actionable review for unsaved mission contributions. */
+.shared-draft-review{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid #badac7;border-radius:9px;padding:9px 12px;background:#f4faf6;font-size:.85rem}
+.shared-draft-review.has-unsent{background:#fff0b8;border:2px solid #bf4e00;color:#713000}
+.shared-draft-review.has-unsent>strong{font-size:.94rem}
+.shared-draft-clean{font-size:.83rem;color:#346454}
+.shared-draft-links{display:flex;flex-wrap:wrap;gap:7px;max-width:100%}
+.shared-draft-link{max-width:min(100%,370px);text-overflow:ellipsis;overflow:hidden;white-space:nowrap;border:2px solid #a54400;border-radius:7px;background:#fff;color:#832f00;font:inherit;font-weight:700;padding:6px 12px;cursor:pointer;text-align:right}
+.shared-draft-link:hover,.shared-draft-link:focus-visible{outline:3px solid #f39734;outline-offset:2px;background:#fff4dc}
+.shared-editor-card.unsaved-draft{border:3px solid #df6500;background:#fff7da}
+.shared-editor-card.unsaved-draft>summary{color:#8b2c00;background:#ffe8a0}
+.shared-editor-card.unsaved-draft [data-shared-body]{border:3px solid #d45300;background:#fff7cf;box-shadow:0 0 0 3px #ffdf85}
+.shared-editor-card.unsaved-draft [data-shared-body]:focus-visible{outline:3px solid #9a3700;outline-offset:2px}
+.shared-draft-warning{padding:8px 12px;margin:6px 0;color:#832f00;font-weight:700;border-right:4px solid #dd6000;background:#ffe7ab;border-radius:5px}
+@media(max-width:700px){.shared-draft-links{width:100%}.shared-draft-link{max-width:100%;width:100%}}
+@media print{.shared-draft-review{display:none!important}}

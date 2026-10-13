@@ -259,6 +259,18 @@ async function enterMissionReport(){
   currentPage='report';feedback='فُتح محرر التقرير المشترك. جميع إضافاتك محفوظة في المهمة.';
  }catch(e){activeReportMissionId='';throw e}
 }
+function pendingEmbeddedDrafts(){
+ if(!activeReportMissionId)return [];
+ return Object.entries(embeddedDrafts).filter(([key,d])=>
+   key.startsWith(activeReportMissionId+':')&&Boolean(text(d.body))).map(([,d])=>({
+   itemId:d.itemId,label:catalogLabel(d.itemId),kind:d.kind,
+   preview:text(d.body).slice(0,100)
+ }));
+}
+function updateSharedDraftIndicators(){
+ if(!reportActive())return;
+ window.Report03CloudBridge?.updateSharedDraftStatus?.();
+}
 function sharedDraft(itemId){
  const key=activeReportMissionId+':'+itemId;
  return embeddedDrafts[key]||(embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''});
@@ -268,7 +280,8 @@ function sharedEditorFor(itemId){
  const draft=sharedDraft(itemId);
  const originals=missionContributions.filter(x=>x.item_id===itemId&&['finding','recommendation'].includes(x.kind));
  const children=missionContributions.filter(x=>x.item_id===itemId&&['reply','correction'].includes(x.kind));
- return '<details class="shared-editor-card" data-shared-details="'+elt(itemId)+'" '+(expandedSharedItems.has(itemId)?'open':'')+'><summary>المعاينات والتوصيات ('+originals.length+') — فتح التحرير المشترك</summary><div class="shared-inline-editor">'+
+ const unsent=Boolean(text(draft.body));
+ return '<details class="shared-editor-card'+(unsent?' unsaved-draft':'')+'" data-shared-details="'+elt(itemId)+'" '+(expandedSharedItems.has(itemId)?'open':'')+'><summary>المعاينات والتوصيات ('+originals.length+')'+(unsent?' — مسودة غير محفوظة':'')+' — فتح التحرير المشترك</summary><div class="shared-inline-editor">'+
  '<div class="shared-editor-header"><strong>مساهمات المفتشين ('+originals.length+')</strong>'+
  '<button type="button" class="btn subtle" data-shared-action="refresh">تحديث</button></div>'+
  (originals.length?originals.map(x=>{
@@ -292,6 +305,7 @@ function sharedEditorFor(itemId){
  '</select></label>'+
  (draft.parentId?'<p class="cloud-tip">الإضافة مرتبطة بالنص الأصلي: '+elt(draft.parentId)+
  ' <button type="button" class="btn subtle" data-shared-action="cancel" data-item-id="'+elt(itemId)+'">إلغاء</button></p>':'')+
+ (unsent?'<p class="shared-draft-warning" role="status">هذه المسودة غير محفوظة ولن تدخل في التقرير حتى تضغط «حفظ الإضافة في المهمة».</p>':'')+
  '<textarea data-shared-body="'+elt(itemId)+'" rows="3" maxlength="30000" placeholder="اكتب هنا. لا يتم الحفظ إلا بعد الضغط على الزر.">'+elt(draft.body)+'</textarea>'+
  '<button type="button" class="add-button" data-shared-action="save" data-item-id="'+elt(itemId)+'">حفظ الإضافة في المهمة</button>'+
  '</div></details>';
@@ -309,7 +323,7 @@ async function saveEmbedded(itemId){
  },true);
  if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('لم تُؤكد قاعدة البيانات الحفظ.');
  const key=activeReportMissionId+':'+itemId;
- if(d.body===body)embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''};
+ if(text(d.body)===body)embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''};
  else d.requestId='';
  await loadMissionContributions();
  if(contributionError)throw Error('حُفظ النص لكن تعذر تحديث عرضه؛ حاول التحديث.');
@@ -350,8 +364,12 @@ async function saveSharedAssessment(itemId,value){
 async function prepareSharedExport(){
  if(!reportActive())return null;
  if(pendingFieldSaves)throw Error('انتظر اكتمال حفظ الحقول والتقييمات.');
- if(Object.entries(embeddedDrafts).some(([key,d])=>key.startsWith(activeReportMissionId+':')&&text(d.body)))
-  throw Error('توجد مساهمة مكتوبة لم تحفظها بعد؛ احفظها أو امح النص قبل التصدير.');
+ const pending=pendingEmbeddedDrafts();
+ if(pending.length){
+  updateSharedDraftIndicators();
+  window.Report03CloudBridge?.focusSharedDraft?.(pending[0].itemId);
+  throw Error('توجد '+pending.length+' مسودة غير محفوظة. انتقلنا إلى أول مسودة، وستجد روابط كل المسودات أعلى المحرر. احفظها أو امح نصها قبل التصدير.');
+ }
  await loadSharedReportAll();
  return effectiveSharedReport();
 }
@@ -1001,6 +1019,7 @@ document.addEventListener('input',e=>{
  if(itemId&&reportActive()){
   const d=sharedDraft(itemId);
   if(d.body!==e.target.value){d.body=e.target.value;d.requestId='';}
+  updateSharedDraftIndicators();
  }
 });
 document.addEventListener('change',async e=>{
@@ -1028,6 +1047,12 @@ document.addEventListener('click',async e=>{
  const button=e.target?.closest?.('[data-shared-action]');
  if(!button||!reportActive()||sharedReportBusy)return;
  const action=button.dataset.sharedAction,id=button.dataset.itemId,parentId=button.dataset.parentId;
+ if(action==='goto'){
+  if(!id||!pendingEmbeddedDrafts().some(d=>d.itemId===id))return;
+  expandedSharedItems.add(id);
+  window.Report03CloudBridge?.focusSharedDraft?.(id);
+  return;
+ }
  if(action==='refresh'){
   sharedReportBusy=true;try{await loadSharedReportAll();status('تم تحديث مساهمات المهمة.');}
   catch(err){status('تعذر التحديث: '+err.message)}
@@ -1050,7 +1075,7 @@ document.addEventListener('click',async e=>{
  }
  if(action==='save'){
   sharedReportBusy=true;button.disabled=true;
-  try{await saveEmbedded(id);status('حُفظت المساهمة باسمك في المهمة المشتركة.');}
+  try{await saveEmbedded(id);updateSharedDraftIndicators();status('حُفظت المساهمة باسمك في المهمة المشتركة.');}
   catch(err){status('فشل الحفظ: '+err.message)}
   finally{sharedReportBusy=false;button.disabled=false;}
  }
@@ -1146,8 +1171,8 @@ root.addEventListener('click',async e=>{
 });
 window.Report03CloudUI={
  activeSharedMissionId(){return reportActive()?activeReportMissionId:''},
- hasUnsentSharedDrafts(){return Object.entries(embeddedDrafts).some(([key,d])=>
-  key.startsWith(activeReportMissionId+':')&&Boolean(text(d.body)));},
+ hasUnsentSharedDrafts(){return pendingEmbeddedDrafts().length>0;},
+ pendingSharedDrafts(){return pendingEmbeddedDrafts();},
  getSharedReportPayload(){return effectiveSharedReport()},
  renderSharedEntry(id){return sharedEditorFor(id)},
  async prepareSharedExport(){return prepareSharedExport()},
