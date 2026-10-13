@@ -169,3 +169,21 @@
  .cloud-notice{overflow-x:auto}
 }
 @media print{.cloud-shell{display:none!important}}
+
+/* M2.1.1 — structured administrator controls for account lifecycle. */
+.cloud-account-group,.cloud-audit{margin:10px 0;border:1px solid #d5e2da;border-radius:9px;background:#fff;overflow:hidden}
+.cloud-account-group>summary,.cloud-audit>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:#184c3c;background:#f0f7f3}
+.cloud-account-group[open]>summary,.cloud-audit[open]>summary{border-bottom:1px solid #d5e2da}
+.cloud-account-row{padding:14px;display:grid;grid-template-columns:minmax(145px,1fr) minmax(160px,1fr) auto;gap:12px;align-items:center;border-bottom:1px solid #e3e9e5}
+.cloud-account-row:last-child{border-bottom:0}
+.cloud-account-row>div>p{overflow-wrap:anywhere;margin:3px 0}
+.cloud-reason-label{font-weight:500!important;margin:0!important}
+.cloud-reason-label input{margin-top:7px;font-size:13px}
+.cloud-account-actions{display:flex;flex-wrap:wrap;gap:8px}
+.cloud-account-actions .add-button{margin:0;white-space:nowrap}
+.cloud-audit{padding-bottom:8px}
+.cloud-table-scroller{overflow-x:auto;padding:8px}
+.cloud-audit-table{width:100%;border-collapse:collapse;min-width:580px;font-size:12px}
+.cloud-audit-table td,.cloud-audit-table th{border:1px solid #d3ded7;padding:8px;text-align:right;vertical-align:top;overflow-wrap:anywhere}
+@media(max-width:800px){.cloud-account-row{grid-template-columns:1fr}.cloud-account-actions .add-button{flex:1}}
+@media print{.cloud-account-group,.cloud-audit{display:none!important}}

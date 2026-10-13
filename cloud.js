@@ -11,7 +11,7 @@ const base=String(cfg.supabaseUrl||'').replace(/\/+$/,'');
 const key=String(cfg.publishableKey||'');
 const configured=/^https:\/\//.test(base)&&base.length<300&&key.length>20&&!key.toLowerCase().includes('service_role')&&!key.startsWith('sb_secret_');
 const SESSION_KEY='official_report03_cloud_session_v1';
-let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],mode='login';
+let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],accountDecisions=[],myDecisions=[],mode='login';
 let selectedSharedId='',feedback='',busy=false;
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
@@ -83,18 +83,20 @@ async function submit(table,data,params,method){
  return result;
 }
 async function loadProfile(){
- const rows=await get('inspector_profiles',{select:'id,email,first_name,last_name,profession,district,approved,is_admin',id:'eq.'+session.user.id});
+ const rows=await get('inspector_profiles',{select:'id,email,first_name,last_name,profession,district,approved,is_admin,account_status',id:'eq.'+session.user.id});
  profile=Array.isArray(rows)?rows[0]||null:null;
  if(!profile)throw Error('تعذر العثور على ملف المفتش. تحقق من تنفيذ مخطط قاعدة البيانات.');
+ myDecisions=await get('inspector_account_decisions',{select:'previous_status,new_status,reason,decided_at',inspector_id:'eq.'+session.user.id,order:'decided_at.desc',limit:'1'});
 }
 async function loadShared(){
- if(!verifiedUser()){shared=[];notifications=[];changes=[];profiles=[];return}
- const [institutions,people,pings]=await Promise.all([
+ if(!verifiedUser()){shared=[];notifications=[];changes=[];profiles=[];accountDecisions=[];return}
+ const [institutions,people,pings,decisionRows]=await Promise.all([
   get('shared_institutions',{select:'id,name,wilaya,code,institution_data,director_data,version,updated_at,updated_by',order:'name.asc',limit:'500'}),
-  get('inspector_profiles',{select:'id,email,first_name,last_name,profession,approved,is_admin',order:'first_name.asc'}),
-  get('institution_notifications',{select:'id,change_id,read_at,created_at',recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'40'})
+  get('inspector_profiles',{select:'id,email,first_name,last_name,profession,approved,is_admin,account_status',order:'first_name.asc'}),
+  get('institution_notifications',{select:'id,change_id,read_at,created_at',recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'40'}),
+ profile.is_admin?get('inspector_account_decisions',{select:'id,inspector_id,decided_by,previous_status,new_status,reason,decided_at',order:'decided_at.desc',limit:'60'}):Promise.resolve([])
  ]);
- shared=institutions||[];profiles=people||[];notifications=pings||[];
+ shared=institutions||[];profiles=people||[];notifications=pings||[];accountDecisions=decisionRows||[];
  const ids=notifications.map(x=>x.change_id).filter(Boolean);
  changes=ids.length?await get('institution_changes',{select:'id,institution_id,actor_id,action,changes,created_at',id:'in.('+ids.join(',')+')'}):[];
 }
@@ -133,6 +135,61 @@ function noticeCard(entry){
  (change.action==='updated'?'<table><thead><tr><th>الحقل</th><th>القيمة السابقة</th><th>القيمة الجديدة</th></tr></thead><tbody>'+fieldRows+'</tbody></table>':'')+
  (entry.read_at?'':'<button type="button" class="add-button" data-cloud-action="read" data-notification-id="'+elt(entry.id)+'">تعليم كمقروء</button>')+'</article>';
 }
+
+const ACCOUNT_STATUS_TEXT=Object.freeze({
+ pending:'قيد الانتظار',approved:'معتمد',rejected:'مرفوض',suspended:'معلّق'
+});
+const ACCOUNT_TRANSITIONS=Object.freeze({
+ pending:[['approved','اعتماد'],['rejected','رفض']],
+ approved:[['suspended','تعليق']],
+ rejected:[['approved','اعتماد بعد الرفض']],
+ suspended:[['approved','إعادة تفعيل']]
+});
+function accountStatusLabel(status){return ACCOUNT_STATUS_TEXT[status]||'حالة غير معروفة'}
+function accountActionCard(p){
+ const status=p.account_status||'pending';
+ const actions=p.id!==session.user.id&&!p.is_admin?(ACCOUNT_TRANSITIONS[status]||[]):[];
+ const inputs=actions.length?'<label class="cloud-reason-label">سبب القرار (اختياري؛ حد أقصى 1000 حرف)'+
+ '<input type="text" maxlength="1000" data-decision-reason="'+elt(p.id)+'" placeholder="يمكن تركه فارغًا"></label>':'';
+ const buttons=actions.map(([next,label])=>
+ '<button type="button" class="add-button" data-cloud-action="set-status" data-user-id="'+elt(p.id)+
+ '" data-new-status="'+elt(next)+'">'+elt(label)+'</button>').join('');
+ return '<div class="cloud-account-row"><div><strong>'+elt(text(p.first_name+' '+p.last_name)||'مفتش')+
+ '</strong><p>'+elt(p.email)+' — '+elt(title(p.profession))+' — '+elt(accountStatusLabel(status))+
+ (p.is_admin?' — مسؤول المنصة':'')+'</p></div>'+inputs+
+ '<div class="cloud-account-actions">'+(buttons||'<span class="cloud-tip">للاطلاع فقط</span>')+'</div></div>';
+}
+function renderAccountAudit(){
+ if(!accountDecisions.length)return '<p>لم تُسجّل قرارات بعد تنفيذ تحديث M2.1.1.</p>';
+ const rows=accountDecisions.map(d=>{
+  const target=profiles.find(p=>p.id===d.inspector_id),actor=profiles.find(p=>p.id===d.decided_by);
+  const name=p=>p?text(p.first_name+' '+p.last_name)||p.email:'حساب غير ظاهر';
+  return '<tr><td>'+elt(name(target))+'</td><td>'+
+   elt(accountStatusLabel(d.previous_status))+' ← '+elt(accountStatusLabel(d.new_status))+
+   '</td><td>'+elt(name(actor))+'</td><td>'+elt(new Date(d.decided_at).toLocaleString('ar-DZ'))+
+   '</td><td>'+elt(d.reason||'—')+'</td></tr>';
+ }).join('');
+ return '<div class="cloud-table-scroller"><table class="cloud-audit-table"><thead><tr><th>المفتش</th><th>القرار</th><th>صاحب القرار</th><th>التاريخ</th><th>السبب</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function renderAccountsManagement(){
+ const groups=[
+  ['pending','طلبات تنتظر البت'],
+  ['approved','المفتشون المعتمدون'],
+  ['rejected','الطلبات المرفوضة'],
+  ['suspended','الحسابات المعلّقة']
+ ];
+ let html='<section class="cloud-approvals"><h4>إدارة حسابات المفتشين</h4>'+
+  '<p>يمكن للمسؤول اعتماد الطلب أو رفضه أو تعليق حساب معتمد أو إعادة تفعيله. جميع القرارات موثقة، ولا يمكن تعديل الحساب الشخصي من هنا.</p>';
+ for(const [status,label] of groups){
+  const people=profiles.filter(p=>(p.account_status||'pending')===status);
+  html+='<details class="cloud-account-group" '+(status==='pending'?'open':'')+'><summary>'+elt(label)+' ('+people.length+')</summary>'+
+   (people.length?people.map(accountActionCard).join(''):'<p>لا توجد حسابات في هذه الحالة.</p>')+'</details>';
+ }
+ html+='<details class="cloud-audit"><summary>سجل قرارات الحسابات ('+accountDecisions.length+' معروض)</summary>'+
+ renderAccountAudit()+'</details></section>';
+ return html;
+}
+
 function unauthenticatedView(){
  return '<div class="cloud-header"><h3>الحساب المهني</h3><p>يُقبل حساب المفتش بعد التحقق من البريد الإلكتروني واعتماده من مسؤول المنصة.</p></div>'+
  '<div class="cloud-modes"><button type="button" data-cloud-action="mode-login" '+(mode==='login'?'aria-current="true"':'')+'>دخول</button>'+
@@ -149,9 +206,17 @@ function unauthenticatedView(){
 function authenticatedView(){
  const fullName=text(profile?.first_name+' '+profile?.last_name);
  let html='<div class="cloud-header"><h3>'+elt(fullName||'حساب مفتش')+'</h3><p>'+elt(profile?.email||'')+
- ' — '+elt(title(profile?.profession))+' — '+(verifiedUser()?'حساب مهني معتمد':'بانتظار اعتماد الحساب')+'</p>'+
+ ' — '+elt(title(profile?.profession))+' — '+accountStatusLabel(profile?.account_status||'pending')+'</p>'+
  '<button type="button" class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div>';
- if(!verifiedUser())return html+'<p class="cloud-warning">البريد الإلكتروني مؤكد، لكن الوصول المشترك غير متاح قبل اعتماد الحساب من مسؤول المنصة.</p><button type="button" class="btn subtle" data-cloud-action="refresh">التحقق من حالة الاعتماد</button>';
+ if(!verifiedUser()){
+  const status=profile?.account_status||'pending';
+  const msg=status==='rejected'?'رُفض طلب الاعتماد؛ لا يمكن الوصول إلى المؤسسات المشتركة.':
+    status==='suspended'?'حسابك معلّق مؤقتًا؛ لا يمكنك الوصول إلى المؤسسات المشتركة.':
+    'البريد الإلكتروني مؤكد، لكن الوصول المشترك غير متاح قبل اعتماد الحساب.';
+  const recent=myDecisions?.[0],reason=recent?.reason?'<p>سبب آخر قرار: '+elt(recent.reason)+'</p>':'';
+  return html+'<p class="cloud-warning">'+msg+'</p>'+reason+
+   '<button type="button" class="btn subtle" data-cloud-action="refresh">التحقق من حالة الحساب</button>';
+ }
  const choices=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
  elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
  html+='<div class="cloud-directory"><h4>المؤسسات المشتركة ('+shared.length+')</h4>'+
@@ -164,12 +229,7 @@ function authenticatedView(){
  const unread=notifications.filter(x=>!x.read_at).length;
  html+='<section class="cloud-alerts"><h4>إشعارات تحديث المؤسسات ('+unread+' غير مقروء)</h4>'+
  (notifications.length?notifications.slice(0,15).map(noticeCard).join(''):'<p>لا توجد إشعارات بعد.</p>')+'</section>';
- if(profile.is_admin){
-  const pending=profiles.filter(p=>!p.approved);
-  html+='<section class="cloud-approvals"><h4>اعتماد المفتشين ('+pending.length+')</h4>'+
- (pending.length?pending.map(p=>'<div class="cloud-pending">'+elt(p.first_name+' '+p.last_name)+' — '+elt(p.email)+
- ' <button type="button" class="add-button" data-cloud-action="approve" data-user-id="'+elt(p.id)+'">اعتماد</button></div>').join(''):'<p>لا توجد حسابات تنتظر الاعتماد.</p>')+'</section>';
- }
+ if(profile.is_admin)html+=renderAccountsManagement();
  return html;
 }
 function render(){
@@ -236,13 +296,26 @@ async function markRead(id){
  await submit('institution_notifications',{read_at:now()},{id:'eq.'+id,recipient_id:'eq.'+session.user.id,select:'id'},'PATCH');
  await loadShared();feedback='تم تعليم الإشعار كمقروء.';
 }
-async function approve(id){
- await raw('POST','/rest/v1/rpc/approve_inspector',{p_user_id:id,p_approved:true},true);
- await loadShared();feedback='تم اعتماد حساب المفتش، ويمكنه الآن استخدام السجل المشترك.';
+async function changeInspectorStatus(id,newStatus){
+ if(!profile?.is_admin||!verifiedUser())throw Error('ليس لديك صلاحية إدارة الحسابات.');
+ const person=profiles.find(p=>p.id===id);
+ if(!person)throw Error('تعذر العثور على الحساب؛ حدّث القائمة.');
+ const old=person.account_status||'pending';
+ if(id===session.user.id||person.is_admin)throw Error('لا يمكن تغيير حالة الحساب الإداري من هذه الواجهة.');
+ if(!(ACCOUNT_TRANSITIONS[old]||[]).some(([status])=>status===newStatus))throw Error('هذا الانتقال غير مسموح من الحالة الحالية.');
+ const reasons=[...root.querySelectorAll('[data-decision-reason]')];
+ const reason=text(reasons.find(x=>x.dataset.decisionReason===id)?.value||'');
+ if(reason.length>1000)throw Error('سبب القرار يتجاوز 1000 حرف.');
+ if(!confirm('تأكيد تغيير حالة حساب '+text(person.first_name+' '+person.last_name)+' من «'+accountStatusLabel(old)+'» إلى «'+accountStatusLabel(newStatus)+'»؟'))return;
+ await raw('POST','/rest/v1/rpc/set_inspector_account_status',{
+  p_user_id:id,p_new_status:newStatus,p_reason:reason||null
+ },true);
+ await fetchAll();
+ feedback='تم تنفيذ القرار وتسجيل صاحبه وتاريخه في السجل.';
 }
 async function signOut(){
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];selectedSharedId='';
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];selectedSharedId='';
  storageSet(null);feedback='تم تسجيل الخروج. تظل بيانات التقرير المحلية كما هي.';
 }
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
@@ -258,7 +331,7 @@ root.addEventListener('click',async e=>{
   else if(action==='load')await loadSelected();
   else if(action==='refresh'){await fetchAll();feedback='القائمة والإشعارات محدثة.'}
   else if(action==='read')await markRead(button.dataset.notificationId);
-  else if(action==='approve')await approve(button.dataset.userId);
+  else if(action==='set-status')await changeInspectorStatus(button.dataset.userId,button.dataset.newStatus);
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
 });
@@ -274,6 +347,6 @@ async function init(){
 }
 document.addEventListener('DOMContentLoaded',init);
 setInterval(async()=>{if(!verifiedUser()||busy||!shell.open)return;
- try{await loadShared();render()}catch(e){status('تعذر تحديث الإشعارات مؤقتًا: '+e.message)}
+ try{await fetchAll();render()}catch(e){status('تعذر تحديث الحساب والإشعارات مؤقتًا: '+e.message)}
 },120000);
 })();
