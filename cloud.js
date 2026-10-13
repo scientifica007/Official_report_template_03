@@ -155,14 +155,21 @@ async function loadSharedReportExtras(){
   sharedFieldEvents=[];sharedAssessmentEvents=[];sharedDataLoadedFor='';sharedDataError='';return;
  }
  try{
+  async function fetchEvents(table,columns){
+   const rows=[];
+   for(let offset=0;offset<5000;offset+=250){
+    const batch=await get(table,{select:columns,mission_id:'eq.'+id,order:'created_at.asc',
+     limit:'250',offset:String(offset)});
+    if(!Array.isArray(batch))throw Error('تعذر قراءة سجل أحداث المهمة.');
+    rows.push(...batch);
+    if(batch.length<250)return rows;
+   }
+   throw Error('سجل المهمة تجاوز 5000 حدث، يلزم التصفح على دفعات.');
+  }
   const [fields,assessments]=await Promise.all([
-   get('inspection_report_field_events',{select:'id,mission_id,field_group,field_key,field_value,author_id,created_at',
-    mission_id:'eq.'+id,order:'created_at.asc',limit:'5000'}),
-   get('inspection_assessment_events',{select:'id,mission_id,item_id,assessment,author_id,created_at',
-    mission_id:'eq.'+id,order:'created_at.asc',limit:'5000'})
+   fetchEvents('inspection_report_field_events','id,mission_id,field_group,field_key,field_value,author_id,created_at'),
+   fetchEvents('inspection_assessment_events','id,mission_id,item_id,assessment,author_id,created_at')
   ]);
-  if(!Array.isArray(fields)||!Array.isArray(assessments)||fields.length>=5000||assessments.length>=5000)
-   throw Error('سجل حقول التقرير أو التقييمات يحتاج إلى تصفح آمن على دفعات.');
   if(selectedMissionId!==id)return;
   sharedFieldEvents=fields;sharedAssessmentEvents=assessments;sharedDataLoadedFor=id;sharedDataError='';
  }catch(err){
@@ -1133,6 +1140,8 @@ root.addEventListener('click',async e=>{
 });
 window.Report03CloudUI={
  activeSharedMissionId(){return reportActive()?activeReportMissionId:''},
+ hasUnsentSharedDrafts(){return Object.entries(embeddedDrafts).some(([key,d])=>
+  key.startsWith(activeReportMissionId+':')&&Boolean(text(d.body)));},
  getSharedReportPayload(){return effectiveSharedReport()},
  renderSharedEntry(id){return sharedEditorFor(id)},
  async prepareSharedExport(){return prepareSharedExport()},
