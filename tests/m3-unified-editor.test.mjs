@@ -12,7 +12,8 @@ function appHarness(){
   'toast':{textContent:'',classList:{add(){},remove(){}}}};
  const document={
   getElementById(id){return elements[id]||null},
-  querySelector(selector){if(selector==='[data-view="meta"]')return {classList:{toggle(){}}};return null}
+  querySelector(selector){if(selector==='[data-view="meta"]')return {classList:{toggle(){}}};return null},
+  querySelectorAll(selector){return selector==='[data-shared-body]'&&elements.__sharedArea?[elements.__sharedArea]:[]}
  };
  const window={Report03CloudUI:{renderSharedEntry(id){return '<span>shared-item:'+id+'</span>'},
   hasUnsentSharedDrafts(){return false}}};
@@ -109,4 +110,37 @@ test('M3.3: SQL 005 enforces member access, immutable field events, and CAS on r
  assert.doesNotMatch(sql,/drop table|truncate table|delete from public/i);
  execFileSync(process.execPath,['--check','cloud.js']);
  execFileSync(process.execPath,['--check','app.js']);
+});
+
+
+test('M3.3 UX: banner lists exact pending draft locations as actionable links',()=>{
+ const h=appHarness();h.context.__payload=payload;
+ h.context.window.Report03CloudUI.pendingSharedDrafts=()=>[
+  {itemId:'II-MAIN-I001',label:'الورشات وقاعات الدراسة',preview:'مسودة'},
+  {itemId:'III-01-I001',label:'القانون الأساسي النموذجي',preview:'مسودة'}];
+ h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ assert.match(h.elements.workspace.innerHTML,/2 مسودة غير محفوظة/);
+ assert.match(h.elements.workspace.innerHTML,/data-shared-action="goto" data-item-id="II-MAIN-I001"/);
+ assert.match(h.elements.workspace.innerHTML,/data-shared-action="goto" data-item-id="III-01-I001"/);
+ assert.match(h.elements.workspace.innerHTML,/shared-draft-review has-unsent/);
+ h.context.window.Report03CloudUI.pendingSharedDrafts=()=>[];
+ h.run('render()');
+ assert.doesNotMatch(h.elements.workspace.innerHTML,/has-unsent/);
+ assert.match(h.elements.workspace.innerHTML,/لا توجد مساهمات معلّقة للحفظ/);
+});
+test('M3.3 UX: focusSharedDraft navigates to official chapter, expands and focuses exact editor',()=>{
+ const h=appHarness();h.context.__payload=payload;
+ h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ let expanded=false,focused=false,scrolled=false;
+ h.elements.__sharedArea={
+  dataset:{sharedBody:'II-MAIN-I001'},
+  value:'مسودة',
+  closest(selector){if(selector==='.shared-editor-card')return {set open(v){expanded=v}};return null},
+  focus(){focused=true},scrollIntoView(){scrolled=true}
+ };
+ assert.equal(h.run("window.Report03CloudBridge.focusSharedDraft('II-MAIN-I001')"),true);
+ assert.equal(h.run('currentView'),'II');
+ assert.equal(h.run('currentDomain'),'II-MAIN');
+ assert.equal(expanded,true);assert.equal(focused,true);assert.equal(scrolled,true);
+ assert.equal(h.run("window.Report03CloudBridge.focusSharedDraft('UNKNOWN')"),false);
 });
