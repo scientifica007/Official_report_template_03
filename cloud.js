@@ -1035,7 +1035,8 @@ async function persistSharedReportControl(input){
           (group==='summary'&&['generalAssessment','generalRecommendations'].includes(key))))return;
  const summary=group==='summary';
  const value=input.value;
- if(summary&&!window.Report03CloudBridge?.pendingSharedSummaryFields?.().some(x=>x.key===key))return;
+ const pendingSummary=window.Report03CloudBridge?.pendingSharedSummaryFields?.();
+ if(summary&&Array.isArray(pendingSummary)&&!pendingSummary.some(x=>x.key===key))return;
  input.disabled=true;
  if(summary)window.Report03CloudBridge?.setSharedFieldStatus?.(group,key,'saving',value);
  try{
