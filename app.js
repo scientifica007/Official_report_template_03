@@ -125,7 +125,7 @@ function renderInstitutionBook(){
  '<optgroup label="المؤسسات المشتركة — السجل المركزي ('+central.length+')">'+centralOptions+'</optgroup>'+
  '<optgroup label="المؤسسات المحلية — هذا الجهاز ('+institutionBook.length+')">'+localOptions+'</optgroup>'+
  '</select>'+
- '<div class="institution-actions"><button type="button" class="add-button" data-save-institution="true">حفظ نسخة محلية في هذا الجهاز</button>'+
+ '<div class="institution-actions"><button type="button" class="add-button" data-save-institution="true">حفظ المؤسسة ورئيسها محليًا</button>'+
  '<button type="button" class="btn subtle" data-export-institutions="true">تصدير المؤسسات المحلية JSON</button>'+
  '<button type="button" class="btn subtle" data-import-institutions="true">استيراد المؤسسات المحلية JSON</button>'+
  (selectedInstitutionId?'<button type="button" class="btn danger-outline" data-delete-institution="true">حذف من السجل المحلي</button>':'')+
