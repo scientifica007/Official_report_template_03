@@ -784,7 +784,7 @@ root.addEventListener('input',e=>{
  const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
  if(group&&key&&institutionDraft[group])institutionDraft[group][key]=e.target.value;
 });
-root.addEventListener('change',e=>{
+root.addEventListener('change',async e=>{
  if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
  if(e.target.id==='mission-select'){
   selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
