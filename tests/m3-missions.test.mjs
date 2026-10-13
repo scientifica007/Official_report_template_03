@@ -507,12 +507,14 @@ test('M3.3 regression: empty and whitespace-only draft must not block otherwise 
 test('M3.4: summary textareas save on field exit or explicit retry and report accurate state to editor',async()=>{
  const {data,a,b}=await twoAccounts();
  await a.action('open-mission-report');
- const statuses=[];
+ const statuses=[],unsavedKeys=new Set(['generalAssessment']);
  a.context.window.Report03CloudBridge.setSharedFieldStatus=(group,key,state,value)=>{
-  statuses.push({group,key,state,value});return true;
+  statuses.push({group,key,state,value});
+  if(state==='saved')unsavedKeys.delete(key);
+  return true;
  };
- a.context.window.Report03CloudBridge.pendingSharedSummaryFields=()=>[
-  {key:'generalAssessment',label:'التقدير العام حول سير المؤسسة والاختلالات',status:'editing'}];
+ a.context.window.Report03CloudBridge.pendingSharedSummaryFields=()=>
+  [...unsavedKeys].map(key=>({key,label:key,status:'editing'}));
  const textarea={dataset:{group:'summary',field:'generalAssessment'},value:'تقدير جماعي اختباري',disabled:false};
  await a.handlers.document.change({target:textarea});
  assert.equal(textarea.disabled,false);
@@ -526,8 +528,7 @@ test('M3.4: summary textareas save on field exit or explicit retry and report ac
  const click={dataset:{saveSharedSummary:'generalRecommendations'},disabled:false};
  const otherInput={dataset:{group:'summary',field:'generalRecommendations'},value:'توصية 1\nتوصية 2',disabled:false};
  a.elements['summary-generalRecommendations']=otherInput;
- a.context.window.Report03CloudBridge.pendingSharedSummaryFields=()=>[
-  {key:'generalRecommendations',label:'التوصيات العامة الإضافية',status:'editing'}];
+ unsavedKeys.add('generalRecommendations');
  await a.handlers.document.click({target:{closest(selector){return selector==='[data-save-shared-summary]'?click:null}}});
  assert.equal(data.fields.filter(x=>x.field_key==='generalRecommendations').length,1);
  assert.equal(otherInput.disabled,false);
