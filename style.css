@@ -187,3 +187,73 @@
 .cloud-audit-table td,.cloud-audit-table th{border:1px solid #d3ded7;padding:8px;text-align:right;vertical-align:top;overflow-wrap:anywhere}
 @media(max-width:800px){.cloud-account-row{grid-template-columns:1fr}.cloud-account-actions .add-button{flex:1}}
 @media print{.cloud-account-group,.cloud-audit{display:none!important}}
+
+
+/* M2.2: Authenticated portal shell — editor remains separate. */
+.app[hidden],.portal-shell[hidden]{display:none!important}
+.portal-shell{min-height:100vh;background:#f2f6f4;color:#193a30;font-family:Tahoma,Arial,"Noto Sans Arabic",sans-serif;direction:rtl}
+.portal-content{padding:0!important;max-width:none;width:100%}
+.portal-topbar{display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid #d4e3d9;gap:14px;padding:18px clamp(18px,3vw,44px)}
+.portal-topbar strong{display:block;font-size:20px;color:#145b4c}.portal-topbar small{display:block;font-size:12px;color:#63786f;margin-top:6px}
+.portal-topbar>span{font-size:13px;background:#e9f4ef;border-radius:30px;padding:8px 14px}
+.portal-body{display:flex;align-items:stretch;min-height:calc(100vh - 89px)}
+.portal-navigation{width:236px;min-width:236px;background:#fff;border-left:1px solid #d7e2dc;padding:18px 12px;display:flex;flex-direction:column;gap:5px}
+.portal-nav-btn{border:0;border-radius:9px;text-align:right;background:transparent;color:#38584b;display:flex;align-items:center;gap:12px;padding:11px 13px;width:100%;cursor:pointer;font-size:13px}
+.portal-nav-btn:hover,.portal-nav-btn.selected{background:#e4f1eb;color:#105441}
+.portal-nav-btn.selected{font-weight:700}
+.portal-nav-btn>span:first-child{width:21px;text-align:center;font-size:16px}
+.portal-nav-btn b{background:#cfe6da;border-radius:12px;padding:2px 7px}
+.portal-main{width:100%;min-width:0;max-width:1250px;margin:0 auto;padding:28px clamp(18px,3vw,42px) 56px}
+.portal-page-heading{margin-bottom:20px}.portal-page-heading h2{font-size:24px;margin:0 0 12px;color:#164b3e}.portal-page-heading p{font-size:14px;margin:0;color:#5b7166}
+.portal-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:15px 0 26px}
+.portal-metric{border:1px solid #d8e5dd;border-radius:13px;background:#fff;padding:20px 16px;text-align:right;display:flex;flex-direction:column;gap:9px;min-height:137px;box-shadow:0 5px 20px rgba(32,64,42,.03)}
+.portal-metric:hover{border-color:#78ad94}
+.portal-metric strong{font-size:30px;color:#14584a;font-weight:750}.portal-metric span{font-weight:700;font-size:14px}.portal-metric small{font-size:12px;color:#60736b;line-height:1.6}
+.portal-widgets{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.portal-widget{background:#fff;border:1px solid #d8e4dd;border-radius:13px;padding:22px;margin-bottom:16px;min-width:0}
+.portal-widget h3{font-size:17px;color:#155746;margin:0 0 12px}
+.portal-widget p{font-size:13px;line-height:1.9;color:#546e60}
+.portal-widget ul{padding:0 20px;margin:10px 0}.portal-widget li{padding:5px 0}
+.portal-widget li button{border:0;background:transparent;text-decoration:underline;color:#155647;text-align:right}
+.portal-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:20px}
+.portal-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px}
+.portal-field{display:block;font-size:13px;font-weight:700;margin:9px 0}
+.portal-field input,.portal-field select{display:block;margin-top:8px;width:100%;background:#fff;border:1px solid #c5d9ce;border-radius:8px;padding:10px 12px;min-height:43px}
+.portal-directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.portal-directory .portal-widget{margin:0}.portal-directory small{font-size:12px;color:#658074}
+.portal-profile dl{display:grid;grid-template-columns:minmax(125px,180px) 1fr;gap:14px 20px;font-size:14px;margin:4px 0 18px}
+.portal-profile dt{color:#587368}.portal-profile dd{margin:0;overflow-wrap:anywhere;font-weight:700}
+.portal-access-card{max-width:620px;margin:10vh auto;padding:30px;background:white;border-radius:14px;border:1px solid #dce6e1}
+.portal-auth-wrapper{max-width:480px;margin:8vh auto;padding:16px}
+.portal-auth-wrapper>header{text-align:center;margin:0 auto 25px}.portal-auth-wrapper h1{font-size:24px;color:#164d41;margin:14px 0 9px}
+.portal-auth-wrapper p{color:#5a7268;font-size:14px;line-height:1.8}
+.portal-auth-card{background:#fff;border:1px solid #d7e7dc;border-radius:16px;padding:26px}
+.portal-logo{font-weight:800;background:#165b4e;color:#fff;border-radius:12px;display:inline-flex;width:52px;height:52px;align-items:center;justify-content:center;font-size:20px}
+.portal-auth-card .cloud-header{display:block;border-bottom:0;padding:0}
+.portal-auth-card .cloud-header h3{font-size:17px}
+.portal-auth-card .cloud-modes{margin:12px 0;justify-content:stretch}
+.portal-auth-card .cloud-modes button{flex:1}
+.portal-auth-card .cloud-two{gap:10px}
+.portal-auth-card label{margin:10px 0}
+.portal-auth-card form>button{width:100%;padding:12px}
+.portal-shell .cloud-approvals{background:transparent;border:0}
+.portal-shell .cloud-account-row,.portal-shell .cloud-notice{background:white}
+.portal-shell .cloud-message{max-width:850px;overflow-wrap:anywhere}
+#return-dashboard{white-space:nowrap}
+@media(max-width:1040px){.portal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.portal-navigation{width:190px;min-width:190px}}
+@media(max-width:760px){
+ .portal-topbar{padding:14px 16px}
+ .portal-topbar strong{font-size:16px}.portal-topbar small{font-size:10px}
+ .portal-topbar>span{font-size:11px;padding:6px}
+ .portal-body{display:block}
+ .portal-navigation{width:100%;min-width:0;border:0;border-bottom:1px solid #d8e5dd;display:flex;flex-direction:row;overflow-x:auto;white-space:nowrap;padding:9px}
+ .portal-nav-btn{width:auto;min-width:max-content;padding:9px 12px;font-size:12px}
+ .portal-main{padding:20px 12px 40px}
+ .portal-widgets,.portal-form-grid,.portal-directory{grid-template-columns:1fr}
+ .portal-widget{padding:15px}
+ .portal-page-heading h2{font-size:20px}
+ .portal-profile dl{grid-template-columns:1fr 1fr}
+ #return-dashboard{font-size:11px;padding:7px}
+}
+@media(max-width:390px){.portal-metrics{grid-template-columns:1fr}.portal-auth-card{padding:16px}}
+@media print{.portal-shell,#return-dashboard{display:none!important}}

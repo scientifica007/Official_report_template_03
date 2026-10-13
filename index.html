@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-<div class="app" id="app">
+<div class="app" id="app" hidden>
   <aside class="sidebar" aria-label="التنقل بين أقسام التقرير">
     <a class="brand" href="#" aria-label="النموذج 03">
       <span class="brand-icon">03</span>
@@ -25,7 +25,7 @@
     </div>
   </aside>
   <div class="main-area">
-    <header class="topbar">
+    <header class="topbar"><button id="return-dashboard" class="btn subtle" type="button" onclick="window.Report03CloudUI?.showView?.('dashboard')">← لوحة القيادة</button>
       <button id="menu-toggle" class="menu-toggle" type="button" aria-label="القائمة">☰</button>
       <div><div class="eyebrow">وزارة التكوين والتعليم المهنيين — النموذج 03</div><h1>تقرير التفتيش المعمق</h1></div>
       <div class="top-actions">
@@ -39,15 +39,10 @@
       <div id="report-progress" class="progress-text">0 معاينة — 0 توصية</div>
       <button id="btn-clear" class="text-danger" type="button">محو بيانات التقرير</button>
     </div>
-    <details id="cloud-shell" class="cloud-shell">
-      <summary>الحسابات والسجل المركزي للمؤسسات <span id="cloud-unread" aria-live="polite"></span></summary>
-      <div id="cloud-content" class="cloud-content">
-        <p>يمكن استخدام الموقع محليًا دون تفعيل حسابات المفتشين.</p>
-      </div>
-    </details>
     <main id="workspace" class="workspace" tabindex="-1"></main>
   </div>
 </div>
+<section id="cloud-shell" class="portal-shell" aria-label="بوابة المفتشين"><div id="cloud-content" class="cloud-content portal-content"><p>جارٍ التحقق من تسجيل الدخول...</p></div></section>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="print-root" aria-hidden="true"></div>
 <dialog id="export-dialog">
