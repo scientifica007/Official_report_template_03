@@ -144,3 +144,53 @@ test('M3.3 UX: focusSharedDraft navigates to official chapter, expands and focus
  assert.equal(expanded,true);assert.equal(focused,true);assert.equal(scrolled,true);
  assert.equal(h.run("window.Report03CloudBridge.focusSharedDraft('UNKNOWN')"),false);
 });
+
+
+test('M3.3 regression: clicking export button applies refreshed server snapshot via public bridge and opens choices',async()=>{
+ const h=appHarness();
+ h.context.__payload=payload;
+ h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ const updated=structuredClone(payload);
+ updated.entries['III-01-I001'].findings[0].text='معاينة مؤكدة بعد تحديث الخادم';
+ let handler=null,openCount=0;
+ const required=['btn-export','export-dialog','dialog-clear','close-dialog','dialog-cancel',
+  'do-json','do-docx','do-pdf','btn-import','import-file','btn-clear','menu-toggle'];
+ for(const id of required)h.elements[id]={disabled:false,hidden:false,
+  addEventListener(name,fn){if(id==='btn-export'&&name==='click')handler=fn},
+  click(){},close(){},showModal(){if(id==='export-dialog')openCount++}};
+ h.context.document.addEventListener=()=>{};
+ h.context.window.addEventListener=()=>{};
+ h.context.window.Report03CloudUI.prepareSharedExport=async()=>updated;
+ const alerts=[];
+ h.context.alert=msg=>alerts.push(msg);
+ h.run('bindHandlers()');
+ assert.equal(typeof handler,'function','must bind real header export control');
+ await handler();
+ assert.equal(openCount,1,'a successfully verified shared mission must open export modal');
+ assert.equal(h.elements['dialog-clear'].hidden,true,'shared mission cannot be cleared using export modal');
+ assert.deepEqual(alerts,[]);
+ assert.equal(h.run("state.entries['III-01-I001'].findings[0].text"),'معاينة مؤكدة بعد تحديث الخادم');
+ const json=JSON.parse(JSON.stringify(h.run('exportSnapshot()')));
+ assert.equal(json.entries['III-01-I001'].findings[0].text,'معاينة مؤكدة بعد تحديث الخادم');
+ assert.match(h.run('documentXML()'),/معاينة مؤكدة بعد تحديث الخادم/);
+ h.run('buildPrint()');
+ assert.match(h.elements['print-root'].innerHTML,/معاينة مؤكدة بعد تحديث الخادم/);
+});
+test('M3.3 regression: export stays closed when shared save verification fails',async()=>{
+ const h=appHarness();
+ h.context.__payload=payload;h.run('window.Report03CloudBridge.enterSharedMission(__payload)');
+ let handler,openCount=0;
+ for(const id of ['btn-export','export-dialog','dialog-clear','close-dialog','dialog-cancel','do-json','do-docx','do-pdf','btn-import','import-file','btn-clear','menu-toggle'])
+  h.elements[id]={disabled:false,hidden:false,
+   addEventListener(name,fn){if(id==='btn-export'&&name==='click')handler=fn},
+   click(){},close(){},showModal(){openCount++}};
+ h.context.document.addEventListener=()=>{};
+ h.context.window.addEventListener=()=>{};
+ h.context.window.Report03CloudUI.prepareSharedExport=async()=>{throw Error('لا توجد مزامنة صالحة')};
+ const alerts=[];h.context.alert=msg=>alerts.push(msg);
+ h.run('bindHandlers()');
+ await handler();
+ assert.equal(openCount,0);
+ assert.equal(h.elements['btn-export'].disabled,false);
+ assert.match(alerts[0],/لا توجد مزامنة صالحة/);
+});

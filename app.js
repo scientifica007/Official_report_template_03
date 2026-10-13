@@ -345,7 +345,8 @@ function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(
    if(isSharedReport()){
     const payload=await window.Report03CloudUI?.prepareSharedExport?.();
     if(!payload||payload.missionId!==sharedReportMissionId)throw Error('تعذر التحقق من نسخة المهمة المشتركة.');
-    applySharedReportData(payload);
+    if(window.Report03CloudBridge?.applySharedReportData?.(payload)!==true)
+     throw Error('تعذر تطبيق أحدث نسخة محفوظة من المهمة المشتركة على محرر التقرير. حدّث المهمة وأعد المحاولة.');
     $('dialog-clear').hidden=true;
    }else{
     const n=commitPendingEntries();if(n)render();
