@@ -12,7 +12,8 @@ const key=String(cfg.publishableKey||'');
 const configured=/^https:\/\//.test(base)&&base.length<300&&key.length>20&&!key.toLowerCase().includes('service_role')&&!key.startsWith('sb_secret_');
 const SESSION_KEY='official_report03_cloud_session_v1';
 let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],accountDecisions=[],myDecisions=[],mode='login';
-let selectedSharedId='',feedback='',busy=false;
+let selectedSharedId='',feedback='',busy=false,currentPage='dashboard';
+let institutionDraft={institution:{},director:{}};
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
 const verifiedUser=()=>profile&&profile.approved;
@@ -203,42 +204,171 @@ function unauthenticatedView(){
  '<label>المقاطعة<input name="district" maxlength="120"></label></div>':'')+
  '<button type="submit" class="btn primary">'+(mode==='login'?'تسجيل الدخول':'تسجيل الحساب')+'</button></form>';
 }
-function authenticatedView(){
- const fullName=text(profile?.first_name+' '+profile?.last_name);
- let html='<div class="cloud-header"><h3>'+elt(fullName||'حساب مفتش')+'</h3><p>'+elt(profile?.email||'')+
- ' — '+elt(title(profile?.profession))+' — '+accountStatusLabel(profile?.account_status||'pending')+'</p>'+
- '<button type="button" class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div>';
- if(!verifiedUser()){
-  const status=profile?.account_status||'pending';
-  const msg=status==='rejected'?'رُفض طلب الاعتماد؛ لا يمكن الوصول إلى المؤسسات المشتركة.':
-    status==='suspended'?'حسابك معلّق مؤقتًا؛ لا يمكنك الوصول إلى المؤسسات المشتركة.':
-    'البريد الإلكتروني مؤكد، لكن الوصول المشترك غير متاح قبل اعتماد الحساب.';
-  const recent=myDecisions?.[0],reason=recent?.reason?'<p>سبب آخر قرار: '+elt(recent.reason)+'</p>':'';
-  return html+'<p class="cloud-warning">'+msg+'</p>'+reason+
-   '<button type="button" class="btn subtle" data-cloud-action="refresh">التحقق من حالة الحساب</button>';
- }
- const choices=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
- elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
- html+='<div class="cloud-directory"><h4>المؤسسات المشتركة ('+shared.length+')</h4>'+
- '<p>كل المفتشين المعتمدين يرون هذه المؤسسات ويستطيعون تعديلها، ويُسجل كل تغيير باسمه.</p>'+
- '<select id="cloud-select" aria-label="اختيار مؤسسة مشتركة"><option value="">+ مؤسسة مشتركة جديدة</option>'+choices+'</select>'+
- '<div class="cloud-actions"><button type="button" class="btn subtle" data-cloud-action="load">تحميل المؤسسة المختارة إلى التقرير</button>'+
- '<button type="button" class="btn primary" data-cloud-action="save">'+(selectedSharedId?'حفظ تعديل المؤسسة المشتركة':'حفظ المؤسسة الحالية في السجل المشترك')+'</button>'+
- '<button type="button" class="btn subtle" data-cloud-action="refresh">تحديث القائمة والإشعارات</button></div>'+
- '<p class="cloud-tip">الحفظ المشترك يشمل المؤسسة ورئيسها فقط. لا تُرفع بيانات التقرير أو معايناته أو توصياته.</p></div>';
+
+const INSTITUTION_EDITOR_FIELDS=[
+ ['institution','name','اسم المؤسسة'],['institution','code','رمز المؤسسة'],
+ ['institution','wilaya','الولاية'],['institution','address','العنوان'],
+ ['institution','phone','الهاتف'],['institution','fax','الفاكس'],
+ ['institution','email','البريد الإلكتروني'],['institution','website','الموقع الإلكتروني'],
+ ['institution','decree','مرسوم الإنشاء'],['institution','decreeDate','تاريخ المرسوم'],
+ ['institution','startDate','تاريخ بداية النشاط'],['institution','speciality','اختصاص المؤسسة'],
+ ['institution','distance','البعد عن مقر الولاية'],['institution','mapUrl','الموقع الجغرافي (رابط خرائط Google)'],
+ ['director','fullName','اسم ولقب رئيس المؤسسة'],['director','job','الوظيفة'],
+ ['director','rank','الرتبة'],['director','installedAt','تاريخ التنصيب'],
+ ['director','firstAppointedAt','تاريخ أول تعيين']
+];
+function useSharedInstitution(id){
+ const record=shared.find(x=>x.id===id);
+ selectedSharedId=record?.id||'';
+ institutionDraft={
+  institution:record?{...record.institution_data}: {},
+  director:record?{...record.director_data}:{}
+ };
+}
+const NAV_ITEMS=[
+ ['dashboard','لوحة القيادة','▦'],
+ ['institutions','المؤسسات','▤'],
+ ['colleagues','المفتشون الزملاء','♙'],
+ ['missions','مهام التفتيش','◷'],
+ ['calendar','الرزنامة','▦'],
+ ['teams','فرق التفتيش','♧'],
+ ['messages','المراسلات','✉'],
+ ['notifications','الإشعارات','♧'],
+ ['report','محرر التقرير 03','✎'],
+ ['account','حسابي','◉']
+];
+function portalNavigation(){
+ const visible=[...NAV_ITEMS,...(profile?.is_admin?[['admin','إدارة الحسابات','⚙']]:[])];
+ return '<nav class="portal-navigation" aria-label="أقسام المنصة">'+visible.map(([id,name,ico])=>
+ '<button type="button" class="portal-nav-btn'+(currentPage===id?' selected':'')+
+ '" data-cloud-action="nav" data-page="'+id+'" aria-current="'+(currentPage===id?'page':'false')+'">'+
+ '<span aria-hidden="true">'+ico+'</span><span>'+name+'</span>'+
+ (id==='notifications'&&notifications.some(x=>!x.read_at)?'<b>'+notifications.filter(x=>!x.read_at).length+'</b>':'')+'</button>').join('')+'</nav>';
+}
+function dashboardCard(label,value,description,target){
+ return '<button type="button" class="portal-metric" data-cloud-action="nav" data-page="'+target+'">'+
+ '<strong>'+elt(value)+'</strong><span>'+elt(label)+'</span><small>'+elt(description)+'</small></button>';
+}
+function dashboardView(){
+ const colleagues=profiles.filter(p=>p.approved).length;
  const unread=notifications.filter(x=>!x.read_at).length;
- html+='<section class="cloud-alerts"><h4>إشعارات تحديث المؤسسات ('+unread+' غير مقروء)</h4>'+
- (notifications.length?notifications.slice(0,15).map(noticeCard).join(''):'<p>لا توجد إشعارات بعد.</p>')+'</section>';
- if(profile.is_admin)html+=renderAccountsManagement();
- return html;
+ return '<div class="portal-page-heading"><h2>لوحة القيادة</h2><p>مرحبًا '+elt(profile.first_name)+
+ '، هذه البيانات المتاحة حاليًا في السجل المركزي.</p></div>'+
+ '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'عرض المؤسسات وتحرير بياناتها','institutions')+
+ dashboardCard('المفتشون المعتمدون',colleagues,'الزملاء المسجلون في المنصة','colleagues')+
+ dashboardCard('إشعارات غير مقروءة',unread,'تحديثات المؤسسات','notifications')+
+ dashboardCard('إعداد التقرير','النموذج 03','إصدار PDF أو DOCX أو JSON','report')+'</div>'+
+ '<div class="portal-widgets"><section class="portal-widget"><h3>آخر المؤسسات المسجلة</h3>'+
+ (shared.length?'<ul>'+shared.slice(0,6).map(x=>'<li><button data-cloud-action="open-institution" data-institution-id="'+elt(x.id)+'">'+elt(x.name)+' — '+elt(x.wilaya)+'</button></li>').join('')+'</ul>':'<p>لم تُسجل أي مؤسسة مشتركة بعد. يمكنك إضافة أول مؤسسة في قسم «المؤسسات».</p>')+
+ '</section><section class="portal-widget"><h3>مهام التفتيش والعمل الجماعي</h3>'+
+ '<p>إدارة المهام والرزنامة والفرق والمراسلات قيد التطوير؛ لا نعرض بيانات غير موجودة أو ندّعي حفظ مهام التفتيش.</p>'+
+ '<button class="btn subtle" data-cloud-action="nav" data-page="missions">عرض خطة تطوير المهام</button></section></div>';
+}
+function institutionEditor(){
+ const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
+ elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
+ const fields=INSTITUTION_EDITOR_FIELDS.map(([group,key,label])=>
+ '<label class="portal-field">'+elt(label)+'<input type="'+(key==='email'?'email':'text')+
+ '" data-cloud-field-group="'+group+'" data-cloud-field-key="'+key+'" value="'+elt(institutionDraft[group]?.[key]||'')+
+ '" maxlength="'+(key==='name'?'300':'500')+'"></label>').join('');
+ return '<div class="portal-page-heading"><h2>المؤسسات المشتركة</h2>'+
+ '<p>يمكن لجميع المفتشين المعتمدين إضافة المؤسسات وتعديلها. يُسجل اسم معدّل البيانات وتفاصيل التغيير في السجل المركزي.</p></div>'+
+ '<section class="portal-widget"><label class="portal-field">اختيار مؤسسة'+
+ '<select id="cloud-select"><option value="">+ مؤسسة جديدة</option>'+options+'</select></label>'+
+ '<div class="portal-actions"><button class="btn subtle" data-cloud-action="new-institution">مؤسسة جديدة</button>'+
+ '<button class="btn subtle" data-cloud-action="refresh">تحديث البيانات</button></div></section>'+
+ '<section class="portal-widget"><h3>'+(selectedSharedId?'تعديل بيانات المؤسسة ورئيسها':'إضافة مؤسسة جديدة')+'</h3>'+
+ '<div class="portal-form-grid">'+fields+'</div>'+
+ '<div class="portal-actions"><button class="btn primary" data-cloud-action="save">'+
+ (selectedSharedId?'حفظ تعديلات المؤسسة':'إضافة المؤسسة إلى السجل المركزي')+'</button>'+
+ (selectedSharedId?'<button class="btn subtle" data-cloud-action="load">فتح المؤسسة داخل محرر التقرير</button>':'')+
+ '</div><p class="cloud-tip">لا يؤدي حفظ المؤسسة إلى حفظ أي مهمة تفتيش أو معاينات أو توصيات.</p></section>';
+}
+function colleaguesView(){
+ const colleagues=profiles.filter(p=>p.approved);
+ return '<div class="portal-page-heading"><h2>المفتشون الزملاء</h2><p>دليل مهني للمفتشين المعتمدين فقط.</p></div>'+
+ '<div class="portal-directory">'+(colleagues.length?colleagues.map(p=>
+ '<article class="portal-widget"><h3>'+elt(text(p.first_name+' '+p.last_name))+'</h3><p>'+
+ elt(title(p.profession))+'</p><p>'+elt(p.email)+'</p>'+
+ '<small>'+(p.id===session.user.id?'حسابي':'المراسلة المباشرة ستضاف في مرحلة لاحقة')+'</small></article>').join(''):'<p>لا يوجد زملاء معتمدون حاليًا.</p>')+'</div>';
+}
+function accountView(){
+ return '<div class="portal-page-heading"><h2>حسابي</h2><p>بيانات الحساب المهني وحالته.</p></div>'+
+ '<section class="portal-widget portal-profile">'+
+ '<dl><dt>الاسم</dt><dd>'+elt(profile.first_name)+'</dd><dt>اللقب</dt><dd>'+elt(profile.last_name)+
+ '</dd><dt>البريد الإلكتروني</dt><dd>'+elt(profile.email)+'</dd><dt>الصفة المهنية</dt><dd>'+elt(title(profile.profession))+
+ '</dd><dt>المقاطعة</dt><dd>'+elt(profile.district||'غير محددة')+'</dd><dt>حالة الحساب</dt><dd>'+
+ elt(accountStatusLabel(profile.account_status||'pending'))+'</dd><dt>إدارة المنصة</dt><dd>'+
+ (profile.is_admin?'مسؤول الحسابات':'مفتش معتمد')+'</dd></dl>'+
+ '<p class="cloud-tip">تعديل بيانات الملف المهني وكلمة المرور سيضاف في إصدار مستقل بعد تحديد قواعد تحديث الهوية والصفة.</p>'+
+ '<div class="portal-actions"><button class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div></section>';
+}
+function reservedView(page){
+ const content={
+ missions:['مهام التفتيش','سنضيف إنشاء المهام وربطها بالمؤسسات والمفتشين، وتحديد حالتها وتواريخها في مرحلة مستقلة.'],
+ calendar:['الرزنامة الزمنية','ستعرض تواريخ المهام التي تُنشأ لاحقًا، دون إنشاء مواعيد افتراضية أو ادعاء وجود مهام محفوظة.'],
+ teams:['فرق التفتيش','ستدعم مشاركة مفتشين متساوين في المهمة، مع توزيع المجالات والاقتراحات المتبادلة واعتمادها.'],
+ messages:['المراسلات','تستلزم المراسلة والدردشة جداول رسائل وصلاحيات خاصة، ولم تفعّل بعد.']
+ };
+ const [name,explanation]=content[page]||['قيد التطوير','هذه الوظيفة غير متاحة بعد.'];
+ return '<div class="portal-page-heading"><h2>'+name+'</h2></div><section class="portal-widget"><h3>قيد التطوير</h3><p>'+explanation+
+ '</p><p>لم تُنشأ أي بيانات تجريبية باسم مفتش أو مهمة.</p></section>';
+}
+function notificationsView(){
+ const unread=notifications.filter(x=>!x.read_at).length;
+ return '<div class="portal-page-heading"><h2>الإشعارات</h2><p>'+unread+' غير مقروء</p></div>'+
+ '<section class="portal-widget"><button class="btn subtle" data-cloud-action="refresh">تحديث الإشعارات</button>'+
+ (notifications.length?notifications.slice(0,25).map(noticeCard).join(''):'<p>لا توجد إشعارات حاليًا.</p>')+'</section>';
+}
+function guardedView(){
+ const label=accountStatusLabel(profile?.account_status||'pending'),status=profile?.account_status||'pending';
+ const msg=status==='rejected'?'تم رفض طلب التسجيل؛ لا يمكنك استعمال المنصة.':
+  status==='suspended'?'تم تعليق هذا الحساب؛ لم يعد الوصول إلى المنصة مسموحًا.':
+  'حسابك مسجل، ولكنه ينتظر اعتماد المسؤول قبل استخدام المنصة.';
+ const reason=myDecisions?.[0]?.reason;
+ return '<div class="portal-access-card"><div class="portal-page-heading"><h2>حالة الحساب: '+label+'</h2><p>'+
+ elt(text(profile?.first_name+' '+profile?.last_name))+' — '+elt(profile?.email||'')+'</p></div>'+
+ '<p class="cloud-warning">'+msg+'</p>'+(reason?'<p>سبب آخر قرار: '+elt(reason)+'</p>':'')+
+ '<div class="portal-actions"><button class="btn subtle" data-cloud-action="refresh">التحقق من الحالة</button>'+
+ '<button class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div></div>';
+}
+function portalView(){
+ const content=currentPage==='dashboard'?dashboardView():
+  currentPage==='institutions'?institutionEditor():
+  currentPage==='colleagues'?colleaguesView():
+  currentPage==='notifications'?notificationsView():
+  currentPage==='account'?accountView():
+  currentPage==='admin'&&profile.is_admin?renderAccountsManagement():
+  reservedView(currentPage);
+ return '<header class="portal-topbar"><div><strong>منصة التفتيش المعمق</strong>'+
+ '<small>النموذج 03 — فضاء المفتشين المعتمدين</small></div><span>'+elt(text(profile.first_name+' '+profile.last_name))+
+ '</span></header><div class="portal-body">'+portalNavigation()+
+ '<main class="portal-main" id="portal-main" tabindex="-1">'+content+
+ '<p id="cloud-message" class="cloud-message" role="status" aria-live="polite">'+elt(feedback)+'</p></main></div>';
 }
 function render(){
+ const app=document.getElementById('app');
+ const approved=Boolean(session?.access_token&&verifiedUser());
+ const report=approved&&currentPage==='report';
+ if(app)app.hidden=!report;
+ shell.hidden=report;
  const unreadEl=document.getElementById('cloud-unread');
- if(unreadEl)unreadEl.textContent=verifiedUser()&&notifications.filter(x=>!x.read_at).length?'('+notifications.filter(x=>!x.read_at).length+' جديد)':'';
- if(!configured){root.innerHTML='<p>السجل المركزي والحسابات قيد التفعيل. يستمر السجل المحلي ومحرر التقرير بالعمل بصورة طبيعية.</p>'+
- '<p>يحتاج المسؤول إلى إنشاء قاعدة Supabase وتفعيل ملف إعداد الاتصال العام. لا تضع أي مفتاح سري في الموقع.</p>';return}
- root.innerHTML=(session?authenticatedView():unauthenticatedView())+
- '<div id="cloud-message" class="cloud-message" role="status" aria-live="polite">'+elt(feedback)+'</div>';
+ if(unreadEl)unreadEl.textContent=approved?String(notifications.filter(x=>!x.read_at).length):'';
+ if(!configured){
+  root.innerHTML='<div class="portal-access-card"><h2>تهيئة المنصة مطلوبة</h2><p>لا يمكن استعمال محرر التقارير دون حساب معتمد واتصال مصادقة. اتصل بمسؤول المنصة لإتمام إعداد الخدمة.</p></div>';
+  return;
+ }
+ if(!session?.access_token){
+  root.innerHTML='<div class="portal-auth-wrapper"><header><span class="portal-logo">03</span><h1>منصة التفتيش المعمق</h1><p>سجّل الدخول بحساب مفتش معتمد أو أرسل طلب تسجيل جديد.</p></header>'+
+  '<div class="portal-auth-card">'+unauthenticatedView()+
+  '<div id="cloud-message" class="cloud-message" role="status" aria-live="polite">'+elt(feedback)+'</div></div></div>';
+  return;
+ }
+ if(!verifiedUser()){
+  root.innerHTML=guardedView()+'<div id="cloud-message" class="cloud-message" role="status">'+elt(feedback)+'</div>';
+  return;
+ }
+ root.innerHTML=portalView();
 }
 async function onAuthSubmit(event){
  event.preventDefault();if(busy)return;busy=true;
@@ -263,9 +393,7 @@ async function onAuthSubmit(event){
 }
 async function saveShared(){
  if(!verifiedUser())throw Error('الحساب غير معتمد');
- const bridge=window.Report03CloudBridge;
- if(!bridge?.getIdentity)throw Error('محرر بيانات المؤسسة لم يجهز بعد');
- const data=bridge.getIdentity(),i=data.institution||{},director=data.director||{};
+ const data=institutionDraft,i=data.institution||{},director=data.director||{};
  if(!text(i.name))throw Error('أدخل اسم المؤسسة قبل الحفظ المشترك');
  const baseRecord={name:text(i.name),wilaya:text(i.wilaya),code:text(i.code),
   institution_data:i,director_data:director,updated_by:session.user.id};
@@ -279,8 +407,8 @@ async function saveShared(){
   updated=await submit('shared_institutions',{...baseRecord,created_by:session.user.id,version:1},
    {select:'id,name,version'},'POST');
  }
- selectedSharedId=updated[0].id;
  await loadShared();
+ useSharedInstitution(updated[0].id);
  feedback='حُفظت بيانات المؤسسة ورئيسها في السجل المشترك مع توثيق التغيير وإشعار المفتشين الآخرين.';
 }
 async function loadSelected(){
@@ -290,6 +418,7 @@ async function loadSelected(){
  if(!bridge?.applyIdentity)throw Error('محرر المؤسسة غير متاح');
  const result=bridge.applyIdentity(current.institution_data,current.director_data);
  if(!result?.ok)throw Error(result?.message||'تعذر تحميل المؤسسة الحالية');
+ currentPage='report';
  feedback='حُمّلت المؤسسة ورئيسها إلى التقرير. لن تُغيَّر المعاينات الموجودة.';
 }
 async function markRead(id){
@@ -314,16 +443,30 @@ async function changeInspectorStatus(id,newStatus){
  feedback='تم تنفيذ القرار وتسجيل صاحبه وتاريخه في السجل.';
 }
 async function signOut(){
+ if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
  session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];selectedSharedId='';
- storageSet(null);feedback='تم تسجيل الخروج. تظل بيانات التقرير المحلية كما هي.';
+ storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
+ feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
-root.addEventListener('change',e=>{if(e.target.id==='cloud-select')selectedSharedId=e.target.value});
+root.addEventListener('input',e=>{
+ const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
+ if(group&&key&&institutionDraft[group])institutionDraft[group][key]=e.target.value;
+});
+root.addEventListener('change',e=>{if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render()}});
 root.addEventListener('click',async e=>{
  const button=e.target.closest('[data-cloud-action]');if(!button||busy)return;
  const action=button.dataset.cloudAction;
  if(action==='mode-login'||action==='mode-signup'){mode=action==='mode-login'?'login':'signup';feedback='';render();return}
+ if(action==='nav'){
+  const page=button.dataset.page;
+  if(page==='admin'&&!profile?.is_admin)return;
+  if(!verifiedUser())return;
+  currentPage=page;feedback='';render();return;
+ }
+ if(action==='open-institution'){useSharedInstitution(button.dataset.institutionId);currentPage='institutions';feedback='';render();return}
+ if(action==='new-institution'){useSharedInstitution('');feedback='';render();return}
  busy=true;button.disabled=true;
  try{
   if(action==='logout')await signOut();
@@ -335,7 +478,7 @@ root.addEventListener('click',async e=>{
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
 });
-window.Report03CloudUI={resetSelection(){selectedSharedId='';if(verifiedUser())render()}};
+window.Report03CloudUI={resetSelection(){selectedSharedId='';institutionDraft={institution:{},director:{}};if(verifiedUser())render()},showView(page){if(verifiedUser()){currentPage=page;render()}}};
 async function init(){
  render();if(!configured)return;
  try{
@@ -346,7 +489,7 @@ async function init(){
  render();
 }
 document.addEventListener('DOMContentLoaded',init);
-setInterval(async()=>{if(!verifiedUser()||busy||!shell.open)return;
+setInterval(async()=>{if(!verifiedUser()||busy||document?.hidden)return;
  try{await fetchAll();render()}catch(e){status('تعذر تحديث الحساب والإشعارات مؤقتًا: '+e.message)}
 },120000);
 })();
