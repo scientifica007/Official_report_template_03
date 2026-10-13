@@ -305,7 +305,7 @@ test('M2.2.2: report select renders shared and legacy local institutions in dist
  assert.match(rendered,/المؤسسات المحلية — هذا الجهاز \(1\)/);
  for(const x of shared)assert.ok(rendered.includes('value="central:'+x.id+'"'));
  assert.match(rendered,/value="local-test"/);
- assert.match(rendered,/تعديل بيانات المؤسسة المركزية/);
+ assert.match(rendered,/التعديل داخل التقرير لا يغيّر بيانات المؤسسة المركزية/);
 });
 test('M2.2.2: central selection delegates to cloud bridge instead of local storage',()=>{
  const start=app.indexOf('function chooseInstitution(id){');
