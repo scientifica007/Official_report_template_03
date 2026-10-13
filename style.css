@@ -257,3 +257,23 @@
 }
 @media(max-width:390px){.portal-metrics{grid-template-columns:1fr}.portal-auth-card{padding:16px}}
 @media print{.portal-shell,#return-dashboard{display:none!important}}
+
+
+/* M2.2.1: Persistent signed-in identity and logout in dashboard and report editor. */
+.session-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-start}
+.session-controls[hidden]{display:none!important}
+.session-name{color:#214c3f;background:#e8f3ed;border-radius:24px;font-size:13px;padding:8px 14px;max-width:240px;overflow-wrap:anywhere}
+.session-logout{border:1px solid #bdd2c7!important;color:#195649!important;background:#fff!important;min-height:38px;font-size:13px;white-space:nowrap}
+.session-logout:hover{background:#eaf4ef!important}
+.portal-topbar{position:sticky;top:0;z-index:35;box-shadow:0 2px 7px rgba(17,55,45,.05)}
+.app .topbar{position:sticky;top:0;z-index:35;flex-wrap:wrap;gap:10px 15px;padding:12px clamp(16px,3vw,40px)}
+.report-session-controls{margin-inline-start:auto}
+@media(max-width:760px){
+ .portal-topbar{gap:8px;flex-wrap:wrap}
+ .session-controls{gap:6px}
+ .session-name{font-size:11px;padding:7px 10px}
+ .session-logout{font-size:12px;padding:8px 10px}
+ .app .topbar{gap:7px;padding:10px 12px;min-height:75px}
+ .report-session-controls{margin-inline-start:0}
+}
+@media print{.session-controls{display:none!important}}
