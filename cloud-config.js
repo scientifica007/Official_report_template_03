@@ -1,8 +1,9 @@
 /* M2.1: configure ONLY the public Supabase URL and publishable/anon key.
  * Never paste a service_role or secret API key here.
- * Keep empty until the owner completes Supabase setup.
+ * This deployment is explicitly linked to the owner's approved Supabase project.
+ * Site URL / Project URL is the origin only (without /rest/v1/).
  */
 window.REPORT03_CLOUD_CONFIG = Object.freeze({
-  supabaseUrl: '',
-  publishableKey: ''
+  supabaseUrl: 'https://uxtsyzyotnohxvopgcmh.supabase.co',
+  publishableKey: 'sb_publishable_hObSzRf1Sf9HTrUppubkXA_BKT5ZMJe'
 });
