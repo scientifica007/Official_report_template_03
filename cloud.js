@@ -552,6 +552,7 @@ async function createMission(){
  missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
  await loadMissions();
  selectedMissionId=id;
+ await loadMissionContributions();
  feedback='أُنشئت المهمة. يمكنك الآن دعوة المفتشين المعتمدين.';
 }
 async function inviteMissionPeer(){
@@ -573,7 +574,7 @@ async function respondMissionInvite(id,accept){
   throw Error('لا توجد دعوة معلقة لهذا الحساب.');
  await raw('POST','/rest/v1/rpc/respond_inspection_invitation',{p_mission_id:id,p_accept:accept},true);
  await loadMissions();
- if(accept)selectedMissionId=id;
+ if(accept){selectedMissionId=id;await loadMissionContributions();}
  feedback=accept?'قُبلت الدعوة وأصبحت عضوًا في المهمة.':'رُفضت الدعوة.';
 }
 async function readMissionNotification(id){
