@@ -355,6 +355,10 @@ function render(){
  const report=approved&&currentPage==='report';
  if(app)app.hidden=!report;
  shell.hidden=report;
+ // The report editor renders independently from the async Supabase login.
+ // Refresh just its shared select options after sign-in/refresh/navigation,
+ // never the entire report (which may contain unsaved field edits).
+ if(report)window.Report03CloudBridge?.syncSharedInstitutionOptions?.();
  const reportUser=document.getElementById('report-user-name');
  const reportControls=document.getElementById('report-session-controls');
  if(reportControls)reportControls.hidden=!report;
