@@ -323,3 +323,86 @@ test('M2.2.2: central selection delegates to cloud bridge instead of local stora
  assert.equal(ctx.institutionBook.length,1);
  assert.match(app,/selectedCloudInstitutionId=metadata\.sharedInstitutionId\|\|''/);
 });
+
+
+test('M2.2.3: shared count and options update from 0 to 3 without resetting active report fields',()=>{
+ const start=app.indexOf('function syncSharedInstitutionOptions(){');
+ const end=app.indexOf('\nfunction emptyState(){',start);
+ assert.ok(start>0&&end>start);
+ const fn=app.slice(start,end);
+ let data=[];
+ const editorField={value:'معاينة قيد التحرير'};
+ const group={
+  label:'المؤسسات المشتركة — السجل المركزي (0)',
+  children:[],
+  querySelectorAll(){return this.children},
+  replaceChildren(...elements){this.children=elements}
+ };
+ const select={
+  value:'local-test',
+  querySelector(selector){return selector==='optgroup[data-institution-source="central"]'?group:null},
+  get options(){return [{value:''},{value:'local-test'},...group.children]}
+ };
+ const context={
+  window:{Report03CloudUI:{listReportInstitutions(){return data}}},
+  document:{createElement(tag){assert.equal(tag,'option');return {value:'',textContent:''}}},
+  $(id){return id==='stored-institution'?select:editorField},
+  selectedCloudInstitutionId:''
+ };
+ const sync=vm.runInNewContext(fn+'\nsyncSharedInstitutionOptions',context,{timeout:10000});
+ assert.equal(sync(),false);
+ assert.equal(group.label,'المؤسسات المشتركة — السجل المركزي (0)');
+ data=[
+  {id:'i1214',name:'المعهد الوطني',code:'1214',wilaya:'تبسة'},
+  {id:'i1201',name:'مركز التكوين',code:'1201',wilaya:'تبسة'},
+  {id:'i1224',name:'معهد التعليم',code:'1224',wilaya:'تبسة'}
+ ];
+ assert.equal(sync(),true);
+ assert.equal(group.children.length,3);
+ assert.equal(group.label,'المؤسسات المشتركة — السجل المركزي (3)');
+ assert.equal(group.children[1].value,'central:i1201');
+ assert.equal(select.value,'local-test');
+ assert.equal(editorField.value,'معاينة قيد التحرير');
+ assert.equal(sync(),false); // No disruptive replacement for unchanged lists
+ data=data.map(x=>({...x}));
+ data[0].name='المعهد الوطني المتخصص';
+ assert.equal(sync(),true);
+ assert.equal(group.children[0].textContent,'المعهد الوطني المتخصص — تبسة (1214)');
+ assert.equal(editorField.value,'معاينة قيد التحرير');
+});
+test('M2.2.3: central dropdown preserves a selected central institution on updates',()=>{
+ const start=app.indexOf('function syncSharedInstitutionOptions(){');
+ const end=app.indexOf('\nfunction emptyState(){',start);
+ const fn=app.slice(start,end);
+ let data=[{id:'i1214',name:'المعهد',wilaya:'تبسة',code:'1214'}];
+ const group={label:'المؤسسات المشتركة — السجل المركزي (0)',children:[],
+  querySelectorAll(){return this.children},
+  replaceChildren(...nodes){this.children=nodes}};
+ const select={value:'central:i1214',
+  querySelector(){return group},
+  get options(){return [{value:''},...group.children]}};
+ const context={window:{Report03CloudUI:{listReportInstitutions:()=>data}},
+  document:{createElement:()=>({value:'',textContent:''})},
+  $:()=>select,selectedCloudInstitutionId:'i1214'};
+ const sync=vm.runInNewContext(fn+'\nsyncSharedInstitutionOptions',context,{timeout:10000});
+ assert.equal(sync(),true);
+ assert.equal(select.value,'central:i1214');
+ data=[{id:'i1214',name:'المعهد بتسمية محدثة',wilaya:'تبسة',code:'1214'}];
+ assert.equal(sync(),true);
+ assert.equal(select.value,'central:i1214');
+});
+test('M2.2.3: cloud renders live report dropdown on entry and when remote data is refreshed',async()=>{
+ const h=createHarness();let calls=0;
+ h.bridge.syncSharedInstitutionOptions=()=>{calls++;return true};
+ await h.ready();
+ assert.equal(calls,0); // dashboard must not change report internals
+ await h.navigate('report');
+ assert.equal(calls,1);
+ await h.action('refresh');
+ assert.ok(calls>=2);
+ await h.navigate('dashboard');
+ const unchanged=calls;
+ await h.action('refresh');
+ assert.equal(calls,unchanged);
+ assert.match(source,/if\(report\)window\.Report03CloudBridge\?\.syncSharedInstitutionOptions\?\.\(\)/);
+});
