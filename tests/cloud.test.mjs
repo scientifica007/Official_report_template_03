@@ -117,3 +117,16 @@ test('M2.1: browser JS passes syntax checks and contains no embedded service sec
  assert.match(source,/window\.Report03CloudBridge/);
  assert.match(app,/window\.Report03CloudBridge/);
 });
+
+test('M2.1: enabled cloud configuration is public-only and targets the project root',()=>{
+ const source=readFileSync('cloud-config.js','utf8');
+ const context={window:{}};
+ vm.runInNewContext(source,context,{timeout:10000});
+ const c=context.window.REPORT03_CLOUD_CONFIG;
+ assert.equal(c.supabaseUrl,'https://uxtsyzyotnohxvopgcmh.supabase.co');
+ assert.ok(c.publishableKey.startsWith('sb_publishable_'));
+ assert.ok(c.publishableKey.length>20);
+ assert.ok(!c.supabaseUrl.includes('/rest/v1'));
+ assert.ok(!source.includes('sb_secret_')&&!source.includes('service_role:'));
+ assert.ok(!source.includes('SUPABASE_DB_PASSWORD'));
+});
