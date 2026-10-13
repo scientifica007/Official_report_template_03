@@ -277,3 +277,14 @@
  .report-session-controls{margin-inline-start:0}
 }
 @media print{.session-controls{display:none!important}}
+
+
+/* M2.2.5: directory based inspector selection, alongside manual entry. */
+.report-colleague-picker{background:#f2f8f5;border:1px solid #d5e5da;border-radius:11px;padding:16px;margin:14px 0}
+.report-colleague-picker>label{display:block;font-size:13px;font-weight:700;color:#235343;margin-bottom:10px}
+.report-colleague-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:stretch}
+.report-colleague-controls select{width:100%;min-width:0;padding:11px 13px;border:1px solid #c5d9cf;background:white;border-radius:8px;color:#203f34}
+.report-colleague-controls .add-button{white-space:nowrap}
+.report-colleague-controls .add-button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:720px){.report-colleague-controls{grid-template-columns:1fr}.report-colleague-controls .add-button{white-space:normal}}
+@media print{.report-colleague-picker{display:none!important}}
