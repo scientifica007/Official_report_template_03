@@ -72,6 +72,8 @@ function apiPath(table,params){
 }
 async function get(table,params){return raw('GET',apiPath(table,params),undefined,true)}
 async function submit(table,data,params,method){
+ await refreshSession();
+ if(!session?.access_token)throw Error('سجل الدخول أولًا');
  const path=apiPath(table,params);
  const headers={'apikey':key,'Authorization':'Bearer '+session.access_token,
   'Content-Type':'application/json','Accept':'application/json','Prefer':'return=representation'};
@@ -149,7 +151,7 @@ function authenticatedView(){
  let html='<div class="cloud-header"><h3>'+elt(fullName||'حساب مفتش')+'</h3><p>'+elt(profile?.email||'')+
  ' — '+elt(title(profile?.profession))+' — '+(verifiedUser()?'حساب مهني معتمد':'بانتظار اعتماد الحساب')+'</p>'+
  '<button type="button" class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div>';
- if(!verifiedUser())return html+'<p class="cloud-warning">البريد الإلكتروني مؤكد، لكن الوصول المشترك غير متاح قبل اعتماد الحساب من مسؤول المنصة.</p>';
+ if(!verifiedUser())return html+'<p class="cloud-warning">البريد الإلكتروني مؤكد، لكن الوصول المشترك غير متاح قبل اعتماد الحساب من مسؤول المنصة.</p><button type="button" class="btn subtle" data-cloud-action="refresh">التحقق من حالة الاعتماد</button>';
  const choices=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
  elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
  html+='<div class="cloud-directory"><h4>المؤسسات المشتركة ('+shared.length+')</h4>'+
@@ -171,6 +173,8 @@ function authenticatedView(){
  return html;
 }
 function render(){
+ const unreadEl=document.getElementById('cloud-unread');
+ if(unreadEl)unreadEl.textContent=verifiedUser()&&notifications.filter(x=>!x.read_at).length?'('+notifications.filter(x=>!x.read_at).length+' جديد)':'';
  if(!configured){root.innerHTML='<p>السجل المركزي والحسابات قيد التفعيل. يستمر السجل المحلي ومحرر التقرير بالعمل بصورة طبيعية.</p>'+
  '<p>يحتاج المسؤول إلى إنشاء قاعدة Supabase وتفعيل ملف إعداد الاتصال العام. لا تضع أي مفتاح سري في الموقع.</p>';return}
  root.innerHTML=(session?authenticatedView():unauthenticatedView())+
