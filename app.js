@@ -501,6 +501,46 @@ function exportDOCX(){commitPendingEntries();const qr=reportQrForExport(true),qr
  * Inspection mission, collaborators, findings and recommendations are never exposed.
  */
 window.Report03CloudBridge={
+ canOpenSharedMission(id){
+  if(isSharedReport())return sharedReportMissionId===id||this.exitSharedMission();
+  if(sharedReportHasInputs()&&
+     !confirm('توجد بيانات في التقرير الفردي المفتوح. سنحتفظ بها في ذاكرة التبويب وننتقل إلى المهمة المشتركة. احفظ نسخة JSON احتياطية إن كانت مهمة. هل تتابع؟'))return false;
+  return true;
+ },
+ enterSharedMission(payload){
+  if(!payload?.missionId||!Array.isArray(payload.inspectors))return false;
+  if(!isSharedReport()){
+   individualReportContext={state, pendingDrafts,currentView,currentDomain,changed,
+    selectedInstitutionId,selectedCloudInstitutionId,mayPrefillAccountInspector};
+   state=emptyState();pendingDrafts=Object.create(null);
+  }
+  sharedReportMissionId=payload.missionId;
+  this.applySharedReportData(payload);
+  currentView='meta';currentDomain=null;render();
+  return true;
+ },
+ applySharedReportData(payload){
+  if(!isSharedReport()||payload?.missionId!==sharedReportMissionId)return false;
+  state.mission={...payload.mission};state.institution={...payload.institution};
+  state.director={...payload.director};state.summary={...payload.summary};
+  state.inspectors=payload.inspectors.map(x=>({...x}));
+  state.entries=payload.entries||{};
+  sharedProvenance={missionId:payload.missionId,title:payload.title,
+   contributions:payload.provenance,assessments:payload.assessments,fieldHistory:payload.fieldHistory};
+  changed=false;render();return true;
+ },
+ rerenderShared(){if(isSharedReport())render()},
+ exitSharedMission(force=false){
+  if(!isSharedReport())return true;
+  if(!force&&window.Report03CloudUI?.hasUnsentSharedDrafts?.()&&
+    !confirm('توجد نصوص مشتركة لم تُحفظ. هل تريد مغادرة محرر المهمة دون حفظها؟'))return false;
+  if(individualReportContext){
+   ({state,pendingDrafts,currentView,currentDomain,changed,
+    selectedInstitutionId,selectedCloudInstitutionId,mayPrefillAccountInspector}=individualReportContext);
+  }else{state=emptyState();pendingDrafts=Object.create(null);currentView='meta';currentDomain=null;changed=false;}
+  individualReportContext=null;sharedReportMissionId='';sharedProvenance=null;
+  render();return true;
+ },
  listSharedCatalogTargets(){
   if(!valid())return [];
   const rows=[];
@@ -520,6 +560,7 @@ window.Report03CloudBridge={
   return rows;
  },
  prepareLogout(){
+  if(isSharedReport()&&this.exitSharedMission()===false)return false;
   const reportHasData=hasInspectionInput()||
     ['mission','institution','director','summary'].some(group=>
       Object.values(state[group]||{}).some(value=>Boolean(text(value))))||
@@ -538,6 +579,7 @@ window.Report03CloudBridge={
  prefillAccountInspector(account){return prefillAccountInspector(account)},
  syncReportColleagueOptions(){return syncReportColleagueOptions()},
  applyIdentity(institution,director,metadata={}){
+  if(isSharedReport())return {ok:false,message:'مؤسسة المهمة المشتركة تثبت عند إنشاء المهمة، ولا يمكن استبدالها من المحرر.'};
   if(!catalog)return {ok:false,message:'انتظر تحميل فهرس النموذج.'};
   if(hasInspectionInput())return {ok:false,message:'توجد معاينات أو تقييمات ضمن التقرير الحالي. صدّره ثم امحُ بياناته قبل تغيير المؤسسة.'};
   if([...Object.values(state.institution),...Object.values(state.director)].some(text)&&
