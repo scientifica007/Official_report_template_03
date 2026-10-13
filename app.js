@@ -303,6 +303,20 @@ function exportDOCX(){commitPendingEntries();const qr=reportQrForExport(true),qr
  * Inspection mission, collaborators, findings and recommendations are never exposed.
  */
 window.Report03CloudBridge={
+ prepareLogout(){
+  const reportHasData=hasInspectionInput()||
+    ['mission','institution','director','summary'].some(group=>
+      Object.values(state[group]||{}).some(value=>Boolean(text(value))))||
+    (state.inspectors||[]).some(i=>Object.values(i).some(value=>Boolean(text(value))));
+  if(reportHasData&&!confirm('سيؤدي تسجيل الخروج إلى محو بيانات التقرير الجاري من ذاكرة التبويب. صدّر JSON أو DOCX أو PDF قبل المتابعة. هل تريد تسجيل الخروج ومحو المسودة؟'))return false;
+  state=emptyState();selectedInstitutionId='';
+  pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;
+  $('print-root')?.replaceChildren();
+  const file=$('import-file');if(file)file.value='';
+  const dialog=$('export-dialog');if(dialog?.open)dialog.close();
+  render();
+  return true;
+ },
  getIdentity(){return bookData(state)},
  applyIdentity(institution,director){
   if(!catalog)return {ok:false,message:'انتظر تحميل فهرس النموذج.'};
