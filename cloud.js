@@ -333,6 +333,108 @@ function accountView(){
  '<p class="cloud-tip">تعديل بيانات الملف المهني وكلمة المرور سيضاف في إصدار مستقل بعد تحديد قواعد تحديث الهوية والصفة.</p>'+
  '<div class="portal-actions"><button class="btn subtle" data-cloud-action="logout">تسجيل الخروج</button></div></section>';
 }
+
+function missionMemberName(id){
+ const peer=profiles.find(p=>p.id===id);
+ return peer?text(peer.first_name+' '+peer.last_name):'مفتش معتمد';
+}
+function missionStatusName(status){
+ return {invited:'بانتظار الموافقة',accepted:'مشارك',declined:'اعتذر عن المشاركة'}[status]||status;
+}
+function missionsView(){
+ const invited=missionMembers.filter(m=>m.inspector_id===session.user.id&&m.membership_status==='invited');
+ const accepted=missions;
+ const mission=accepted.find(m=>m.id===selectedMissionId);
+ const availablePeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&
+    p.id!==session.user.id&&(!mission||!missionMembers.some(m=>m.mission_id===mission.id&&m.inspector_id===p.id)));
+ return '<div class="portal-page-heading"><h2>مهام التفتيش المشتركة</h2>'+
+ '<p>يمكن للمفتشين المعتمدين إنشاء مهمة ودعوة زملائهم. لا يبدأ التحرير المشترك للمعاينات والتوصيات إلا في المرحلة M3.2.</p></div>'+
+ (!missionEnabled?'<section class="portal-widget"><h3>الخدمة غير مفعّلة</h3><p>'+elt(missionError||'يجب تشغيل ترحيل SQL رقم 003 في Supabase.')+'</p>'+
+ '<p>يمكنك الاستمرار في إعداد التقرير الفردي دون أي تغيير.</p></section>':
+ '<div class="portal-widgets"><section class="portal-widget"><h3>إنشاء مهمة جديدة</h3>'+
+ '<p class="helper">تُحفظ بيانات المهمة وأسماء المشاركين في Supabase. لا تُنقل إليها معاينات تقريرك المحلي.</p>'+
+ '<div class="portal-fields">'+
+ '<label class="portal-field">المؤسسة<select data-mission-field="institutionId"><option value="">— اختر مؤسسة مشتركة —</option>'+
+ shared.map(i=>'<option value="'+elt(i.id)+'" '+(missionDraft.institutionId===i.id?'selected':'')+'>'+elt(i.name+' ('+i.code+')')+'</option>').join('')+
+ '</select></label>'+
+ '<label class="portal-field">عنوان المهمة<input data-mission-field="title" maxlength="200" value="'+elt(missionDraft.title)+'" placeholder="مثال: التفتيش المعمق لمؤسسة..."></label>'+
+ '<label class="portal-field">الهدف<textarea data-mission-field="purpose" maxlength="3000" rows="3">'+elt(missionDraft.purpose)+'</textarea></label>'+
+ '<label class="portal-field">تاريخ البداية<input type="date" data-mission-field="visitStart" value="'+elt(missionDraft.visitStart)+'"></label>'+
+ '<label class="portal-field">تاريخ النهاية<input type="date" data-mission-field="visitEnd" value="'+elt(missionDraft.visitEnd)+'"></label></div>'+
+ '<button type="button" class="btn primary" data-cloud-action="mission-create">إنشاء مهمة مشتركة</button></section>'+
+ '<section class="portal-widget"><h3>الدعوات الواردة ('+invited.length+')</h3>'+
+ (invited.length?invited.map(member=>{
+  const event=missionNotifications.find(n=>n.mission_id===member.mission_id&&n.event_type==='invited');
+  return '<article class="mission-invite"><strong>'+elt(event?.description||'دعوة إلى مهمة تفتيش')+'</strong>'+
+   '<p>وصلتك دعوة من '+elt(missionMemberName(member.invited_by))+'</p>'+
+   '<div class="portal-actions"><button class="btn primary" data-cloud-action="mission-respond" data-mission-id="'+elt(member.mission_id)+'" data-accept="true">قبول المشاركة</button>'+
+   '<button class="btn subtle" data-cloud-action="mission-respond" data-mission-id="'+elt(member.mission_id)+'" data-accept="false">رفض الدعوة</button></div></article>';
+ }).join(''):'<p>لا توجد دعوات تنتظر ردك.</p>')+'</section></div>'+
+ '<section class="portal-widget"><h3>المهام التي تشارك فيها ('+accepted.length+')</h3>'+
+ '<button type="button" class="btn subtle" data-cloud-action="mission-refresh">تحديث المهام والدعوات</button>'+
+ (accepted.length?'<label class="portal-field">اختر مهمة<select id="mission-select"><option value="">— اختر مهمة —</option>'+
+ accepted.map(m=>'<option value="'+elt(m.id)+'" '+(selectedMissionId===m.id?'selected':'')+'>'+elt(m.title+' — '+(m.institution_snapshot?.name||''))+'</option>').join('')+
+ '</select></label>':'<p>لم تشارك في أي مهمة بعد.</p>')+
+ (mission?'<div class="mission-detail"><h3>'+elt(mission.title)+'</h3><p>'+elt(mission.institution_snapshot?.name||'')+'</p>'+
+ '<p>'+elt(mission.purpose||'لم يحدد الهدف')+'</p>'+
+ '<p>الفترة: '+elt(mission.visit_start||'غير محددة')+' — '+elt(mission.visit_end||'غير محددة')+'</p>'+
+ '<h4>أعضاء المهمة</h4><ul>'+missionMembers.filter(m=>m.mission_id===mission.id).map(m=>
+  '<li>'+elt(missionMemberName(m.inspector_id))+' — '+elt(missionStatusName(m.membership_status))+'</li>').join('')+'</ul>'+
+ '<label class="portal-field">دعوة مفتش معتمد آخر<select id="mission-peer"><option value="">— اختر الزميل —</option>'+
+ availablePeers.map(p=>'<option value="'+elt(p.id)+'">'+elt(text(p.first_name+' '+p.last_name)+' — '+title(p.profession))+'</option>').join('')+'</select></label>'+
+ '<button type="button" class="btn subtle" data-cloud-action="mission-invite" '+(!availablePeers.length?'disabled':'')+
+ '>إرسال الدعوة</button>'+
+ '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. المساهمات المشتركة والاقتراحات ستُفعّل بعد اختبار الدعوات والصلاحيات.</p></div>':'')+
+ '</section>');
+}
+async function createMission(){
+ if(!verifiedUser()||!missionEnabled)throw Error('خدمة المهام المشتركة غير جاهزة.');
+ const d=missionDraft;
+ if(!shared.some(x=>x.id===d.institutionId))throw Error('اختر مؤسسة موجودة في السجل المركزي.');
+ if(text(d.title).length<3||text(d.title).length>200)throw Error('عنوان المهمة يجب أن يتكون من 3 إلى 200 حرف.');
+ if(text(d.purpose).length>3000)throw Error('الهدف يتجاوز 3000 حرف.');
+ if(d.visitStart&&d.visitEnd&&d.visitEnd<d.visitStart)throw Error('تاريخ النهاية يسبق تاريخ البداية.');
+ const id=await raw('POST','/rest/v1/rpc/create_inspection_mission',{
+  p_institution_id:d.institutionId,p_title:text(d.title),p_purpose:text(d.purpose),
+  p_visit_start:d.visitStart||null,p_visit_end:d.visitEnd||null
+ },true);
+ if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('لم تُعد قاعدة البيانات معرّف مهمة صالحًا.');
+ missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
+ await loadMissions();
+ selectedMissionId=id;
+ feedback='أُنشئت المهمة. يمكنك الآن دعوة المفتشين المعتمدين.';
+}
+async function inviteMissionPeer(){
+ if(!missionEnabled||!verifiedUser())throw Error('الحساب غير معتمد أو الخدمة غير مفعلة.');
+ const m=missions.find(x=>x.id===selectedMissionId);
+ if(!m||m.status!=='draft')throw Error('اختر مهمة مفتوحة تشارك فيها.');
+ const id=text(document.getElementById('mission-peer')?.value);
+ if(!profiles.some(x=>x.id===id&&x.approved===true&&x.account_status==='approved'&&x.id!==session.user.id))
+  throw Error('اختر زميلًا معتمدًا من الدليل.');
+ if(missionMembers.some(x=>x.mission_id===m.id&&x.inspector_id===id))
+  throw Error('هذا المفتش مدعو أو مشارك سابقًا.');
+ await raw('POST','/rest/v1/rpc/invite_inspection_member',{p_mission_id:m.id,p_inspector_id:id},true);
+ await loadMissions();
+ feedback='أُرسلت الدعوة إلى حساب الزميل؛ يتعين عليه قبولها قبل مشاهدة المهمة.';
+}
+async function respondMissionInvite(id,accept){
+ if(!missionEnabled||!verifiedUser())throw Error('خدمة الدعوات غير متاحة.');
+ if(!missionMembers.some(x=>x.mission_id===id&&x.inspector_id===session.user.id&&x.membership_status==='invited'))
+  throw Error('لا توجد دعوة معلقة لهذا الحساب.');
+ await raw('POST','/rest/v1/rpc/respond_inspection_invitation',{p_mission_id:id,p_accept:accept},true);
+ await loadMissions();
+ if(accept)selectedMissionId=id;
+ feedback=accept?'قُبلت الدعوة وأصبحت عضوًا في المهمة.':'رُفضت الدعوة.';
+}
+async function readMissionNotification(id){
+ const n=missionNotifications.find(x=>x.id===id);
+ if(!n||n.recipient_id!==session.user.id)throw Error('الإشعار غير موجود.');
+ await submit('inspection_mission_notifications',{read_at:now()},
+  {id:'eq.'+id,recipient_id:'eq.'+session.user.id,select:'id'},'PATCH');
+ await loadMissions();
+ feedback='تم تعليم إشعار المهمة كمقروء.';
+}
+
 function reservedView(page){
  const content={
  missions:['مهام التفتيش','سنضيف إنشاء المهام وربطها بالمؤسسات والمفتشين، وتحديد حالتها وتواريخها في مرحلة مستقلة.'],
