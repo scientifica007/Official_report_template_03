@@ -48,6 +48,8 @@ function createHarness(configured=true,conflict=false){
  vm.runInNewContext(source,context,{timeout:10000});
  return {events,requests,elements,bridge,context,
   async ready(){await events.document.DOMContentLoaded()},
+  async navigate(page){await events.root.click({target:{closest(){return {dataset:{cloudAction:'nav',page},disabled:false}}}})},
+  async field(group,key,value){await events.root.input({target:{dataset:{cloudFieldGroup:group,cloudFieldKey:key},value}})},
   async action(name){
    const button={dataset:{cloudAction:name},disabled:false};
    await events.root.click({target:{closest(){return button}}});
@@ -56,12 +58,12 @@ function createHarness(configured=true,conflict=false){
 test('M2.1: no remote requests, accounts or credentials required when central service is unconfigured',async()=>{
  const h=createHarness(false);await h.ready();
  assert.equal(h.requests.length,0);
- assert.match(h.elements['cloud-content'].innerHTML,/قيد التفعيل/);
+ assert.match(h.elements['cloud-content'].innerHTML,/تهيئة المنصة/);
  assert.match(app,/function exportDOCX/);
  assert.match(app,/function exportPDF/);
 });
 test('M2.1: approved inspectors can see same shared institutions and load current director',async()=>{
- const h=createHarness();await h.ready();
+ const h=createHarness();await h.ready();await h.navigate('institutions');
  assert.match(h.elements['cloud-content'].innerHTML,/مركز تبسة 1/);
  h.events.root.change({target:{id:'cloud-select',value:institutionId}});
  await h.action('load');
@@ -69,8 +71,10 @@ test('M2.1: approved inspectors can see same shared institutions and load curren
  assert.equal(h.bridge.received.director.fullName,'الرئيس القديم');
 });
 test('M2.1: shared institution edit sends institution and director only, using compare-and-swap version',async()=>{
- const h=createHarness();await h.ready();
+ const h=createHarness();await h.ready();await h.navigate('institutions');
  h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ await h.field('institution','address','عنوان جديد');
+ await h.field('director','fullName','الرئيس الجديد');
  await h.action('save');
  const patch=h.requests.find(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions'));
  assert.ok(patch);
@@ -85,7 +89,7 @@ test('M2.1: shared institution edit sends institution and director only, using c
  assert.ok(!('inspectors' in patch.body));
 });
 test('M2.1: simultaneous edits fail without overwriting any active form values',async()=>{
- const h=createHarness(true,true);await h.ready();
+ const h=createHarness(true,true);await h.ready();await h.navigate('institutions');
  h.events.root.change({target:{id:'cloud-select',value:institutionId}});
  await h.action('save');
  assert.match(h.elements['cloud-content'].innerHTML,/تغيرت بيانات المؤسسة/);
