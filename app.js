@@ -471,6 +471,24 @@ function exportDOCX(){commitPendingEntries();const qr=reportQrForExport(true),qr
  * Inspection mission, collaborators, findings and recommendations are never exposed.
  */
 window.Report03CloudBridge={
+ listSharedCatalogTargets(){
+  if(!valid())return [];
+  const rows=[];
+  for(const section of catalog.sections){
+   if(section.id==='I')continue;
+   if(!section.domains.length){
+    if(section.id==='X'||section.id==='XI')rows.push({id:section.id,label:section.label,section:section.id});
+    continue;
+   }
+   for(const domain of section.domains){
+    rows.push({id:domain.id,label:section.label+' — '+domain.label+' — المجال كاملًا',section:section.id});
+    for(const indicator of domain.indicators){
+     rows.push({id:indicator.id,label:section.label+' — '+domain.label+' — '+indicator.label,section:section.id});
+    }
+   }
+  }
+  return rows;
+ },
  prepareLogout(){
   const reportHasData=hasInspectionInput()||
     ['mission','institution','director','summary'].some(group=>

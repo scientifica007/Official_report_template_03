@@ -15,6 +15,8 @@ let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],
 let selectedSharedId='',editingVersion=null,feedback='',busy=false,currentPage='dashboard';
 let missions=[],missionMembers=[],missionNotifications=[],missionEnabled=false,missionError='';
 let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
+let missionContributions=[],contributionLoadedFor='',contributionError='',contributionBusy=false;
+let contributionDrafts=Object.create(null);
 let institutionDraft={institution:{},director:{}};
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
@@ -123,7 +125,155 @@ async function loadMissions(){
    :'تعذّر تحميل بيانات المهام: '+err.message;
  }
  if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId))selectedMissionId='';
+ await loadMissionContributions();
 }
+
+function selectedMission(){
+ return missions.find(m=>m.id===selectedMissionId&&m.status==='draft')||null;
+}
+function contributionDraft(){
+ if(!selectedMissionId)return null;
+ return contributionDrafts[selectedMissionId]||(
+  contributionDrafts[selectedMissionId]={itemId:'',kind:'finding',body:'',parentId:null,requestId:''}
+ );
+}
+function catalogTargets(){return window.Report03CloudBridge?.listSharedCatalogTargets?.()||[]}
+function catalogLabel(itemId){
+ return catalogTargets().find(x=>x.id===itemId)?.label||itemId;
+}
+async function loadMissionContributions(){
+ const id=selectedMissionId;
+ if(!verifiedUser()||!missionEnabled||!id||!missions.some(m=>m.id===id)){
+  missionContributions=[];contributionLoadedFor='';contributionError='';return;
+ }
+ const all=[];
+ try{
+  // Paged fetch avoids silently dropping rows at PostgREST's default 1000-row limit.
+  for(let offset=0;offset<5000;offset+=250){
+   const batch=await get('inspection_contributions',{
+    select:'id,mission_id,item_id,kind,body,author_id,parent_id,client_request_id,created_at',
+    mission_id:'eq.'+id,order:'created_at.asc',limit:'250',offset:String(offset)
+   });
+   if(!Array.isArray(batch))throw Error('تعذر قراءة سجل المساهمات.');
+   all.push(...batch);
+   if(batch.length<250)break;
+   if(offset>=4750)throw Error('سجل المهمة تجاوز حد 5000 مساهمة؛ يلزم التصفح على دفعات قبل متابعة الإدخال.');
+  }
+  // Ignore stale network results when switching mission during the request.
+  if(selectedMissionId!==id)return;
+  missionContributions=all;contributionLoadedFor=id;contributionError='';
+ }catch(err){
+  if(selectedMissionId!==id)return;
+  // Stale previously loaded entries are visible but never presented as up-to-date.
+  if(contributionLoadedFor!==id){missionContributions=[];contributionLoadedFor=''}
+  contributionError='تعذر تحديث مساهمات المهمة: '+err.message;
+ }
+}
+function contributionName(authorId){
+ return missionMemberName(authorId);
+}
+function contributionKinds(kind){
+ return {finding:'معاينة',recommendation:'توصية',reply:'تعقيب',correction:'تصحيح من صاحب النص'}[kind]||kind;
+}
+function sharedContributionRows(){
+ if(contributionLoadedFor!==selectedMissionId)return '<p>جارٍ تحميل مساهمات المهمة أو لم يتم تحميلها بعد.</p>';
+ const originals=missionContributions.filter(x=>x.kind==='finding'||x.kind==='recommendation');
+ if(!originals.length)return '<p>لا توجد معاينات أو توصيات مشتركة محفوظة حتى الآن.</p>';
+ const byParent=new Map();
+ for(const item of missionContributions){
+  if(!item.parent_id)continue;
+  const children=byParent.get(item.parent_id)||[];children.push(item);byParent.set(item.parent_id,children);
+ }
+ return originals.map(item=>{
+  const children=byParent.get(item.id)||[];
+  const controls='<div class="portal-actions">'+
+   '<button type="button" class="btn subtle" data-cloud-action="contribution-reply" data-contribution-id="'+elt(item.id)+'">إضافة تعقيب</button>'+
+   (item.author_id===session.user.id?'<button type="button" class="btn subtle" data-cloud-action="contribution-correct" data-contribution-id="'+elt(item.id)+'">إضافة تصحيح</button>':'')+
+   '</div>';
+  return '<article class="mission-contribution"><div class="mission-contribution-title"><strong>'+
+   elt(contributionKinds(item.kind))+' — '+elt(catalogLabel(item.item_id))+'</strong>'+
+   '<span>'+elt(contributionName(item.author_id))+' — '+elt((item.created_at||'').replace('T',' ').slice(0,16))+'</span></div>'+
+   '<p class="mission-contribution-body">'+elt(item.body)+'</p>'+controls+
+   (children.length?'<div class="mission-contribution-replies">'+children.map(reply=>
+    '<article><strong>'+elt(contributionKinds(reply.kind))+' — '+elt(contributionName(reply.author_id))+
+    '</strong><small>'+elt((reply.created_at||'').replace('T',' ').slice(0,16))+'</small>'+
+    '<p>'+elt(reply.body)+'</p></article>').join('')+'</div>':'')+
+   '</article>';
+ }).join('');
+}
+function sharedContributionEditor(){
+ const mission=selectedMission();
+ if(!mission)return '';
+ const draft=contributionDraft();
+ const options=catalogTargets();
+ return '<div class="mission-collaboration"><h3>المعاينات والتوصيات المشتركة</h3>'+
+ '<p class="cloud-tip">تُحفظ كل إضافة باسم صاحب حسابها وتظهر لأعضاء المهمة عند تحديثها. لا يمكن محو النص الأصلي أو استبداله؛ يمكن التعقيب عليه، ويصححه صاحبه بإضافة مستقلة. لا تنتقل هذه الإدخالات تلقائيًا إلى مطبوع النموذج 03 حتى مرحلة الدمج M3.3.</p>'+
+ (contributionError?'<p class="mission-sync-error" role="alert">'+elt(contributionError)+'</p>':'')+
+ '<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="contribution-refresh">تحديث مساهمات الزملاء</button>'+
+ '<small>'+(contributionLoadedFor===selectedMissionId?'المساهمات المحمّلة: '+missionContributions.length:'سجل المساهمات غير محمّل')+'</small></div>'+
+ '<div class="mission-new-entry"><h4>إضافة مساهمة موثقة</h4>'+
+ '<label class="portal-field">المجال أو المؤشر الرسمي<select data-contrib-field="itemId" id="contribution-item">'+
+ '<option value="">— اختر مجالًا أو مؤشرًا —</option>'+
+ options.map(row=>'<option value="'+elt(row.id)+'" '+(draft.itemId===row.id?'selected':'')+'>'+elt(row.label)+'</option>').join('')+'</select></label>'+
+ '<label class="portal-field">نوع المساهمة<select data-contrib-field="kind" id="contribution-kind">'+
+ [['finding','معاينة'],['recommendation','توصية'],['reply','تعقيب'],['correction','تصحيح من صاحب النص']].map(([code,label])=>
+ '<option value="'+code+'" '+(draft.kind===code?'selected':'')+' '+(draft.parentId?'':code==='reply'||code==='correction'?'disabled':'')+'>'+label+'</option>').join('')+
+ '</select></label>'+
+ (draft.parentId?'<div class="mission-parent-note">مرتبطة بالمساهمة: '+elt(draft.parentId)+
+ ' <button type="button" class="btn subtle" data-cloud-action="contribution-cancel-parent">إلغاء الربط</button></div>':'')+
+ '<label class="portal-field">نص المساهمة<textarea data-contrib-field="body" id="contribution-body" maxlength="30000" rows="5" placeholder="اكتب المعاينة أو التوصية أو التعقيب؛ لا تُرسل حتى الضغط على حفظ المساهمة">'+elt(draft.body)+'</textarea></label>'+
+ '<div class="portal-actions"><button type="button" class="btn primary" data-cloud-action="contribution-add" '+
+ ((!options.length||contributionBusy)?'disabled':'')+'>حفظ المساهمة المشتركة</button>'+
+ '<small>تظهر رسالة نجاح فقط بعد إقرار قاعدة البيانات بالحفظ.</small></div></div>'+
+ '<h4>المساهمات المحفوظة</h4>'+sharedContributionRows()+'</div>';
+}
+function setContributionParent(id,kind){
+ const parent=missionContributions.find(row=>row.id===id&&
+  (row.kind==='finding'||row.kind==='recommendation'));
+ if(!parent)throw Error('المساهمة الأصلية غير متاحة؛ حدّث القائمة.');
+ if(kind==='correction'&&parent.author_id!==session.user.id)
+  throw Error('التصحيح خاص بصاحب النص؛ استخدم التعقيب للإضافة على كلام زميلك.');
+ const d=contributionDraft();
+ d.itemId=parent.item_id;d.kind=kind;d.parentId=parent.id;d.body='';d.requestId='';
+}
+async function appendContribution(){
+ const mission=selectedMission(),draft=contributionDraft();
+ if(!verifiedUser()||!mission)throw Error('يلزم الانضمام إلى مهمة مفتوحة بحساب مفتش معتمد.');
+ if(contributionLoadedFor!==mission.id||contributionError)throw Error('حدّث سجل المساهمات بنجاح أولًا.');
+ if(!catalogTargets().some(x=>x.id===draft.itemId))throw Error('اختر عنصرًا رسميًا صالحًا من الفهرس.');
+ if(!['finding','recommendation','reply','correction'].includes(draft.kind))throw Error('نوع المساهمة غير صالح.');
+ if(['reply','correction'].includes(draft.kind)!==Boolean(draft.parentId))
+  throw Error('التعقيب والتصحيح يتطلبان اختيار المساهمة الأصلية.');
+ const body=text(draft.body);
+ if(body.length<1||body.length>30000)throw Error('اكتب نص المساهمة (حد أقصى 30000 حرف).');
+ if(draft.parentId){
+  const parent=missionContributions.find(x=>x.id===draft.parentId&&
+   x.item_id===draft.itemId&&(x.kind==='finding'||x.kind==='recommendation'));
+  if(!parent)throw Error('المساهمة الأصلية غير متاحة.');
+  if(draft.kind==='correction'&&parent.author_id!==session.user.id)
+   throw Error('التصحيح لصاحب المساهمة الأصلية فقط.');
+ }
+ if(!draft.requestId){
+  if(!globalThis.crypto?.randomUUID)throw Error('يتطلب الحفظ متصفحًا يدعم إنشاء معرّفات طلب آمنة.');
+  draft.requestId=globalThis.crypto.randomUUID();
+ }
+ const requestId=draft.requestId;
+ const id=await raw('POST','/rest/v1/rpc/append_inspection_contribution',{
+  p_mission_id:mission.id,p_item_id:draft.itemId,p_kind:draft.kind,
+  p_body:body,p_parent_id:draft.parentId||null,p_client_request_id:requestId
+ },true);
+ if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('لم تؤكد قاعدة البيانات حفظ المساهمة.');
+ // Only clear unchanged draft. If the author edited while the request was in
+ // flight, preserve the newer text as a new pending entry.
+ if(draft.requestId===requestId&&draft.body===body){
+  contributionDrafts[mission.id]={itemId:draft.itemId,kind:'finding',body:'',parentId:null,requestId:''};
+ }else if(draft.requestId===requestId)draft.requestId='';
+ await loadMissionContributions();
+ feedback=contributionError?
+  'حُفظت المساهمة بنجاح، لكن تعذر تحديث العرض. حدّث سجل المساهمات.':
+  'حُفظت المساهمة المشتركة باسمك؛ يمكن لبقية الأعضاء مشاهدتها عند التحديث.';
+}
+
 async function fetchAll(){
  if(!session)return;
  await loadProfile();
@@ -348,7 +498,7 @@ function missionsView(){
  const availablePeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&
     p.id!==session.user.id&&(!mission||!missionMembers.some(m=>m.mission_id===mission.id&&m.inspector_id===p.id)));
  return '<div class="portal-page-heading"><h2>مهام التفتيش المشتركة</h2>'+
- '<p>يمكن للمفتشين المعتمدين إنشاء مهمة ودعوة زملائهم. لا يبدأ التحرير المشترك للمعاينات والتوصيات إلا في المرحلة M3.2.</p></div>'+
+ '<p>أنشئ مهمة، ادعُ زملاءك، ثم سجل المعاينات والتوصيات المشتركة داخلها مع حفظ صاحب كل مساهمة.</p></div>'+
  (!missionEnabled?'<section class="portal-widget"><h3>الخدمة غير مفعّلة</h3><p>'+elt(missionError||'يجب تشغيل ترحيل SQL رقم 003 في Supabase.')+'</p>'+
  '<p>يمكنك الاستمرار في إعداد التقرير الفردي دون أي تغيير.</p></section>':
  '<div class="portal-widgets"><section class="portal-widget"><h3>إنشاء مهمة جديدة</h3>'+
@@ -384,7 +534,7 @@ function missionsView(){
  availablePeers.map(p=>'<option value="'+elt(p.id)+'">'+elt(text(p.first_name+' '+p.last_name)+' — '+title(p.profession))+'</option>').join('')+'</select></label>'+
  '<button type="button" class="btn subtle" data-cloud-action="mission-invite" '+(!availablePeers.length?'disabled':'')+
  '>إرسال الدعوة</button>'+
- '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. المساهمات المشتركة والاقتراحات ستُفعّل بعد اختبار الدعوات والصلاحيات.</p></div>':'')+
+ '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. يعتمد حفظ المساهمات المشتركة على ترحيل قاعدة البيانات 004؛ لن تُستبدل بيانات التقرير المحلي.</p>'+sharedContributionEditor()+'</div>':'')+
  '</section>');
 }
 async function createMission(){
@@ -402,6 +552,7 @@ async function createMission(){
  missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
  await loadMissions();
  selectedMissionId=id;
+ await loadMissionContributions();
  feedback='أُنشئت المهمة. يمكنك الآن دعوة المفتشين المعتمدين.';
 }
 async function inviteMissionPeer(){
@@ -423,7 +574,7 @@ async function respondMissionInvite(id,accept){
   throw Error('لا توجد دعوة معلقة لهذا الحساب.');
  await raw('POST','/rest/v1/rpc/respond_inspection_invitation',{p_mission_id:id,p_accept:accept},true);
  await loadMissions();
- if(accept)selectedMissionId=id;
+ if(accept){selectedMissionId=id;await loadMissionContributions();}
  feedback=accept?'قُبلت الدعوة وأصبحت عضوًا في المهمة.':'رُفضت الدعوة.';
 }
 async function readMissionNotification(id){
@@ -603,9 +754,11 @@ async function changeInspectorStatus(id,newStatus){
  feedback='تم تنفيذ القرار وتسجيل صاحبه وتاريخه في السجل.';
 }
 async function signOut(){
+ if(Object.values(contributionDrafts).some(d=>text(d.body))&&
+    !confirm('توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد. هل تريد تسجيل الخروج والتخلي عن هذه النصوص؟'))return;
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';selectedSharedId='';editingVersion=null;
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';missionContributions=[];contributionLoadedFor='';contributionError='';contributionDrafts=Object.create(null);selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
@@ -621,16 +774,37 @@ if(reportLogout)reportLogout.addEventListener('click',async()=>{
 });
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
 root.addEventListener('input',e=>{
+ const contribField=e.target.dataset?.contribField;
+ if(contribField&&['itemId','kind','body'].includes(contribField)){
+  const d=contributionDraft();
+  if(d&&d[contribField]!==e.target.value){
+   if(d.parentId&&contribField==='itemId')return;
+   d[contribField]=e.target.value;d.requestId='';
+  }
+ }
  const missionField=e.target.dataset?.missionField;
  if(missionField&&Object.hasOwn(missionDraft,missionField))missionDraft[missionField]=e.target.value;
  const group=e.target.dataset?.cloudFieldGroup,key=e.target.dataset?.cloudFieldKey;
  if(group&&key&&institutionDraft[group])institutionDraft[group][key]=e.target.value;
 });
-root.addEventListener('change',e=>{
+root.addEventListener('change',async e=>{
  if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
  if(e.target.id==='mission-select'){
   selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
-  render();return;
+  missionContributions=[];contributionLoadedFor='';contributionError='';
+  // Preserve any unsent draft for the prior mission separately.
+  await loadMissionContributions();render();return;
+ }
+ const contrib=e.target.dataset?.contribField;
+ if(contrib&&['itemId','kind','body'].includes(contrib)){
+  const d=contributionDraft();
+  if(d&&d[contrib]!==e.target.value){
+   if(d.parentId&&contrib==='itemId'){render();return}
+   d[contrib]=e.target.value;d.requestId='';
+  }
+  if(contrib==='kind'&&!d.parentId&&['reply','correction'].includes(d.kind)){
+   d.kind='finding';render();return;
+  }
  }
  const field=e.target.dataset?.missionField;
  if(field&&Object.hasOwn(missionDraft,field))missionDraft[field]=e.target.value;
@@ -662,6 +836,13 @@ root.addEventListener('click',async e=>{
   }
   else if(action==='mission-refresh'){await loadMissions();feedback='المهام والدعوات محدّثة.'}
   else if(action==='mission-read')await readMissionNotification(button.dataset.notificationId);
+  else if(action==='contribution-refresh'){await loadMissionContributions();feedback=contributionError?contributionError:'المساهمات المشتركة محدّثة.'}
+  else if(action==='contribution-reply'){setContributionParent(button.dataset.contributionId,'reply');feedback='أضف تعقيبك ثم اضغط حفظ المساهمة.'}
+  else if(action==='contribution-correct'){setContributionParent(button.dataset.contributionId,'correction');feedback='أدخل التصحيح الملحق بالمساهمة الأصلية.'}
+  else if(action==='contribution-cancel-parent'){
+   const d=contributionDraft();d.parentId=null;d.kind='finding';d.requestId='';
+  }
+  else if(action==='contribution-add')await appendContribution();
   else if(action==='set-status')await changeInspectorStatus(button.dataset.userId,button.dataset.newStatus);
  }catch(err){feedback='تعذر تنفيذ العملية: '+err.message}
  finally{busy=false;render()}
@@ -715,6 +896,8 @@ async function init(){
 }
 document.addEventListener('DOMContentLoaded',init);
 setInterval(async()=>{if(!verifiedUser()||busy||document?.hidden)return;
+ // Do not steal focus while a collaborator is typing an unsubmitted finding.
+ if(currentPage==='missions'&&document.activeElement?.matches?.('[data-contrib-field]'))return;
  try{await fetchAll();render()}catch(e){status('تعذر تحديث الحساب والإشعارات مؤقتًا: '+e.message)}
 },120000);
 })();

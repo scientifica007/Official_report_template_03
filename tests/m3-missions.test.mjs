@@ -18,7 +18,7 @@ const people=[
 ];
 const institution={id:I,name:'مركز تبسة',code:'1201',wilaya:'تبسة',version:1,
  institution_data:{name:'مركز تبسة',code:'1201',wilaya:'تبسة'},director_data:{fullName:'الرئيس'}};
-function db(){return {missions:[],members:[],notifications:[],available:true,requests:[],calls:0}}
+function db(){return {missions:[],members:[],notifications:[],contributions:[],available:true,requests:[],calls:0}}
 function makeClient(database,uid){
  const handlers={root:{},document:{},report:{}},elements={
   'cloud-shell':{hidden:false},'cloud-content':{innerHTML:'',addEventListener(n,f){handlers.root[n]=f}},
@@ -50,6 +50,33 @@ function makeClient(database,uid){
     response=database.notifications.filter(n=>n.recipient_id===uid&&n.id===u.searchParams.get('id')?.replace('eq.',''));
     for(const n of response)n.read_at=body.read_at;
    }else response=database.notifications.filter(n=>n.recipient_id===uid);
+  }else if(table==='inspection_contributions'){
+   const mission=u.searchParams.get('mission_id')?.replace(/^eq\./,'');
+   const allowed=database.members.some(m=>m.mission_id===mission&&m.inspector_id===uid&&m.membership_status==='accepted');
+   response=allowed?database.contributions.filter(r=>r.mission_id===mission):[];
+  }else if(table==='append_inspection_contribution'){
+   const allowed=database.members.some(m=>m.mission_id===body.p_mission_id&&m.inspector_id===uid&&m.membership_status==='accepted');
+   if(!allowed)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Membership required'})};
+   const parent=database.contributions.find(x=>x.id===body.p_parent_id);
+   if(body.p_parent_id&&(!parent||parent.mission_id!==body.p_mission_id||parent.item_id!==body.p_item_id||
+      (body.p_kind==='correction'&&parent.author_id!==uid))){
+    return {ok:false,status:403,text:async()=>JSON.stringify({message:'Invalid parent'})};
+   }
+   const previous=database.contributions.find(r=>r.author_id===uid&&r.mission_id===body.p_mission_id&&
+     r.client_request_id===body.p_client_request_id);
+   if(previous)response=previous.id;
+   else {
+    database.calls++;
+    const id='ff3d44b0-9833-4442-bcde-'+String(database.calls).padStart(12,'0');
+    database.contributions.push({id,mission_id:body.p_mission_id,item_id:body.p_item_id,
+     kind:body.p_kind,body:body.p_body,author_id:uid,parent_id:body.p_parent_id,
+     client_request_id:body.p_client_request_id,created_at:new Date().toISOString()});
+    response=id;
+    if(database.failAfterAppendOnce){
+     database.failAfterAppendOnce=false;
+     throw Error('Network connection lost after commit');
+    }
+   }
   }else if(table==='create_inspection_mission'){
    if(uid===C)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Approved inspector required'})};
    database.missions.push({id:M,title:body.p_title,purpose:body.p_purpose,
@@ -69,8 +96,12 @@ function makeClient(database,uid){
   }
   return {ok:status<400,status,text:async()=>JSON.stringify(response)};
  };
- const context={window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},Report03CloudBridge:{}},
- document:doc,fetch,sessionStorage:storage,
+ let uuidCount=0;
+ const context={window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},
+  Report03CloudBridge:{listSharedCatalogTargets:()=>[
+   {id:'III-01-I001',section:'III',label:'المهام القانونية — القانون الأساسي'},
+   {id:'II-MAIN-I001',section:'II',label:'المظهر العام — نوعية البنايات'}]}},
+ document:doc,fetch,sessionStorage:storage,crypto:{randomUUID(){uuidCount++;return 'ed62dd4c-8c04-4748-bcba-'+String(uuidCount).padStart(12,'0')}} ,
  location:{hash:'',pathname:'/Official_report_template_03/',search:'',origin:'https://scientifica007.github.io'},
  history:{replaceState(){}},URL,URLSearchParams,Date,setInterval(){return 1},console};
  vm.runInNewContext(cloud,context,{timeout:10000});
@@ -80,6 +111,7 @@ function makeClient(database,uid){
   async nav(page){await event('nav',{page})},
   async action(action,extra){await event(action,extra)},
   async type(field,value){await handlers.root.input({target:{dataset:{missionField:field},value}})},
+  async contribute(field,value){await handlers.root.input({target:{dataset:{contribField:field},value}})},
   choose(id){elements['mission-peer'].value=id},
   async selectMission(value){await handlers.root.change({target:{id:'mission-select',value}})}
  };
@@ -133,7 +165,7 @@ test('M3.1: inspector A creates task and safely invites B, without uploading loc
  assert.equal(database.members[1].membership_status,'invited');
  assert.equal(database.notifications.length,1);
  assert.equal(database.notifications[0].recipient_id,B);
- assert.equal(database.requests.filter(x=>x.table==='inspection_contributions').length,0); // M3.2 not activated
+ assert.ok(database.requests.filter(x=>x.table==='inspection_contributions').every(x=>x.method==='GET')); // read-only
  assert.ok(!database.requests.some(x=>x.table==='inspection_contributions'&&x.method!=='GET'));
 });
 test('M3.1: second inspector accepts and sees membership, while A sees the accepted team after refresh',async()=>{
@@ -176,4 +208,147 @@ test('M3.1: only account itself may respond to invitations; client sends no auth
  assert.match(cloud,/missionMembers\.some\(x=>x\.mission_id===id&&x\.inspector_id===session\.user\.id&&x\.membership_status==='invited'\)/);
  assert.doesNotMatch(cloud,/p_actor_id|p_created_by|p_invited_by/);
  execFileSync(process.execPath,['--check','cloud.js']);
+});
+
+
+test('M3.2: SQL limits writes to RPC and validates actor, exact catalog target and parent',()=>{
+ const sql4=readFileSync('supabase/migrations/004_append_only_inspection_contributions.sql','utf8');
+ const catalog=JSON.parse(readFileSync('catalog.json','utf8'));
+ const allIds=catalog.sections.flatMap(section=>section.domains.length?
+  section.domains.flatMap(domain=>[domain.id,...domain.indicators.map(i=>i.id)]):
+  ['X','XI'].includes(section.id)?[section.id]:[]);
+ assert.equal(allIds.length,217);
+ for(const id of allIds)assert.ok(sql4.includes("('"+id+"')"),'Missing official item '+id);
+ assert.match(sql4,/create or replace function public\.append_inspection_contribution\(/);
+ assert.match(sql4,/v_actor uuid := \(select auth\.uid\(\)\)/);
+ assert.match(sql4,/public\.is_accepted_mission_member\(p_mission_id\)/);
+ assert.match(sql4,/from public\.inspection_missions[\s\S]{0,100}status='draft' for share/);
+ assert.match(sql4,/public\.inspection_catalog_targets where item_id=v_item/);
+ assert.match(sql4,/v_parent\.author_id<>v_actor/);
+ assert.match(sql4,/on conflict \(mission_id,author_id,client_request_id\) do nothing/);
+ assert.match(sql4,/v_existing\.parent_id is distinct from p_parent_id/);
+ assert.match(sql4,/grant execute on function public\.append_inspection_contribution/);
+ assert.match(sql4,/revoke insert,update,delete on public\.inspection_contributions from public,anon,authenticated/);
+ assert.doesNotMatch(sql4,/drop table|truncate table|delete from public\.inspection_contributions/i);
+});
+async function twoAccounts(){
+ const data=db(),a=makeClient(data,A);await a.init();await a.nav('missions');
+ await a.type('institutionId',I);await a.type('title','مهمة تفتيش مشتركة قابلة للتحرير');
+ await a.action('mission-create');a.choose(B);await a.action('mission-invite');
+ const b=makeClient(data,B);await b.init();await b.nav('missions');
+ await b.action('mission-respond',{missionId:M,accept:'true'});
+ await a.action('mission-refresh');
+ return {data,a,b};
+}
+test('M3.2: account A adds finding and B sees it after refresh, then B adds recommendation',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.contribute('itemId','III-01-I001');
+ await a.contribute('kind','finding');
+ await a.contribute('body','معاينة أولى تخص ممارسة المهام القانونية للمؤسسة');
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,1);
+ assert.equal(data.contributions[0].author_id,A);
+ assert.equal(data.contributions[0].item_id,'III-01-I001');
+ assert.match(a.elements['cloud-content'].innerHTML,/حُفظت المساهمة المشتركة باسمك/);
+ await b.action('contribution-refresh');
+ assert.match(b.elements['cloud-content'].innerHTML,/معاينة أولى تخص ممارسة المهام القانونية/);
+ assert.match(b.elements['cloud-content'].innerHTML,/حاتم زريبي/);
+ await b.contribute('itemId','III-01-I001');
+ await b.contribute('kind','recommendation');
+ await b.contribute('body','توصية ثانية من المفتش الإداري والمالي');
+ await b.action('contribution-add');
+ assert.equal(data.contributions.length,2);
+ assert.equal(data.contributions[1].author_id,B);
+ assert.equal(data.contributions[1].kind,'recommendation');
+ await a.action('contribution-refresh');
+ assert.match(a.elements['cloud-content'].innerHTML,/توصية ثانية من المفتش الإداري والمالي/);
+ assert.ok(!data.requests.some(x=>x.table==='inspection_contributions'&&x.method!=='GET'));
+ assert.equal(data.requests.filter(x=>x.table==='append_inspection_contribution').length,2);
+});
+test('M3.2: other inspector may reply, but cannot correct author original; author may correct',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.contribute('itemId','II-MAIN-I001');await a.contribute('body','نص المعاينة الأصلية');
+ await a.action('contribution-add');
+ const original=data.contributions[0];
+ await b.action('contribution-refresh');
+ await b.action('contribution-reply',{contributionId:original.id});
+ await b.contribute('body','إضافة زميل بخصوص نفس العنصر');
+ await b.action('contribution-add');
+ assert.equal(data.contributions.length,2);
+ assert.equal(data.contributions[1].parent_id,original.id);
+ assert.equal(data.contributions[1].kind,'reply');
+ await b.action('contribution-correct',{contributionId:original.id});
+ assert.equal(data.contributions.length,2);
+ assert.match(b.elements['cloud-content'].innerHTML,/التصحيح خاص بصاحب النص/);
+ await a.action('contribution-correct',{contributionId:original.id});
+ await a.contribute('body','تصحيح موثق من مؤلف المعاينة');
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,3);
+ assert.equal(data.contributions[0].body,'نص المعاينة الأصلية');
+ assert.equal(data.contributions[2].kind,'correction');
+ assert.equal(data.contributions[2].author_id,A);
+ await b.action('contribution-refresh');
+ assert.match(b.elements['cloud-content'].innerHTML,/إضافة زميل بخصوص نفس العنصر/);
+ assert.match(b.elements['cloud-content'].innerHTML,/تصحيح موثق من مؤلف المعاينة/);
+});
+test('M3.2: pending invitation cannot read or write contributions until accepted',async()=>{
+ const data=db(),a=makeClient(data,A);await a.init();await a.nav('missions');
+ await a.type('institutionId',I);await a.type('title','فحص عضوية المهمة');
+ await a.action('mission-create');a.choose(B);await a.action('mission-invite');
+ const b=makeClient(data,B);await b.init();await b.nav('missions');
+ assert.doesNotMatch(b.elements['cloud-content'].innerHTML,/نص المعاينة/);
+ const reqs=data.requests.filter(x=>x.uid===B&&x.table==='inspection_contributions');
+ assert.equal(reqs.length,0);
+ assert.equal(data.contributions.length,0);
+ assert.match(b.elements['cloud-content'].innerHTML,/قبول المشاركة/);
+});
+test('M3.2: closing mission and missing catalog selection prevent saves',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.contribute('body','نص بدون مؤشر');
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,0);
+ assert.match(a.elements['cloud-content'].innerHTML,/اختر عنصرًا رسميًا/);
+ data.missions[0].status='closed';
+ await a.action('mission-refresh');
+ assert.equal(data.contributions.length,0);
+});
+test('M3.2: report bridge exposes stable IDs; individual editor remains tab-local and removable',()=>{
+ const app=readFileSync('app.js','utf8');
+ assert.match(app,/listSharedCatalogTargets\(\)\{/);
+ assert.match(app,/rows\.push\(\{id:indicator\.id,label:/);
+ assert.match(app,/window\.Report03CloudBridge=/);
+ assert.match(app,/function exportSnapshot\(\)/);
+ assert.doesNotMatch(app,/append_inspection_contribution|inspection_contributions/);
+ assert.match(cloud,/data-contrib-field="body"/);
+ assert.match(cloud,/contributionLoadedFor===selectedMissionId/);
+ assert.match(cloud,/if\(currentPage==='missions'&&document\.activeElement\?\.matches\?\.\('\[data-contrib-field\]'\)\)return/);
+ execFileSync(process.execPath,['--check','app.js']);
+ execFileSync(process.execPath,['--check','cloud.js']);
+});
+
+
+test('M3.2: ambiguous network loss retries same UUID and never duplicates a contribution',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.contribute('itemId','III-01-I001');
+ await a.contribute('body','معاينة ينبغي عدم تكرارها');
+ data.failAfterAppendOnce=true;
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,1);
+ assert.match(a.elements['cloud-content'].innerHTML,/تعذر تنفيذ العملية/);
+ await a.action('contribution-add');
+ assert.equal(data.contributions.length,1);
+ const calls=data.requests.filter(x=>x.table==='append_inspection_contribution');
+ assert.equal(calls.length,2);
+ assert.equal(calls[0].body.p_client_request_id,calls[1].body.p_client_request_id);
+ assert.match(a.elements['cloud-content'].innerHTML,/حُفظت المساهمة المشتركة باسمك/);
+});
+test('M3.2: pending text is stored in client draft rather than auto-submitted by background refresh',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.contribute('itemId','II-MAIN-I001');
+ await a.contribute('body','مسودة لم يتم الضغط على حفظها');
+ await a.action('mission-refresh');
+ assert.equal(data.contributions.length,0);
+ assert.match(a.elements['cloud-content'].innerHTML,/مسودة لم يتم الضغط على حفظها/);
+ assert.ok(!data.requests.some(x=>x.table==='append_inspection_contribution'));
+ assert.match(cloud,/توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد/);
 });
