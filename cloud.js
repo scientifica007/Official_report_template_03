@@ -450,7 +450,12 @@ function notificationsView(){
  const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
  return '<div class="portal-page-heading"><h2>الإشعارات</h2><p>'+unread+' غير مقروء</p></div>'+
  '<section class="portal-widget"><button class="btn subtle" data-cloud-action="refresh">تحديث الإشعارات</button>'+
- (notifications.length?notifications.slice(0,25).map(noticeCard).join(''):'<p>لا توجد إشعارات حاليًا.</p>')+'</section>';
+ (notifications.length?notifications.slice(0,25).map(noticeCard).join(''):'<p>لا توجد إشعارات مؤسسات حاليًا.</p>')+
+ '<h3>إشعارات المهام المشتركة</h3>'+
+ (missionNotifications.length?missionNotifications.slice(0,40).map(n=>
+ '<article class="portal-notice"><strong>'+elt(n.description)+'</strong><small>'+elt(n.created_at?.slice(0,10)||'')+'</small>'+
+ (!n.read_at?'<button type="button" class="btn subtle" data-cloud-action="mission-read" data-notification-id="'+elt(n.id)+'">تعليم كمقروء</button>':'')+'</article>').join(''):
+ '<p>لا توجد إشعارات مهام.</p>')+'</section>';
 }
 function guardedView(){
  const label=accountStatusLabel(profile?.account_status||'pending'),status=profile?.account_status||'pending';
