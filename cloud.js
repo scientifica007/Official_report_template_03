@@ -13,6 +13,8 @@ const configured=/^https:\/\//.test(base)&&base.length<300&&key.length>20&&!key.
 const SESSION_KEY='official_report03_cloud_session_v1';
 let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],accountDecisions=[],myDecisions=[],mode='login';
 let selectedSharedId='',editingVersion=null,feedback='',busy=false,currentPage='dashboard';
+let missions=[],missionMembers=[],missionNotifications=[],missionEnabled=false,missionError='';
+let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
 let institutionDraft={institution:{},director:{}};
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
@@ -101,10 +103,32 @@ async function loadShared(){
  const ids=notifications.map(x=>x.change_id).filter(Boolean);
  changes=ids.length?await get('institution_changes',{select:'id,institution_id,actor_id,action,changes,created_at',id:'in.('+ids.join(',')+')'}):[];
 }
+async function loadMissions(){
+ if(!verifiedUser()){
+  missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';return;
+ }
+ try{
+  const [m,mm,n]=await Promise.all([
+   get('inspection_missions',{select:'id,title,purpose,institution_id,institution_snapshot,visit_start,visit_end,status,created_at,created_by',order:'created_at.desc',limit:'100'}),
+   get('inspection_mission_members',{select:'mission_id,inspector_id,invited_by,membership_status,created_at,responded_at',order:'created_at.desc',limit:'500'}),
+   get('inspection_mission_notifications',{select:'id,mission_id,recipient_id,actor_id,event_type,description,read_at,created_at',
+    recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'100'})
+  ]);
+  missions=Array.isArray(m)?m:[];missionMembers=Array.isArray(mm)?mm:[];
+  missionNotifications=Array.isArray(n)?n:[];missionEnabled=true;missionError='';
+ }catch(err){
+  missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;
+  missionError=err.httpStatus===404||err.httpStatus===400
+   ?'لم تُفعّل جداول المهام المشتركة في Supabase بعد. يحتاج مسؤول المنصة إلى تشغيل الترحيل 003.'
+   :'تعذّر تحميل بيانات المهام: '+err.message;
+ }
+ if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId))selectedMissionId='';
+}
 async function fetchAll(){
  if(!session)return;
  await loadProfile();
  await loadShared();
+ await loadMissions();
  render();
 }
 function fieldName(key){
@@ -244,7 +268,10 @@ function portalNavigation(){
  '<button type="button" class="portal-nav-btn'+(currentPage===id?' selected':'')+
  '" data-cloud-action="nav" data-page="'+id+'" aria-current="'+(currentPage===id?'page':'false')+'">'+
  '<span aria-hidden="true">'+ico+'</span><span>'+name+'</span>'+
- (id==='notifications'&&notifications.some(x=>!x.read_at)?'<b>'+notifications.filter(x=>!x.read_at).length+'</b>':'')+'</button>').join('')+'</nav>';
+ (id==='notifications'&&(notifications.some(x=>!x.read_at)||missionNotifications.some(x=>!x.read_at))?
+ '<b>'+(notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length)+'</b>':
+ id==='missions'&&missionMembers.some(x=>x.inspector_id===session.user.id&&x.membership_status==='invited')?
+ '<b>'+missionMembers.filter(x=>x.inspector_id===session.user.id&&x.membership_status==='invited').length+'</b>':'')+'</button>').join('')+'</nav>';
 }
 function dashboardCard(label,value,description,target){
  return '<button type="button" class="portal-metric" data-cloud-action="nav" data-page="'+target+'">'+
@@ -261,9 +288,11 @@ function dashboardView(){
  dashboardCard('إعداد التقرير','النموذج 03','إصدار PDF أو DOCX أو JSON','report')+'</div>'+
  '<div class="portal-widgets"><section class="portal-widget"><h3>آخر المؤسسات المسجلة</h3>'+
  (shared.length?'<ul>'+shared.slice(0,6).map(x=>'<li><button data-cloud-action="open-institution" data-institution-id="'+elt(x.id)+'">'+elt(x.name)+' — '+elt(x.wilaya)+'</button></li>').join('')+'</ul>':'<p>لم تُسجل أي مؤسسة مشتركة بعد. يمكنك إضافة أول مؤسسة في قسم «المؤسسات».</p>')+
- '</section><section class="portal-widget"><h3>مهام التفتيش والعمل الجماعي</h3>'+
- '<p>إدارة المهام والرزنامة والفرق والمراسلات قيد التطوير؛ لا نعرض بيانات غير موجودة أو ندّعي حفظ مهام التفتيش.</p>'+
- '<button class="btn subtle" data-cloud-action="nav" data-page="missions">عرض خطة تطوير المهام</button></section></div>';
+ '</section><section class="portal-widget"><h3>مهام التفتيش المشتركة</h3>'+
+ (missionEnabled?'<p>مهام تشارك فيها: '+missions.length+' — دعوات تنتظر ردك: '+
+ missionMembers.filter(x=>x.inspector_id===session.user.id&&x.membership_status==='invited').length+'</p>':
+ '<p>خدمة المهام المشتركة لم تُفعّل بعد.</p>')+
+ '<button class="btn subtle" data-cloud-action="nav" data-page="missions">فتح مهام التفتيش</button></section></div>';
 }
 function institutionEditor(){
  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
@@ -337,6 +366,7 @@ function portalView(){
  const content=currentPage==='dashboard'?dashboardView():
   currentPage==='institutions'?institutionEditor():
   currentPage==='colleagues'?colleaguesView():
+  currentPage==='missions'?missionsView():
   currentPage==='notifications'?notificationsView():
   currentPage==='account'?accountView():
   currentPage==='admin'&&profile.is_admin?renderAccountsManagement():
@@ -468,7 +498,7 @@ async function changeInspectorStatus(id,newStatus){
 async function signOut(){
  if(window.Report03CloudBridge?.prepareLogout?.()===false)return;
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
- session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];selectedSharedId='';editingVersion=null;
+ session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
