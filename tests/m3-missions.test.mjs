@@ -384,3 +384,74 @@ test('M3.2: pending text is stored in client draft rather than auto-submitted by
  assert.ok(!data.requests.some(x=>x.table==='append_inspection_contribution'));
  assert.match(cloud,/توجد مساهمات مشتركة مكتوبة ولم تُحفظ بعد/);
 });
+
+
+test('M3.3: mission launch opens unified editor, shared finding appears across two accounts',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.action('open-mission-report');
+ assert.equal(a.snapshot().missionId,M);
+ assert.equal(a.snapshot().institution.name,'مركز تبسة');
+ assert.equal(a.snapshot().director.fullName,'الرئيس');
+ assert.equal(a.snapshot().inspectors.length,2);
+ assert.match(a.inline('III-01-I001'),/المعاينات والتوصيات \(0\)/);
+ await a.sharedText('III-01-I001','معاينة حقيقية من محرر التقرير الرسمي');
+ await a.embedded('save','III-01-I001');
+ assert.equal(data.contributions.length,1);
+ assert.equal(data.contributions[0].author_id,A);
+ assert.equal(data.contributions[0].item_id,'III-01-I001');
+ await b.action('open-mission-report');
+ assert.match(b.inline('III-01-I001'),/معاينة حقيقية من محرر التقرير الرسمي/);
+ const output=await b.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(output.entries['III-01-I001'].findings.length,1);
+ assert.equal(output.entries['III-01-I001'].findings[0].authorName,'حاتم زريبي');
+ assert.equal(output.entries['III-01-I001'].findings[0].text,'معاينة حقيقية من محرر التقرير الرسمي');
+ assert.equal(data.requests.filter(x=>x.table==='append_inspection_contribution').length,1);
+});
+test('M3.3: peer correction is restricted; author correction is reflected in unified export and full audit',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.action('open-mission-report');
+ await a.sharedText('III-01-I001','صياغة أصلية للتفتيش');
+ await a.embedded('save','III-01-I001');
+ const original=data.contributions[0];
+ await b.action('open-mission-report');
+ await b.embedded('correct','III-01-I001',original.id);
+ assert.equal(data.contributions.length,1);
+ await b.embedded('reply','III-01-I001',original.id);
+ await b.sharedText('III-01-I001','تعقيب المفتش الثاني');
+ await b.embedded('save','III-01-I001');
+ await a.context.window.Report03CloudUI.refreshSharedReport();
+ await a.embedded('correct','III-01-I001',original.id);
+ await a.sharedText('III-01-I001','الصياغة المصححة من صاحبها');
+ await a.embedded('save','III-01-I001');
+ await b.context.window.Report03CloudUI.refreshSharedReport();
+ const output=await b.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(output.entries['III-01-I001'].findings[0].text,'الصياغة المصححة من صاحبها');
+ assert.equal(output.entries['III-01-I001'].findings[0].originalText,'صياغة أصلية للتفتيش');
+ assert.equal(output.provenance.length,3);
+ assert.equal(output.provenance.filter(x=>x.kind==='reply').length,1);
+ assert.ok(!output.entries['III-01-I001'].findings.some(x=>x.text==='تعقيب المفتش الثاني'));
+});
+test('M3.3: optional assessments and report summary fields synchronize and appear in unified snapshot',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.action('open-mission-report');
+ const assess={dataset:{assessment:'III-01-I001'},value:'not_applicable',disabled:false};
+ await a.handlers.document.change({target:assess});
+ const field={dataset:{group:'summary',field:'generalAssessment'},value:'تقدير جماعي تجريبي',disabled:false};
+ await a.handlers.document.change({target:field});
+ assert.equal(data.assessments.length,1);
+ assert.equal(data.fields.length,1);
+ await b.action('open-mission-report');
+ const output=await b.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(output.entries['III-01-I001'].assessment,'not_applicable');
+ assert.equal(output.summary.generalAssessment,'تقدير جماعي تجريبي');
+ assert.equal(data.assessments[0].author_id,A);
+ assert.equal(data.fields[0].author_id,A);
+});
+test('M3.3: pending unsaved text blocks unified export without uploading anything',async()=>{
+ const {data,a}=await twoAccounts();
+ await a.action('open-mission-report');
+ await a.sharedText('III-01-I001','نص لم يتم حفظه');
+ await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/لم تحفظها بعد/);
+ assert.equal(data.contributions.length,0);
+ assert.match(a.inline('III-01-I001'),/نص لم يتم حفظه/);
+});
