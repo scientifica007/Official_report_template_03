@@ -502,3 +502,43 @@ test('M3.3 regression: empty and whitespace-only draft must not block otherwise 
  assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,0);
  assert.ok((await a.context.window.Report03CloudUI.prepareSharedExport()).missionId);
 });
+
+
+test('M3.4: summary textareas save on field exit or explicit retry and report accurate state to editor',async()=>{
+ const {data,a,b}=await twoAccounts();
+ await a.action('open-mission-report');
+ const statuses=[];
+ a.context.window.Report03CloudBridge.setSharedFieldStatus=(group,key,state,value)=>{
+  statuses.push({group,key,state,value});return true;
+ };
+ a.context.window.Report03CloudBridge.pendingSharedSummaryFields=()=>[
+  {key:'generalAssessment',label:'التقدير العام حول سير المؤسسة والاختلالات',status:'editing'}];
+ const textarea={dataset:{group:'summary',field:'generalAssessment'},value:'تقدير جماعي اختباري',disabled:false};
+ await a.handlers.document.change({target:textarea});
+ assert.equal(textarea.disabled,false);
+ assert.deepEqual(statuses.map(x=>x.state),['saving','saved']);
+ assert.equal(data.fields.length,1);
+ assert.equal(data.fields[0].field_key,'generalAssessment');
+ await b.action('open-mission-report');
+ const remote=await b.context.window.Report03CloudUI.prepareSharedExport();
+ assert.equal(remote.summary.generalAssessment,'تقدير جماعي اختباري');
+ assert.equal((await a.context.window.Report03CloudUI.prepareSharedExport()).summary.generalAssessment,'تقدير جماعي اختباري');
+ const click={dataset:{saveSharedSummary:'generalRecommendations'},disabled:false};
+ const otherInput={dataset:{group:'summary',field:'generalRecommendations'},value:'توصية 1\nتوصية 2',disabled:false};
+ a.elements['summary-generalRecommendations']=otherInput;
+ a.context.window.Report03CloudBridge.pendingSharedSummaryFields=()=>[
+  {key:'generalRecommendations',label:'التوصيات العامة الإضافية',status:'editing'}];
+ await a.handlers.document.click({target:{closest(selector){return selector==='[data-save-shared-summary]'?click:null}}});
+ assert.equal(data.fields.filter(x=>x.field_key==='generalRecommendations').length,1);
+ assert.equal(otherInput.disabled,false);
+ assert.equal(click.disabled,false);
+});
+test('M3.4: fields pending save prevent export, identify exact summary and request focus',async()=>{
+ const {a}=await twoAccounts();await a.action('open-mission-report');
+ const focused=[];
+ a.context.window.Report03CloudBridge.pendingSharedSummaryFields=()=>[
+ {key:'generalRecommendations',label:'التوصيات العامة الإضافية',status:'editing'}];
+ a.context.window.Report03CloudBridge.focusSharedSummaryField=key=>{focused.push(key);return true};
+ await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/التوصيات العامة الإضافية/);
+ assert.deepEqual(focused,['generalRecommendations']);
+});
