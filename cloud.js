@@ -323,7 +323,7 @@ async function saveEmbedded(itemId){
  },true);
  if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('لم تُؤكد قاعدة البيانات الحفظ.');
  const key=activeReportMissionId+':'+itemId;
- if(d.body===body)embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''};
+ if(text(d.body)===body)embeddedDrafts[key]={itemId,kind:'finding',body:'',parentId:null,requestId:''};
  else d.requestId='';
  await loadMissionContributions();
  if(contributionError)throw Error('حُفظ النص لكن تعذر تحديث عرضه؛ حاول التحديث.');
