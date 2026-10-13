@@ -358,6 +358,12 @@ function render(){
  // The report editor renders independently from the async Supabase login.
  // Refresh just its shared select options after sign-in/refresh/navigation,
  // never the entire report (which may contain unsaved field edits).
+ // Only an approved Supabase profile may prefill the report's lead inspector.
+ // The report editor guards imported and manually edited collaborator lists.
+ if(approved)window.Report03CloudBridge?.prefillAccountInspector?.({
+  first_name:profile.first_name,last_name:profile.last_name,
+  profession:profile.profession,district:profile.district
+ });
  if(report)window.Report03CloudBridge?.syncSharedInstitutionOptions?.();
  const reportUser=document.getElementById('report-user-name');
  const reportControls=document.getElementById('report-session-controls');
@@ -511,6 +517,11 @@ window.Report03CloudUI={
   if(verifiedUser())render();
  },
  showView(page){if(verifiedUser()){currentPage=page;render()}},
+ getReportOwner(){
+  if(!verifiedUser())return null;
+  return {first_name:profile.first_name,last_name:profile.last_name,
+   profession:profile.profession,district:profile.district};
+ },
  listReportInstitutions(){
   if(!verifiedUser())return [];
   return shared.map(record=>({id:record.id,name:record.name,wilaya:record.wilaya,code:record.code}));
