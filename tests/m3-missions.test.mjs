@@ -18,7 +18,7 @@ const people=[
 ];
 const institution={id:I,name:'مركز تبسة',code:'1201',wilaya:'تبسة',version:1,
  institution_data:{name:'مركز تبسة',code:'1201',wilaya:'تبسة'},director_data:{fullName:'الرئيس'}};
-function db(){return {missions:[],members:[],notifications:[],available:true,requests:[],calls:0}}
+function db(){return {missions:[],members:[],notifications:[],contributions:[],available:true,requests:[],calls:0}}
 function makeClient(database,uid){
  const handlers={root:{},document:{},report:{}},elements={
   'cloud-shell':{hidden:false},'cloud-content':{innerHTML:'',addEventListener(n,f){handlers.root[n]=f}},
@@ -50,6 +50,29 @@ function makeClient(database,uid){
     response=database.notifications.filter(n=>n.recipient_id===uid&&n.id===u.searchParams.get('id')?.replace('eq.',''));
     for(const n of response)n.read_at=body.read_at;
    }else response=database.notifications.filter(n=>n.recipient_id===uid);
+  }else if(table==='inspection_contributions'){
+   const mission=u.searchParams.get('mission_id')?.replace(/^eq\./,'');
+   const allowed=database.members.some(m=>m.mission_id===mission&&m.inspector_id===uid&&m.membership_status==='accepted');
+   response=allowed?database.contributions.filter(r=>r.mission_id===mission):[];
+  }else if(table==='append_inspection_contribution'){
+   const allowed=database.members.some(m=>m.mission_id===body.p_mission_id&&m.inspector_id===uid&&m.membership_status==='accepted');
+   if(!allowed)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Membership required'})};
+   const parent=database.contributions.find(x=>x.id===body.p_parent_id);
+   if(body.p_parent_id&&(!parent||parent.mission_id!==body.p_mission_id||parent.item_id!==body.p_item_id||
+      (body.p_kind==='correction'&&parent.author_id!==uid))){
+    return {ok:false,status:403,text:async()=>JSON.stringify({message:'Invalid parent'})};
+   }
+   const previous=database.contributions.find(r=>r.author_id===uid&&r.mission_id===body.p_mission_id&&
+     r.client_request_id===body.p_client_request_id);
+   if(previous)response=previous.id;
+   else {
+    database.calls++;
+    const id='ff3d44b0-9833-4442-bcde-'+String(database.calls).padStart(12,'0');
+    database.contributions.push({id,mission_id:body.p_mission_id,item_id:body.p_item_id,
+     kind:body.p_kind,body:body.p_body,author_id:uid,parent_id:body.p_parent_id,
+     client_request_id:body.p_client_request_id,created_at:new Date().toISOString()});
+    response=id;
+   }
   }else if(table==='create_inspection_mission'){
    if(uid===C)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Approved inspector required'})};
    database.missions.push({id:M,title:body.p_title,purpose:body.p_purpose,
@@ -69,8 +92,12 @@ function makeClient(database,uid){
   }
   return {ok:status<400,status,text:async()=>JSON.stringify(response)};
  };
- const context={window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},Report03CloudBridge:{}},
- document:doc,fetch,sessionStorage:storage,
+ let uuidCount=0;
+ const context={window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},
+  Report03CloudBridge:{listSharedCatalogTargets:()=>[
+   {id:'III-01-I001',section:'III',label:'المهام القانونية — القانون الأساسي'},
+   {id:'II-MAIN-I001',section:'II',label:'المظهر العام — نوعية البنايات'}]}},
+ document:doc,fetch,sessionStorage:storage,crypto:{randomUUID(){uuidCount++;return 'ed62dd4c-8c04-4748-bcba-'+String(uuidCount).padStart(12,'0')}} ,
  location:{hash:'',pathname:'/Official_report_template_03/',search:'',origin:'https://scientifica007.github.io'},
  history:{replaceState(){}},URL,URLSearchParams,Date,setInterval(){return 1},console};
  vm.runInNewContext(cloud,context,{timeout:10000});
@@ -80,6 +107,7 @@ function makeClient(database,uid){
   async nav(page){await event('nav',{page})},
   async action(action,extra){await event(action,extra)},
   async type(field,value){await handlers.root.input({target:{dataset:{missionField:field},value}})},
+  async contribute(field,value){await handlers.root.input({target:{dataset:{contribField:field},value}})},
   choose(id){elements['mission-peer'].value=id},
   async selectMission(value){await handlers.root.change({target:{id:'mission-select',value}})}
  };
@@ -133,7 +161,7 @@ test('M3.1: inspector A creates task and safely invites B, without uploading loc
  assert.equal(database.members[1].membership_status,'invited');
  assert.equal(database.notifications.length,1);
  assert.equal(database.notifications[0].recipient_id,B);
- assert.equal(database.requests.filter(x=>x.table==='inspection_contributions').length,0); // M3.2 not activated
+ assert.ok(database.requests.filter(x=>x.table==='inspection_contributions').every(x=>x.method==='GET')); // read-only
  assert.ok(!database.requests.some(x=>x.table==='inspection_contributions'&&x.method!=='GET'));
 });
 test('M3.1: second inspector accepts and sees membership, while A sees the accepted team after refresh',async()=>{
