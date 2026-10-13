@@ -156,7 +156,7 @@ test('M2.2 shell: approved users land on dashboard, with distinct profile/admin 
  assert.match(h.elements['cloud-content'].innerHTML,/لوحة القيادة/);
  assert.match(h.elements['cloud-content'].innerHTML,/المؤسسات المشتركة/);
  assert.match(h.elements['cloud-content'].innerHTML,/المفتشون الزملاء/);
- assert.match(h.elements['cloud-content'].innerHTML,/قيد التطوير/);
+ assert.match(h.elements['cloud-content'].innerHTML,/مهام التفتيش المشتركة/);
  await h.navigate('account');
  assert.match(h.elements['cloud-content'].innerHTML,/حسابي/);
  assert.match(h.elements['cloud-content'].innerHTML,/inspector@example\.dz/);
@@ -184,7 +184,7 @@ test('M2.2 shell: institution can be edited separately from report, without uplo
 });
 test('M2.2 shell: reserved teamwork/calendar/messaging sections explicitly disclose missing implementation',async()=>{
  const h=createHarness();await h.ready();
- for(const page of ['missions','calendar','teams','messages']){
+ for(const page of ['calendar','teams','messages']){
   await h.navigate(page);
   assert.match(h.elements['cloud-content'].innerHTML,/قيد التطوير/);
  }
