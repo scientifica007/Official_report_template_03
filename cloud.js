@@ -14,7 +14,7 @@ const SESSION_KEY='official_report03_cloud_session_v1';
 let session=null,profile=null,shared=[],profiles=[],notifications=[],changes=[],accountDecisions=[],myDecisions=[],mode='login';
 let selectedSharedId='',editingVersion=null,feedback='',busy=false,currentPage='dashboard';
 let missions=[],missionMembers=[],missionNotifications=[],missionEnabled=false,missionError='';
-let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
+let selectedMissionId='',missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:'',peerId:''};
 let missionContributions=[],contributionLoadedFor='',contributionError='',contributionBusy=false;
 let contributionDrafts=Object.create(null);
 let embeddedDrafts=Object.create(null),activeReportMissionId='';
@@ -128,7 +128,7 @@ async function loadMissions(){
    ?'لم تُفعّل جداول المهام المشتركة في Supabase بعد. يحتاج مسؤول المنصة إلى تشغيل الترحيل 003.'
    :'تعذّر تحميل بيانات المهام: '+err.message;
  }
- if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId)){
+ if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId&&m.status==='draft')){
   selectedMissionId='';
   if(activeReportMissionId){activeReportMissionId='';window.Report03CloudBridge?.exitSharedMission?.(true);}
  }
@@ -650,14 +650,10 @@ function useSharedInstitution(id){
 }
 const NAV_ITEMS=[
  ['dashboard','لوحة القيادة','▦'],
+ ['missions','مهامي الجارية','◷'],
  ['institutions','المؤسسات','▤'],
  ['colleagues','المفتشون الزملاء','♙'],
- ['missions','مهام التفتيش','◷'],
- ['calendar','الرزنامة','▦'],
- ['teams','فرق التفتيش','♧'],
- ['messages','المراسلات','✉'],
  ['notifications','الإشعارات','♧'],
- ['report','محرر التقرير 03','✎'],
  ['account','حسابي','◉']
 ];
 function portalNavigation(){
@@ -676,21 +672,26 @@ function dashboardCard(label,value,description,target){
  '<strong>'+elt(value)+'</strong><span>'+elt(label)+'</span><small>'+elt(description)+'</small></button>';
 }
 function dashboardView(){
- const colleagues=profiles.filter(p=>p.approved).length;
+ const active=missions.filter(m=>m.status==='draft');
+ const invited=missionMembers.filter(m=>m.inspector_id===session.user.id&&m.membership_status==='invited');
  const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
- return '<div class="portal-page-heading"><h2>لوحة القيادة</h2><p>مرحبًا '+elt(profile.first_name)+
- '، هذه البيانات المتاحة حاليًا في السجل المركزي.</p></div>'+
- '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'عرض المؤسسات وتحرير بياناتها','institutions')+
- dashboardCard('المفتشون المعتمدون',colleagues,'الزملاء المسجلون في المنصة','colleagues')+
- dashboardCard('إشعارات غير مقروءة',unread,'تحديثات المؤسسات','notifications')+
- dashboardCard('إعداد التقرير','النموذج 03','إصدار PDF أو DOCX أو JSON','report')+'</div>'+
- '<div class="portal-widgets"><section class="portal-widget"><h3>آخر المؤسسات المسجلة</h3>'+
- (shared.length?'<ul>'+shared.slice(0,6).map(x=>'<li><button data-cloud-action="open-institution" data-institution-id="'+elt(x.id)+'">'+elt(x.name)+' — '+elt(x.wilaya)+'</button></li>').join('')+'</ul>':'<p>لم تُسجل أي مؤسسة مشتركة بعد. يمكنك إضافة أول مؤسسة في قسم «المؤسسات».</p>')+
- '</section><section class="portal-widget"><h3>مهام التفتيش المشتركة</h3>'+
- (missionEnabled?'<p>مهام تشارك فيها: '+missions.length+' — دعوات تنتظر ردك: '+
- missionMembers.filter(x=>x.inspector_id===session.user.id&&x.membership_status==='invited').length+'</p>':
- '<p>خدمة المهام المشتركة لم تُفعّل بعد.</p>')+
- '<button class="btn subtle" data-cloud-action="nav" data-page="missions">فتح مهام التفتيش</button></section></div>';
+ return '<div class="portal-page-heading"><h2>مهامي الجارية</h2><p>اختر مهمة لاستكمالها من أي جهاز، أو أنشئ مهمة جديدة. تُحفظ المهام الفردية والجماعية سحابيًا.</p></div>'+
+ '<section class="portal-widget mission-workspace"><div class="mission-workspace-head"><div><h3>تقارير قيد الإنجاز ('+active.length+')</h3>'+
+ '<p class="helper">كل المهام التي تشارك فيها، سواء أنشأتها أنت أو دعاك إليها زميل.</p></div>'+
+ '<button type="button" class="btn primary" data-cloud-action="nav" data-page="missions">+ مهمة جديدة</button></div>'+
+ (missionEnabled?(active.length?'<div class="mission-cards">'+active.map(m=>{
+  const team=missionMembers.filter(x=>x.mission_id===m.id&&x.membership_status==='accepted').length;
+  return '<article class="mission-quick-card"><div><strong>'+elt(m.title)+'</strong>'+
+   '<p class="mission-quick-meta">'+elt(m.institution_snapshot?.name||'مؤسسة غير محددة')+' · النموذج 03 · '+(team>1?team+' مفتشين':'مهمة فردية')+'</p>'+
+   '<p class="mission-quick-meta">الفترة: '+elt([m.visit_start,m.visit_end].filter(Boolean).join(' — ')||'غير محددة')+'</p></div>'+
+   '<button type="button" class="btn primary" data-cloud-action="mission-open-quick" data-mission-id="'+elt(m.id)+'">فتح التقرير</button></article>';
+ }).join('')+'</div>':'<p class="empty">لا توجد مهام جارية. يمكنك إنشاء مهمة لنفسك أو دعوة زملاء لاحقًا.</p>'):
+ '<p class="cloud-warning">'+elt(missionError||'تعذر تحميل المهام السحابية.')+'</p>')+
+ (invited.length?'<p class="cloud-tip">لديك '+invited.length+' دعوة تنتظر الرد. <button type="button" class="btn subtle" data-cloud-action="nav" data-page="missions">عرض الدعوات</button></p>':'')+
+ '<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="refresh">تحديث المهام</button></div></section>'+
+ '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'اختيار المؤسسة','institutions')+
+ dashboardCard('المفتشون المعتمدون',profiles.filter(p=>p.approved).length,'بيانات الزملاء','colleagues')+
+ dashboardCard('إشعارات غير مقروءة',unread,'التحديثات والدعوات','notifications')+'</div>';
 }
 function institutionEditor(){
  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
@@ -741,16 +742,17 @@ function missionStatusName(status){
 }
 function missionsView(){
  const invited=missionMembers.filter(m=>m.inspector_id===session.user.id&&m.membership_status==='invited');
- const accepted=missions;
+ const accepted=missions.filter(m=>m.status==='draft');
+ const newPeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&p.id!==session.user.id);
  const mission=accepted.find(m=>m.id===selectedMissionId);
  const availablePeers=profiles.filter(p=>p.approved===true&&p.account_status==='approved'&&
     p.id!==session.user.id&&(!mission||!missionMembers.some(m=>m.mission_id===mission.id&&m.inspector_id===p.id)));
- return '<div class="portal-page-heading"><h2>مهام التفتيش المشتركة</h2>'+
- '<p>أنشئ مهمة أو اختر مهمة قائمة، ثم افتح محرر التقرير 03 لإدخال المعاينات والتوصيات في مواضعها الرسمية.</p></div>'+
+ return '<div class="portal-page-heading"><h2>مهام التفتيش</h2>'+
+ '<p>كل مهمة تُحفظ سحابيًا، سواء عملت عليها وحدك أو مع زملائك.</p></div>'+
  (!missionEnabled?'<section class="portal-widget"><h3>الخدمة غير مفعّلة</h3><p>'+elt(missionError||'يجب تشغيل ترحيل SQL رقم 003 في Supabase.')+'</p>'+
  '<p>يمكنك الاستمرار في إعداد التقرير الفردي دون أي تغيير.</p></section>':
  '<div class="portal-widgets"><section class="portal-widget"><h3>إنشاء مهمة جديدة</h3>'+
- '<p class="helper">تُحفظ بيانات المهمة وأسماء المشاركين في Supabase. لا تُنقل إليها معاينات تقريرك المحلي.</p>'+
+ '<p class="helper">اختر المؤسسة وأدخل البيانات، ثم أضف زميلًا إن أردت. بعد الإنشاء يفتح التقرير مباشرة.</p>'+
  '<div class="portal-fields">'+
  '<label class="portal-field">المؤسسة<select data-mission-field="institutionId"><option value="">— اختر مؤسسة مشتركة —</option>'+
  shared.map(i=>'<option value="'+elt(i.id)+'" '+(missionDraft.institutionId===i.id?'selected':'')+'>'+elt(i.name+' ('+i.code+')')+'</option>').join('')+
@@ -758,7 +760,9 @@ function missionsView(){
  '<label class="portal-field">عنوان المهمة<input data-mission-field="title" maxlength="200" value="'+elt(missionDraft.title)+'" placeholder="مثال: التفتيش المعمق لمؤسسة..."></label>'+
  '<label class="portal-field">الهدف<textarea data-mission-field="purpose" maxlength="3000" rows="3">'+elt(missionDraft.purpose)+'</textarea></label>'+
  '<label class="portal-field">تاريخ البداية<input type="date" data-mission-field="visitStart" value="'+elt(missionDraft.visitStart)+'"></label>'+
- '<label class="portal-field">تاريخ النهاية<input type="date" data-mission-field="visitEnd" value="'+elt(missionDraft.visitEnd)+'"></label></div>'+
+ '<label class="portal-field">تاريخ النهاية<input type="date" data-mission-field="visitEnd" value="'+elt(missionDraft.visitEnd)+'"></label>'+
+ '<label class="portal-field">زميل مشارك (اختياري)<select data-mission-field="peerId"><option value="">دون زميل — مهمة فردية</option>'+
+ newPeers.map(p=>'<option value="'+elt(p.id)+'"'+(missionDraft.peerId===p.id?' selected':'')+'>'+elt(text(p.first_name+' '+p.last_name)+' — '+title(p.profession))+'</option>').join('')+'</select></label></div>'+
  '<button type="button" class="btn primary" data-cloud-action="mission-create">إنشاء مهمة مشتركة</button></section>'+
  '<section class="portal-widget"><h3>الدعوات الواردة ('+invited.length+')</h3>'+
  (invited.length?invited.map(member=>{
@@ -783,26 +787,49 @@ function missionsView(){
  '<button type="button" class="btn subtle" data-cloud-action="mission-invite" '+(!availablePeers.length?'disabled':'')+
  '>إرسال الدعوة</button>'+
  '<p class="cloud-tip">عضوية المهمة متساوية بين المفتشين. يتم تحرير المعاينات والتوصيات داخل المحرر الرسمي 03، وليس هنا.</p>'+
- '<button type="button" class="btn primary" data-cloud-action="open-mission-report">فتح المهمة في محرر التقرير 03</button></div>':'')+
- '</section>');
+ '<button type="button" class="btn primary" data-cloud-action="open-mission-report">فتح التقرير</button>'+
+ '<button type="button" class="btn subtle" data-cloud-action="mission-close">إنهاء المهمة بعد تنزيل التقرير</button></div>':'')+
+ '</section><details class="legacy-report-option"><summary>محرر تقرير محلي غير متزامن (لاستعادة ملفات JSON القديمة)</summary>'+
+ '<p class="helper">التقرير المحلي لا ينتقل بين الأجهزة. استخدم مهمة سحابية جديدة للعمل الميداني.</p>'+
+ '<button type="button" class="btn subtle" data-cloud-action="nav" data-page="report">فتح المحرر المحلي</button></details>');
 }
 async function createMission(){
- if(!verifiedUser()||!missionEnabled)throw Error('خدمة المهام المشتركة غير جاهزة.');
- const d=missionDraft;
+ if(!verifiedUser()||!missionEnabled)throw Error('خدمة المهام السحابية غير جاهزة.');
+ const d={...missionDraft};
  if(!shared.some(x=>x.id===d.institutionId))throw Error('اختر مؤسسة موجودة في السجل المركزي.');
  if(text(d.title).length<3||text(d.title).length>200)throw Error('عنوان المهمة يجب أن يتكون من 3 إلى 200 حرف.');
  if(text(d.purpose).length>3000)throw Error('الهدف يتجاوز 3000 حرف.');
  if(d.visitStart&&d.visitEnd&&d.visitEnd<d.visitStart)throw Error('تاريخ النهاية يسبق تاريخ البداية.');
+ if(d.peerId&&!profiles.some(p=>p.id===d.peerId&&p.approved&&p.account_status==='approved'&&p.id!==session.user.id))
+  throw Error('الزميل المحدد غير متاح للدعوة.');
  const id=await raw('POST','/rest/v1/rpc/create_inspection_mission',{
   p_institution_id:d.institutionId,p_title:text(d.title),p_purpose:text(d.purpose),
   p_visit_start:d.visitStart||null,p_visit_end:d.visitEnd||null
  },true);
- if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('لم تُعد قاعدة البيانات معرّف مهمة صالحًا.');
- missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:''};
+ if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('لم تؤكد قاعدة البيانات إنشاء المهمة.');
+ missionDraft={institutionId:'',title:'',purpose:'',visitStart:'',visitEnd:'',peerId:''};
  await loadMissions();
  selectedMissionId=id;
- await loadMissionContributions();
- feedback='أُنشئت المهمة. يمكنك الآن دعوة المفتشين المعتمدين.';
+ if(d.peerId){
+  try{await raw('POST','/rest/v1/rpc/invite_inspection_member',{p_mission_id:id,p_inspector_id:d.peerId},true);}
+  catch(err){
+   feedback='أُنشئت المهمة، لكن تعذرت دعوة الزميل: '+err.message+'. يمكنك إعادة الدعوة دون إنشاء مهمة أخرى.';
+   return;
+  }
+  await loadMissions();
+  selectedMissionId=id;
+ }
+ await enterMissionReport();
+}
+async function closeSelectedMission(){
+ const mission=selectedMission();
+ if(!mission)throw Error('اختر مهمة جارية أولًا.');
+ if(!confirm('هل أصدرت التقرير وحفظت نسخة منه؟ ستُخفى المهمة من القائمة الرئيسية دون حذف بياناتها.'))return;
+ await raw('POST','/rest/v1/rpc/close_inspection_mission',{p_mission_id:mission.id},true);
+ selectedMissionId='';
+ await loadMissions();
+ currentPage='dashboard';
+ feedback='أُغلقت المهمة وأُخفيت من المهام الجارية دون حذف بياناتها.';
 }
 async function inviteMissionPeer(){
  if(!missionEnabled||!verifiedUser())throw Error('الحساب غير معتمد أو الخدمة غير مفعلة.');
@@ -1085,7 +1112,7 @@ document.addEventListener('click',async e=>{
  }
  if(action==='exit'){
   if(window.Report03CloudBridge?.exitSharedMission?.()){
-   activeReportMissionId='';selectedMissionId='';currentPage='missions';render();
+   activeReportMissionId='';selectedMissionId='';currentPage='dashboard';render();
   }return;
  }
  if(!id||!catalogTargets().some(x=>x.id===id))return;
@@ -1175,6 +1202,13 @@ root.addEventListener('click',async e=>{
   else if(action==='refresh'){await fetchAll();feedback='القائمة والإشعارات محدثة.'}
   else if(action==='read')await markRead(button.dataset.notificationId);
   else if(action==='mission-create')await createMission();
+  else if(action==='mission-open-quick'){
+   const mission=missions.find(m=>m.id===button.dataset.missionId&&m.status==='draft');
+   if(!mission)throw Error('المهمة ليست جارية أو لم تعد متاحة.');
+   selectedMissionId=mission.id;
+   await enterMissionReport();
+  }
+  else if(action==='mission-close')await closeSelectedMission();
   else if(action==='mission-invite')await inviteMissionPeer();
   else if(action==='mission-respond'){
    const accept=button.dataset.accept==='true';
@@ -1205,7 +1239,7 @@ window.Report03CloudUI={
  async exitSharedReport(){
   if(!reportActive())return true;
   const ok=window.Report03CloudBridge?.exitSharedMission?.();
-  if(ok){activeReportMissionId='';currentPage='missions';render();}
+  if(ok){activeReportMissionId='';selectedMissionId='';currentPage='dashboard';render();}
   return Boolean(ok);
  },
  resetSelection(){
