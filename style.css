@@ -415,3 +415,26 @@ body:not(.shared-draft-strong) .shared-draft-warning{
 .shared-summary-field[data-save-state="error"] .shared-summary-status{color:#9a3c36}
 .shared-summary-save{font-size:12px;padding:6px 14px}
 @media print{.shared-summary-controls{display:none!important}}
+
+
+/* Cloud-first mission workspace. These rules do not change the official print layout. */
+.mission-workspace{margin-bottom:20px}
+.mission-workspace-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.mission-workspace-head h3{margin:0 0 6px;color:#1b5141}
+.mission-workspace-head .helper{margin:0}
+.mission-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px;margin:18px 0}
+.mission-quick-card{border:1px solid #d1dfd6;border-radius:12px;padding:17px;background:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-width:0}
+.mission-quick-card strong{display:block;color:#214f3f;line-height:1.75;overflow-wrap:anywhere}
+.mission-quick-meta{font-size:12px;color:#60766b;line-height:1.65;margin:6px 0 0;overflow-wrap:anywhere}
+.mission-quick-card .btn{align-self:flex-start}
+.legacy-report-option{border:1px solid #d9e3de;background:#fff;border-radius:10px;margin-top:18px;padding:12px 15px}
+.legacy-report-option summary{cursor:pointer;font-size:12px;color:#657971}
+.legacy-report-option .helper{margin:9px 0}
+@media(max-width:700px){
+ .mission-workspace-head{align-items:stretch;flex-direction:column}
+ .mission-workspace-head>.btn{width:100%}
+ .mission-cards{grid-template-columns:1fr}
+ .mission-quick-card .btn{width:100%;min-height:44px}
+ .mission-quick-card{padding:14px}
+}
+@media print{.mission-workspace,.mission-quick-card,.legacy-report-option{display:none!important}}
