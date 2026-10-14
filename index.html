@@ -58,6 +58,19 @@
       <button id="do-json" type="button" class="export-choice"><strong>JSON</strong><span>نسخة بيانات قابلة لإعادة الاستيراد</span></button>
       <button id="do-docx" type="button" class="export-choice"><strong>DOCX</strong><span>مستند Word قابل للتحرير</span></button>
       <button id="do-pdf" type="button" class="export-choice"><strong>PDF</strong><span>نافذة الطباعة ثم «حفظ بتنسيق PDF»</span></button>
+
+      <details class="mobile-pdf-assistant" id="mobile-pdf-assistant">
+        <summary>تصدير PDF كامل على الهاتف عندما يفشل حفظ التقرير دفعة واحدة</summary>
+        <p>إذا نتج ملف فارغ من طباعة جميع الصفحات، احفظ التقرير من نافذة الطباعة على دفعات صغيرة (مثلًا الصفحات 1–3 ثم 4–6 ثم 7–9… حتى النهاية)، مع اختيار A4. العدد الفعلي للصفحات يظهر في معاينة الطباعة وقد يختلف بين الأجهزة.</p>
+        <p>عُد إلى الموقع بعد كل دفعة، ثم اختر ملفات PDF التي نجحت وادمجها هنا للحصول على <strong>ملف واحد</strong>. الدمج يجري داخل جهازك؛ لا تُرفع ملفات التقرير إلى خادم.</p>
+        <label class="mobile-pdf-pick">اختيار أجزاء PDF المحفوظة من الهاتف
+          <input id="mobile-pdf-files" type="file" multiple accept=".pdf,application/pdf">
+        </label>
+        <div id="mobile-pdf-file-list" class="mobile-pdf-file-list" aria-label="ترتيب أجزاء PDF قبل الدمج"></div>
+        <button id="mobile-pdf-merge" type="button" class="btn primary" disabled>دمج الأجزاء في ملف PDF واحد</button>
+        <p id="mobile-pdf-status" role="status" aria-live="polite">اختر أجزاء PDF بالترتيب. استخدم الأسهم لتعديل ترتيبها إذا لزم الأمر.</p>
+        <p class="helper">تنبيه: الدمج لا يغير اتجاه أي صفحة؛ تأكد من اختيار A4 وفحص الجداول بعد الدمج. للحصول على نسخة نهائية مطابقة تمامًا لاتجاهات النموذج الرسمي استخدم تصدير PDF من الحاسوب حاليًا.</p>
+      </details>
     </div>
     <div class="notice">تنبيه: الفهرس التفصيلي مستخرج مبدئيًا ويحتاج إلى المطابقة النهائية مع المرجع PDF. المخرجات في هذه النسخة مسودات تجريبية، وليست تقارير معتمدة بتوقيع المفتشين.</div>
     <div class="dialog-actions"><button id="dialog-clear" type="button" class="btn danger-outline">محو بيانات التقرير</button><button id="dialog-cancel" type="button" class="btn subtle">إغلاق</button></div>
@@ -67,5 +80,6 @@
 <script src="./app.js" defer></script>
 <script src="./cloud-config.js" defer></script>
 <script src="./cloud.js" defer></script>
+<script src="./mobile-pdf.js" defer></script>
 </body>
 </html>
