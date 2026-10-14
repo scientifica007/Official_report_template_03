@@ -41,7 +41,8 @@ function makeClient(database,uid){
   else if(table==='shared_institutions')response=[institution];
   else if(table==='inspection_missions'){
    response=database.missions.filter(m=>database.members.some(mem=>
-    mem.mission_id===m.id&&mem.inspector_id===uid&&mem.membership_status==='accepted'));
+    mem.mission_id===m.id&&mem.inspector_id===uid&&mem.membership_status==='accepted')&&
+    (u.searchParams.get('status')!=='eq.draft'||m.status==='draft'));
   }else if(table==='inspection_mission_members'){
    response=database.members.filter(m=>m.inspector_id===uid||database.members.some(x=>
     x.mission_id===m.mission_id&&x.inspector_id===uid&&x.membership_status==='accepted'));
@@ -599,4 +600,16 @@ test('M4.1: closure SQL enforces accepted membership without delete',()=>{
  assert.match(sql6,/set status='closed'/);
  assert.doesNotMatch(sql6,/delete from|truncate table|drop table/i);
  assert.match(sql6,/revoke all on function public\.close_inspection_mission\(uuid\)/);
+});
+
+test('M4.1: remote closure never silently discards an unsent field observation',async()=>{
+ const database=db(),a=makeClient(database,A);await a.init();await a.nav('missions');
+ await a.type('institutionId',I);await a.type('title','مهمة قيد التحرير');
+ await a.action('mission-create');
+ await a.sharedText('III-01-I001','معاينة ميدانية لم تحفظ بعد');
+ assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,1);
+ database.missions[0].status='closed';
+ await a.action('mission-refresh');
+ assert.equal(a.context.window.Report03CloudUI.pendingSharedDrafts().length,1);
+ assert.match(a.context.window.Report03CloudUI.pendingSharedDrafts()[0].preview,/معاينة ميدانية/);
 });
