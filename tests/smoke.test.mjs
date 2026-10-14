@@ -115,7 +115,7 @@ test('M4.3 retirement: no PDF batch merger controls or scripts; established expo
  assert.match(html,/id="do-json"/);
  assert.match(html,/id="do-docx"/);
  assert.match(html,/id="do-pdf"/);
- assert.match(app,/function exportPDF\(\)\{commitPendingEntries\(\\);buildPrint\(\\);/);
+ assert.match(app,/function exportPDF\(\)\{commitPendingEntries\(\);buildPrint\(\);/);
  assert.match(css,/@page inspectionLandscape/);
  assert.match(css,/@page inspectionPortrait/);
 });
