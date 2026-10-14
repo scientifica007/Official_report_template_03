@@ -156,7 +156,7 @@ test('M2.2 shell: approved users land on dashboard, with distinct profile/admin 
  assert.match(h.elements['cloud-content'].innerHTML,/لوحة القيادة/);
  assert.match(h.elements['cloud-content'].innerHTML,/المؤسسات المشتركة/);
  assert.match(h.elements['cloud-content'].innerHTML,/المفتشون الزملاء/);
- assert.match(h.elements['cloud-content'].innerHTML,/مهام التفتيش المشتركة/);
+ assert.match(h.elements['cloud-content'].innerHTML,/مهامي الجارية/);
  await h.navigate('account');
  assert.match(h.elements['cloud-content'].innerHTML,/حسابي/);
  assert.match(h.elements['cloud-content'].innerHTML,/inspector@example\.dz/);
