@@ -106,3 +106,16 @@ test('UX M1.4: training immersion has Arabic and French wording',()=>{
  assert.match(label,/الانغماس المهني للمكوّنين/);
  assert.match(label,/Immersion professionnelle des formateurs/);
 });
+
+test('M4.3 retirement: no PDF batch merger controls or scripts; established exports remain',()=>{
+ const html=readFileSync('index.html','utf8');
+ const css=readFileSync('style.css','utf8');
+ assert.doesNotMatch(html,/mobile-pdf-(?:assistant|files|merge|file-list|status)|mobile-pdf\.js/);
+ assert.doesNotMatch(css,/mobile-pdf-/);
+ assert.match(html,/id="do-json"/);
+ assert.match(html,/id="do-docx"/);
+ assert.match(html,/id="do-pdf"/);
+ assert.match(app,/function exportPDF\(\)\{commitPendingEntries\(\);buildPrint\(\);/);
+ assert.match(css,/@page inspectionLandscape/);
+ assert.match(css,/@page inspectionPortrait/);
+});
