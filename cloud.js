@@ -115,7 +115,7 @@ async function loadMissions(){
  }
  try{
   const [m,mm,n]=await Promise.all([
-   get('inspection_missions',{select:'id,title,purpose,institution_id,institution_snapshot,director_snapshot,visit_start,visit_end,status,created_at,created_by',order:'created_at.desc',limit:'100'}),
+   get('inspection_missions',{select:'id,title,purpose,institution_id,institution_snapshot,director_snapshot,visit_start,visit_end,status,created_at,created_by',status:'eq.draft',order:'created_at.desc',limit:'500'}),
    get('inspection_mission_members',{select:'mission_id,inspector_id,invited_by,membership_status,created_at,responded_at',order:'created_at.desc',limit:'500'}),
    get('inspection_mission_notifications',{select:'id,mission_id,recipient_id,actor_id,event_type,description,read_at,created_at',
     recipient_id:'eq.'+session.user.id,order:'created_at.desc',limit:'100'})
@@ -128,7 +128,18 @@ async function loadMissions(){
    ?'لم تُفعّل جداول المهام المشتركة في Supabase بعد. يحتاج مسؤول المنصة إلى تشغيل الترحيل 003.'
    :'تعذّر تحميل بيانات المهام: '+err.message;
  }
+ // Never discard text still in the editor when the network fails or another member closes a mission.
+ if(activeReportMissionId&&!missionEnabled){
+  status('تعذر تحديث المهام؛ احتفظ بالنص المفتوح ولا تغادر قبل تأكيد الحفظ.');
+  return;
+ }
  if(selectedMissionId&&!missions.some(m=>m.id===selectedMissionId&&m.status==='draft')){
+  const unsent=activeReportMissionId&&(pendingEmbeddedDrafts().length>0||
+   (window.Report03CloudBridge?.pendingSharedSummaryFields?.()||[]).length>0);
+  if(unsent){
+   status('أُغلقت المهمة أو لم تعد متاحة، ولديك نص غير محفوظ. لن تمحوه المنصة؛ انسخه قبل مغادرة المحرر.');
+   return;
+  }
   selectedMissionId='';
   if(activeReportMissionId){activeReportMissionId='';window.Report03CloudBridge?.exitSharedMission?.(true);}
  }
