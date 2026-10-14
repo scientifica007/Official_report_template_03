@@ -63,3 +63,21 @@ test('M4.3: no reports uploaded, no external scripts, desktop print generator un
  assert.match(style,/@page inspectionLandscape/);
  assert.match(style,/@page inspectionPortrait/);
 });
+
+test('M4.3: old Android file pickers can add PDF batches one file at a time',async()=>{
+ const h=harness();
+ const f1=await file('batch-1.pdf','portrait');
+ h.elements['mobile-pdf-files'].files=[f1];
+ h.listeners['mobile-pdf-files:change']();
+ assert.equal(h.elements['mobile-pdf-merge'].disabled,true);
+ assert.match(h.elements['mobile-pdf-status'].textContent,/1 جزء/);
+ const f2=await file('batch-2.pdf','landscape');
+ h.elements['mobile-pdf-files'].files=[f2];
+ h.listeners['mobile-pdf-files:change']();
+ assert.equal(h.elements['mobile-pdf-merge'].disabled,false);
+ assert.match(h.elements['mobile-pdf-status'].textContent,/2 جزء/);
+ // Re-selecting same file does not duplicate the pages.
+ h.elements['mobile-pdf-files'].files=[f1];
+ h.listeners['mobile-pdf-files:change']();
+ assert.match(h.elements['mobile-pdf-status'].textContent,/2 جزء/);
+});
