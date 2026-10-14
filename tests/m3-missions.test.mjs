@@ -93,6 +93,12 @@ function makeClient(database,uid){
      throw Error('Network connection lost after commit');
     }
    }
+  }else if(table==='close_inspection_mission'){
+   const allowed=database.members.some(m=>m.mission_id===body.p_mission_id&&m.inspector_id===uid&&m.membership_status==='accepted');
+   if(!allowed)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Accepted membership required'})};
+   const mission=database.missions.find(m=>m.id===body.p_mission_id);
+   if(!mission||mission.status!=='draft')return {ok:false,status:400,text:async()=>JSON.stringify({message:'Already closed'})};
+   mission.status='closed';response=null;
   }else if(table==='create_inspection_mission'){
    if(uid===C)return {ok:false,status:403,text:async()=>JSON.stringify({message:'Approved inspector required'})};
    database.missions.push({id:M,title:body.p_title,purpose:body.p_purpose,
@@ -113,7 +119,7 @@ function makeClient(database,uid){
   return {ok:status<400,status,text:async()=>JSON.stringify(response)};
  };
  let uuidCount=0;
- const context={window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},
+ const context={confirm:()=>true,window:{REPORT03_CLOUD_CONFIG:{supabaseUrl:'https://sample.supabase.co',publishableKey:'sb_publishable_1234567890123456'},
   Report03CloudBridge:{canOpenSharedMission:()=>true,enterSharedMission(payload){this.snapshot=payload;return true},
    applySharedReportData(payload){this.snapshot=payload;return true},
    exitSharedMission:()=>true,rerenderShared(){},
@@ -181,7 +187,7 @@ test('M3.1: inspector A creates task and safely invites B, without uploading loc
  await a.type('purpose','تقييم التسيير البيداغوجي');
  await a.type('visitStart','2026-10-15');
  await a.type('visitEnd','2026-10-16');
- await a.action('mission-create');
+ await a.action('mission-create');await a.nav('missions');
  assert.equal(database.missions.length,1);
  assert.equal(database.missions[0].created_by,A);
  assert.equal(database.missions[0].title,'تفتيش معمق لمركز تبسة');
@@ -199,7 +205,7 @@ test('M3.1: inspector A creates task and safely invites B, without uploading loc
 test('M3.1: second inspector accepts and sees membership, while A sees the accepted team after refresh',async()=>{
  const database=db(),a=makeClient(database,A);await a.init();await a.nav('missions');
  await a.type('institutionId',I);await a.type('title','تفتيش مشترك للمؤسسة');
- await a.action('mission-create');a.choose(B);await a.action('mission-invite');
+ await a.action('mission-create');await a.nav('missions');a.choose(B);await a.action('mission-invite');
  const b=makeClient(database,B);await b.init();await b.nav('missions');
  assert.match(b.elements['cloud-content'].innerHTML,/الدعوات الواردة \(1\)/);
  assert.doesNotMatch(b.elements['cloud-content'].innerHTML,/لم يحدد الهدف/);
@@ -213,7 +219,7 @@ test('M3.1: second inspector accepts and sees membership, while A sees the accep
 test('M3.1: invite rejection prevents invitation from appearing as an accepted shared mission',async()=>{
  const database=db(),a=makeClient(database,A);await a.init();await a.nav('missions');
  await a.type('institutionId',I);await a.type('title','مهمة تدريبية مشتركة');
- await a.action('mission-create');a.choose(B);await a.action('mission-invite');
+ await a.action('mission-create');await a.nav('missions');a.choose(B);await a.action('mission-invite');
  const b=makeClient(database,B);await b.init();await b.nav('missions');
  await b.action('mission-respond',{missionId:M,accept:'false'});
  assert.equal(database.members[1].membership_status,'declined');
@@ -262,7 +268,7 @@ test('M3.2: SQL limits writes to RPC and validates actor, exact catalog target a
 async function twoAccounts(){
  const data=db(),a=makeClient(data,A);await a.init();await a.nav('missions');
  await a.type('institutionId',I);await a.type('title','مهمة تفتيش مشتركة قابلة للتحرير');
- await a.action('mission-create');a.choose(B);await a.action('mission-invite');
+ await a.action('mission-create');await a.nav('missions');a.choose(B);await a.action('mission-invite');
  const b=makeClient(data,B);await b.init();await b.nav('missions');
  await b.action('mission-respond',{missionId:M,accept:'true'});
  await a.action('mission-refresh');
@@ -325,7 +331,7 @@ test('M3.2: other inspector may reply, but cannot correct author original; autho
 test('M3.2: pending invitation cannot read or write contributions until accepted',async()=>{
  const data=db(),a=makeClient(data,A);await a.init();await a.nav('missions');
  await a.type('institutionId',I);await a.type('title','فحص عضوية المهمة');
- await a.action('mission-create');a.choose(B);await a.action('mission-invite');
+ await a.action('mission-create');await a.nav('missions');a.choose(B);await a.action('mission-invite');
  const b=makeClient(data,B);await b.init();await b.nav('missions');
  assert.doesNotMatch(b.elements['cloud-content'].innerHTML,/نص المعاينة/);
  const reqs=data.requests.filter(x=>x.uid===B&&x.table==='inspection_contributions');
@@ -542,4 +548,55 @@ test('M3.4: fields pending save prevent export, identify exact summary and reque
  a.context.window.Report03CloudBridge.focusSharedSummaryField=key=>{focused.push(key);return true};
  await assert.rejects(()=>a.context.window.Report03CloudUI.prepareSharedExport(),/التوصيات العامة الإضافية/);
  assert.deepEqual(focused,['generalRecommendations']);
+});
+
+
+test('M4.1: individual task is cloud-backed and opens directly from dashboard on any device',async()=>{
+ const database=db(),a=makeClient(database,A);await a.init();
+ assert.match(a.elements['cloud-content'].innerHTML,/مهامي الجارية/);
+ await a.nav('missions');
+ await a.type('institutionId',I);
+ await a.type('title','مهمة فردية قابلة للمتابعة');
+ await a.action('mission-create');
+ assert.equal(database.members.length,1);
+ assert.equal(database.members[0].membership_status,'accepted');
+ assert.equal(a.snapshot().missionId,M,'new mission opens in the official editor');
+ await a.nav('dashboard');
+ assert.match(a.elements['cloud-content'].innerHTML,/مهمة فردية قابلة للمتابعة/);
+ assert.match(a.elements['cloud-content'].innerHTML,/mission-open-quick/);
+ await a.action('mission-open-quick',{missionId:M});
+ assert.equal(a.snapshot().missionId,M);
+ const otherDevice=makeClient(database,A);await otherDevice.init();
+ assert.match(otherDevice.elements['cloud-content'].innerHTML,/مهمة فردية قابلة للمتابعة/);
+});
+test('M4.1: optionally invite colleague during cloud task creation',async()=>{
+ const database=db(),a=makeClient(database,A);await a.init();await a.nav('missions');
+ await a.type('institutionId',I);await a.type('title','مهمة بتعاون اختياري');
+ await a.type('peerId',B);await a.action('mission-create');
+ assert.equal(database.missions.length,1);
+ assert.equal(database.members.length,2);
+ assert.equal(database.members[1].inspector_id,B);
+ assert.equal(database.members[1].membership_status,'invited');
+ assert.equal(a.snapshot().missionId,M);
+});
+test('M4.1: closing an exported mission only hides it from active dashboard',async()=>{
+ const database=db(),a=makeClient(database,A);await a.init();await a.nav('missions');
+ await a.type('institutionId',I);await a.type('title','مهمة انتهى التقرير الخاص بها');
+ await a.action('mission-create');await a.nav('missions');
+ await a.action('mission-close');
+ assert.equal(database.missions[0].status,'closed');
+ assert.equal(database.missions.length,1,'closure is non-destructive');
+ assert.doesNotMatch(a.elements['cloud-content'].innerHTML,/مهمة انتهى التقرير الخاص بها/);
+ const outsider=makeClient(database,C);await outsider.init();
+ await outsider.action('mission-close');
+ assert.equal(database.missions[0].status,'closed');
+});
+test('M4.1: closure SQL enforces accepted membership without delete',()=>{
+ const sql6=readFileSync('supabase/migrations/006_close_completed_missions.sql','utf8');
+ assert.match(sql6,/create or replace function public\.close_inspection_mission/);
+ assert.match(sql6,/public\.is_accepted_mission_member\(p_mission_id\)/);
+ assert.match(sql6,/where id=p_mission_id for update/);
+ assert.match(sql6,/set status='closed'/);
+ assert.doesNotMatch(sql6,/delete from|truncate table|drop table/i);
+ assert.match(sql6,/revoke all on function public\.close_inspection_mission\(uuid\)/);
 });
