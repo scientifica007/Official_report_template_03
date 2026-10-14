@@ -11,7 +11,7 @@ const institutionId='966acf35-fc0f-45fa-9123-9c68fc272d82';
 const entry={id:institutionId,name:'مركز تبسة 1',wilaya:'تبسة',code:'1201',
  institution_data:{name:'مركز تبسة 1',wilaya:'تبسة',code:'1201',address:'تبسة'},
  director_data:{fullName:'الرئيس القديم'},version:1,updated_at:'2026-10-13T10:00:00Z',updated_by:uid};
-function createHarness(configured=true,conflict=false,otherProfiles=[]){
+function createHarness(configured=true,conflict=false,otherProfiles=[],options={}){
  const events={root:{},document:{},report:{}},requests=[],values=new Map();
  const elements={
  'cloud-shell':{open:true},
@@ -28,7 +28,14 @@ function createHarness(configured=true,conflict=false,otherProfiles=[]){
   applyIdentity(i,d,metadata){bridge.received={institution:i,director:d,metadata};return {ok:true}}
  };
  const localSession={access_token:'mock-access-token',refresh_token:'mock-refresh-token',user:{id:uid,email:'inspector@example.dz'},expires_at_ms:Date.now()+600000};
- const storage={getItem:()=>JSON.stringify(localSession),setItem(){},removeItem(){}};
+ const storage={getItem:()=>options.emptyTabStorage?null:JSON.stringify(localSession),setItem(){},removeItem(){}};
+ // Persistent storage is shared between a normal tab and a recreated tab.
+ const persistentItems=options.persistentItems||new Map();
+ const persistentStorage={
+  getItem:k=>persistentItems.get(k)||null,
+  setItem:(k,v)=>persistentItems.set(k,v),
+  removeItem:k=>persistentItems.delete(k)
+ };
  const fetch=async(url,request)=>{
   requests.push({url,method:request.method,body:request.body?JSON.parse(request.body):null});
   const path=new URL(url);
@@ -44,7 +51,7 @@ function createHarness(configured=true,conflict=false,otherProfiles=[]){
  };
  const context={
   window:{REPORT03_CLOUD_CONFIG:configured?{supabaseUrl:'https://project.supabase.co',publishableKey:'sb_publishable_test_1234567890123456'}:{},Report03CloudBridge:bridge},
-  document,fetch,sessionStorage:storage,
+  document,fetch,sessionStorage:storage,localStorage:persistentStorage,
   location:{hash:'',pathname:'/Official_report_template_03/',search:'',origin:'https://scientifica007.github.io'},
   history:{replaceState(){}},URL,URLSearchParams,Date,setInterval(){return 1},console
  };
@@ -447,4 +454,33 @@ test('M2.2.5: live report directory updates independently on authenticated porta
  await h.navigate('dashboard');
  await h.action('refresh');
  assert.equal(calls,unchanged);
+});
+
+test('M4.2: mobile print tab recreation restores user without a second login',async()=>{
+ const persistentItems=new Map();
+ const first=createHarness(true,false,[],{persistentItems});
+ await first.ready();
+ const key='official_report03_cloud_session_v1';
+ assert.ok(persistentItems.has(key),'Existing tab-only session is migrated to device storage');
+ // Android may dispose sessionStorage during print preview. The new page
+ // has only origin-scoped persistent storage, but must open the dashboard.
+ const returned=createHarness(true,false,[],{persistentItems,emptyTabStorage:true});
+ await returned.ready();
+ assert.match(returned.elements['cloud-content'].innerHTML,/لوحة القيادة/);
+ assert.match(returned.elements['cloud-content'].innerHTML,/مهامي الجارية/);
+ assert.doesNotMatch(returned.elements['cloud-content'].innerHTML,/cloud-auth-form/);
+ // Sign-out must revoke and remove both stores: no unwanted auto-sign-in.
+ await returned.action('logout');
+ assert.equal(persistentItems.has(key),false,'Explicit logout clears persistent credentials');
+ const afterLogout=createHarness(true,false,[],{persistentItems,emptyTabStorage:true});
+ await afterLogout.ready();
+ assert.match(afterLogout.elements['cloud-content'].innerHTML,/cloud-auth-form/);
+});
+
+test('M4.2: session persistence never places tokens in a URL and respects storage failures',()=>{
+ assert.match(source,/localStorage\.setItem\(SESSION_KEY,serialized\)/);
+ assert.match(source,/localStorage\.removeItem\(SESSION_KEY\)/);
+ assert.match(source,/sessionStorage\.setItem\(SESSION_KEY,serialized\)/);
+ assert.match(source,/if\(legacy\)storageSet\(x\)/);
+ assert.doesNotMatch(source,/location\.hash\s*=\s*.*refresh_token/);
 });

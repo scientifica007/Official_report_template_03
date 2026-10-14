@@ -28,12 +28,39 @@ const verifiedUser=()=>profile&&profile.approved;
 const title=role=>({IFEP:'مفتش التكوين والتعليم المهنيين',ITP:'مفتش تقني وبيداغوجي',IAF:'مفتش إداري ومالي'})[role]||role||'';
 const now=()=>new Date().toISOString();
 function status(message){feedback=String(message||'');for(const id of ['cloud-message','shared-report-status']){const o=document.getElementById(id);if(o)o.textContent=feedback}}
+/* Mobile print previews may recreate the browser tab and discard sessionStorage.
+ * Keep the professional login on this device until explicit logout, using
+ * localStorage when available, while retaining sessionStorage as a fallback.
+ * Never put these tokens in URLs or the publicly committed configuration.
+ */
 function storageSet(value){
- try{if(value)sessionStorage.setItem(SESSION_KEY,JSON.stringify(value));else sessionStorage.removeItem(SESSION_KEY)}catch(e){status('تعذر تخزين جلسة تسجيل الدخول في هذا التبويب: '+e.message)}
+ const serialized=value?JSON.stringify(value):null;
+ let persisted=false;
+ try{
+  if(serialized)localStorage.setItem(SESSION_KEY,serialized);
+  else localStorage.removeItem(SESSION_KEY);
+  persisted=true;
+ }catch(e){/* Privacy modes may block persistent browser storage. */}
+ try{
+  if(serialized&&!persisted)sessionStorage.setItem(SESSION_KEY,serialized);
+  else sessionStorage.removeItem(SESSION_KEY);
+ }catch(e){
+  if(serialized&&!persisted)status('تعذر حفظ جلسة الدخول على هذا الجهاز: '+e.message);
+ }
 }
 function loadStoredSession(){
- try{const x=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
- if(x&&x.access_token&&x.refresh_token&&x.user&&x.user.id)session=x;
+ let stored=null,legacy=false;
+ try{stored=localStorage.getItem(SESSION_KEY)}catch(e){}
+ if(!stored){
+  try{stored=sessionStorage.getItem(SESSION_KEY);legacy=Boolean(stored)}catch(e){}
+ }
+ try{
+  const x=JSON.parse(stored||'null');
+  if(x&&x.access_token&&x.refresh_token&&x.user&&x.user.id){
+   session=x;
+   // Seamlessly migrate the existing tab-only login without another sign-in.
+   if(legacy)storageSet(x);
+  }
  }catch(e){session=null}
 }
 function validateEndpoint(){
