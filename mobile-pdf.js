@@ -16,9 +16,9 @@
   status.textContent=message;
   status.dataset.error=error?'true':'false';
  }
- function validateFiles(selected){
-  if(!Array.isArray(selected)||selected.length<2||selected.length>40)
-   throw Error('اختر ملفين PDF على الأقل ولا تتجاوز 40 جزءًا.');
+ function validateBatch(selected){
+  if(!Array.isArray(selected)||selected.length>40)
+   throw Error('لا تتجاوز 40 جزءًا من PDF.');
   const total=selected.reduce((n,f)=>n+f.size,0);
   if(total>80*1024*1024)throw Error('حجم الأجزاء أكبر من 80 ميغابايت. استخدم الحاسوب لدمج هذا التقرير.');
   for(const f of selected){
@@ -26,6 +26,10 @@
     throw Error('يوجد ملف فارغ أو غير صالح. أعد طباعة هذا الجزء قبل الدمج.');
    if(f.size>20*1024*1024)throw Error('الجزء '+escapeText(f.name)+' كبير جدًا.');
   }
+ }
+ function validateFiles(selected){
+  validateBatch(selected);
+  if(selected.length<2)throw Error('أضف ملفين PDF على الأقل قبل الدمج.');
  }
  async function mergePdfFiles(selected,PDFLib){
   validateFiles(selected);
@@ -59,9 +63,9 @@
    const label=document.createElement('span');
    label.textContent=(i+1)+'. '+file.name+' ('+Math.ceil(file.size/1024)+' ك.ب)';
    const arrows=document.createElement('span');arrows.className='mobile-pdf-arrows';
-   for(const [action,txt,disabled] of [['up','↑',i===0],['down','↓',i===files.length-1]]){
+   for(const [action,txt,disabled] of [['up','↑',i===0],['down','↓',i===files.length-1],['remove','×',false]]){
     const b=document.createElement('button');b.type='button';b.textContent=txt;
-    b.title=action==='up'?'تقديم الجزء':'تأخير الجزء';b.disabled=disabled||busy;
+    b.title=action==='up'?'تقديم الجزء':action==='down'?'تأخير الجزء':'حذف الجزء من القائمة';b.disabled=disabled||busy;
     b.dataset.pdfMove=action;b.dataset.index=String(i);arrows.appendChild(b);
    }
    line.append(label,arrows);list.appendChild(line);
@@ -90,17 +94,30 @@
  }
  input.addEventListener('change',()=>{
   const selected=Array.from(input.files||[]);
+  // Android's file picker may allow selecting only one PDF on each visit.
   try{
-   if(selected.length===0){files=[];announce('اختر أجزاء PDF بعد حفظها من نافذة الطباعة.');}
-   else {validateFiles(selected);files=selected;announce('تأكد من ترتيب الأجزاء حسب تسلسل الصفحات، ثم اضغط دمج. لا تكرر أي نطاق.');}
-  }catch(e){files=[];announce(e.message,true);}
+   if(selected.length){
+    const additions=selected.filter(candidate=>!files.some(existing=>
+     existing.name===candidate.name&&existing.size===candidate.size&&existing.lastModified===candidate.lastModified));
+    const all=[...files,...additions];
+    validateBatch(all);
+    files=all;
+    announce(files.length+' جزء/أجزاء محددة. أضف بقية الملفات، ثم راجع ترتيب الصفحات قبل الدمج.');
+   }
+  }catch(e){announce(e.message,true);}
+  input.value='';
   renderList();
  });
  list.addEventListener('click',event=>{
   const b=event.target.closest('button[data-pdf-move]');
   if(!b||busy)return;
-  const i=Number(b.dataset.index),j=i+(b.dataset.pdfMove==='up'?-1:1);
-  if(!Number.isInteger(i)||!files[i]||!files[j])return;
+  const i=Number(b.dataset.index);
+  if(!Number.isInteger(i)||!files[i])return;
+  if(b.dataset.pdfMove==='remove'){
+   files.splice(i,1);announce('حُذف الجزء من القائمة دون مسح الملف من هاتفك.');renderList();return;
+  }
+  const j=i+(b.dataset.pdfMove==='up'?-1:1);
+  if(!files[j])return;
   [files[i],files[j]]=[files[j],files[i]];
   renderList();
  });
