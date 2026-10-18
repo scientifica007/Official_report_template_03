@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>مختبر شبكات تنقيط الترسيم — نسخة تجريبية معزولة</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<header class="hero">
+ <div class="topline"><span class="flag">مختبر تطوير معزول • ARCH-01D1</span>
+ <a href="../../index.html">العودة إلى منصة النموذج 03</a></div>
+ <h1>تجربة شبكات تنقيط التفتيش قصد الترسيم</h1>
+ <p>نموذج فني تجريبي لا يستعمل قاعدة البيانات ولا يسجل أعضاء اللجنة ولا يصدر تقريرًا أو محضرًا رسميًا.</p>
+ <div class="warning"><strong>غير معتمد رسميًا:</strong> شبكة الخمسة استعمال تاريخي، وشبكة العشرة اجتهاد مفتش، والشبكة التحليلية مشتقة حديثًا من مؤشرات PDF. لا تُدخل بيانات شخصية حقيقية أثناء الاختبار.</div>
+</header>
+<main>
+<section class="pane configuration" aria-label="إعداد المسودة">
+ <h2>1 — اختيار شبكة الحصة</h2>
+ <label for="rubric">الشبكة المختارة في هذه المسودة</label>
+ <select id="rubric">
+  <option value="grouped5">الخمسة التجميعية — 5 معايير / 40</option>
+  <option value="inspector10">العشرة التفصيلية — 10 عناصر / 40</option>
+  <option value="analytical14">الخمسة بمؤشرات مستقلة — 14 مؤشرًا / 40</option>
+ </select>
+ <p id="rubric-origin" class="origin" aria-live="polite"></p>
+ <p class="muted small">تغيير الشبكة يبدأ مسودة فارغة بعد تأكيدك؛ لا تحويل تلقائي لأي علامة أو وزن إلى شبكة أخرى.</p>
+ <div class="actions">
+  <button id="export" type="button">تصدير مسودة JSON تجريبية</button>
+  <label class="file-button" for="import">استيراد مسودة JSON</label>
+  <input id="import" type="file" accept=".json,application/json" aria-label="استيراد مسودة JSON">
+ </div>
+ <p class="muted small">حفظ يدوي في ملف JSON فقط؛ لا حساب مستخدم ولا تخزين سحابي أو محلي دائم. إذا أغلقت الصفحة دون تصدير فستفقد المسودة.</p>
+ <p id="feedback" role="status" aria-live="polite"></p>
+</section>
+<div id="workbench" aria-live="off"></div>
+</main>
+<footer>
+ <p>مختبر واجهة وتقويم فقط — جميع الأمثلة المرجعية غير معتمدة رسميًا. قواعد دقة العلامات المحصلة والمداولة والتوقيع والإخراج ما زالت قيد القرار.</p>
+ <p><a href="../../docs/ARCH01C_EDITABLE_WEIGHT_PROFILES.md">المواصفات المهنية DR-003</a></p>
+</footer>
+</body>
+</html>
