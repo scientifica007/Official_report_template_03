@@ -928,6 +928,162 @@ function attachEditorTemplates(root){
  }
 }
 
+
+/* UX-06 — source-based summary assembly, with zero automatic professional judgments.
+ * Reads only already recorded findings/recommendations, never draft text.
+ * Every source can be selected; no arbitrary record-count truncation. */
+let summaryAssistantSession=null;
+function summaryAssistantSources(){
+ if(!valid())return [];
+ const rows=[];
+ const push=(id,location)=>{
+  const entry=getEntry(id);
+  for(const [kind,kindName] of [['findings','معاينة'],['recommendations','توصية']]){
+   for(const note of entry?.[kind]||[]){
+    const value=String(note?.text||'');
+    if(!value.trim())continue;
+    rows.push({
+     key:'src-'+rows.length,id,kind,kindName,
+     location,author:String(note.authorName||'').trim(),
+     text:value
+    });
+   }
+  }
+ };
+ for(const section of catalog.sections){
+  if(section.id==='I')continue;
+  const chapter='الباب '+section.id+' — '+section.label;
+  if(!section.domains.length){push(section.id,chapter);continue}
+  for(const domain of section.domains){
+   const context=chapter+' — '+(domain.number?domain.number+'. ':'')+domain.label;
+   push(domain.id,context+' — المجال كاملًا');
+   for(const indicator of domain.indicators)
+    push(indicator.id,context+' — '+indicator.label);
+  }
+ }
+ return rows;
+}
+function summaryAssistantCompose(rows){
+ if(!rows.length)return '';
+ return 'مواد من المعاينات والتوصيات المسجلة، منتقاة للمراجعة وإعادة الصياغة المهنية:\n\n'+
+  rows.map((r,i)=>{
+   const attribution=r.author?' — صاحب المساهمة: '+r.author:'';
+   return (i+1)+'. '+r.kindName+' — '+r.location+' ['+r.id+']'+attribution+
+    '\n'+r.text;
+  }).join('\n\n');
+}
+function summaryAssistantAppend(original,addition,maxLength=30000){
+ const old=String(original??''),newText=String(addition??'');
+ if(!newText.trim())return null;
+ const full=old+(old?(old.endsWith('\n')?'\n':'\n\n'):'')+newText;
+ return full.length<=maxLength?full:null;
+}
+function summaryAssistantClose(){
+ const dialog=$('report-summary-assistant');
+ if(dialog?.open)dialog.close();
+ summaryAssistantSession=null;
+ if($('summary-assistant-results'))$('summary-assistant-results').replaceChildren();
+}
+function summaryAssistantVisibleRows(session){
+ const query=normalizeReportFind($('summary-assistant-query')?.value||'');
+ const kind=$('summary-assistant-kind')?.value||'all';
+ return session.rows.filter(row=>
+  (kind==='all'||kind===row.kind)&&
+  (!query||normalizeReportFind([row.text,row.location,row.kindName,row.author,row.id].join(' ')).includes(query)));
+}
+function summaryAssistantSelectedRows(session){
+ return session.rows.filter(row=>session.selected.has(row.key));
+}
+function summaryAssistantRefresh(){
+ const session=summaryAssistantSession,listing=$('summary-assistant-results');
+ if(!session||!listing)return;
+ const visible=summaryAssistantVisibleRows(session);
+ listing.innerHTML=visible.map(row=>
+  '<label class="summary-assistant-source">'+
+  '<input type="checkbox" data-summary-source="'+safe(row.key)+'"'+(session.selected.has(row.key)?' checked':'')+'/>'+
+  '<span class="summary-assistant-source-main">'+
+  '<strong>'+safe(row.kindName)+' — '+safe(row.location)+'</strong>'+
+  (row.author?'<small>صاحب المساهمة: '+safe(row.author)+'</small>':'')+
+  '<span class="summary-assistant-source-text">'+safe(row.text)+'</span>'+
+  '</span></label>'
+ ).join('')||'<p class="summary-assistant-empty">لا توجد مساهمات محفوظة تطابق المرشح.</p>';
+ const count=$('summary-assistant-counter');
+ if(count)count.textContent=visible.length+' معروضة من '+session.rows.length+
+  ' مساهمة محفوظة؛ المحددة: '+session.selected.size+'.';
+ const preview=$('summary-assistant-preview');
+ if(preview)preview.value=summaryAssistantCompose(summaryAssistantSelectedRows(session));
+ const insert=$('summary-assistant-insert');
+ if(insert)insert.disabled=!session.selected.size;
+}
+function summaryAssistantOpen(fieldKey){
+ if(!SUMMARY_KEYS.includes(fieldKey)||!valid())return false;
+ const field=$('summary-'+fieldKey),dialog=$('report-summary-assistant');
+ if(!field||field.readOnly||!dialog)return false;
+ const rows=summaryAssistantSources();
+ summaryAssistantSession={fieldKey,missionId:sharedReportMissionId,rows,selected:new Set()};
+ const targetLabel=$('summary-assistant-target');
+ if(targetLabel)targetLabel.textContent=summaryLabel(fieldKey);
+ const search=$('summary-assistant-query'),filter=$('summary-assistant-kind');
+ if(search)search.value='';
+ if(filter)filter.value='all';
+ const warning=$('summary-assistant-warning');
+ if(warning)warning.textContent=rows.length?('اختر ما يناسب الخلاصة من جميع المساهمات المحفوظة. لا توجد أولوية آلية أو حذف للمصادر. تُنسخ النصوص كما هي مع سياقها؛ عليك مراجعتها وصياغة الحكم المهني بنفسك.'+(fieldKey==='generalRecommendations'?' تنبيه: توصيات المجالات تُدرج أصلًا في التقرير النهائي؛ أعد تحرير المواد المنتقاة ولا تكرر التوصيات نفسها هنا.':'')):
+  'لا توجد معاينات أو توصيات محفوظة في البيانات المحملة حاليًا. أضف مساهمات أو حدّث المهمة، ثم أعد المحاولة.';
+ const feedback=$('summary-assistant-feedback');
+ if(feedback)feedback.textContent='';
+ summaryAssistantRefresh();
+ dialog.showModal();
+ return true;
+}
+function summaryAssistantInsert(){
+ const session=summaryAssistantSession;
+ if(!session||session.missionId!==sharedReportMissionId)return false;
+ const target=$('summary-'+session.fieldKey),feedback=$('summary-assistant-feedback');
+ if(!target||target.readOnly)return false;
+ const rows=summaryAssistantSelectedRows(session),addition=summaryAssistantCompose(rows);
+ if(!addition){if(feedback)feedback.textContent='اختر مساهمة واحدة على الأقل قبل الإدراج.';return false}
+ const next=summaryAssistantAppend(target.value,addition,30000);
+ if(next===null){
+  if(feedback)feedback.textContent='يتجاوز النص الناتج حد 30000 حرف لحقل الخلاصة. قلّل العناصر المحددة؛ لن نحذف أو نختصر أي معاينة آليًا.';
+  return false;
+ }
+ target.value=next;
+ target.dispatchEvent(new Event('input',{bubbles:true}));
+ summaryAssistantClose();
+ target.focus?.();
+ return true;
+}
+function bindSummaryAssistant(){
+ const dialog=$('report-summary-assistant');
+ if(!dialog)return;
+ $('summary-assistant-query').addEventListener('input',summaryAssistantRefresh);
+ $('summary-assistant-kind').addEventListener('change',summaryAssistantRefresh);
+ dialog.addEventListener('change',event=>{
+  const checkbox=event.target?.closest?.('[data-summary-source]');
+  const session=summaryAssistantSession;
+  if(!checkbox||!session)return;
+  const key=checkbox.dataset.summarySource;
+  if(!session.rows.some(row=>row.key===key))return;
+  if(checkbox.checked)session.selected.add(key);else session.selected.delete(key);
+  summaryAssistantRefresh();
+ });
+ $('summary-assistant-select-visible').addEventListener('click',()=>{
+  const session=summaryAssistantSession;if(!session)return;
+  for(const row of summaryAssistantVisibleRows(session))session.selected.add(row.key);
+  summaryAssistantRefresh();
+ });
+ $('summary-assistant-clear').addEventListener('click',()=>{
+  if(summaryAssistantSession)summaryAssistantSession.selected.clear();
+  summaryAssistantRefresh();
+ });
+ $('summary-assistant-insert').addEventListener('click',summaryAssistantInsert);
+ $('summary-assistant-close').addEventListener('click',summaryAssistantClose);
+ dialog.addEventListener('close',()=>{
+  summaryAssistantSession=null;
+  $('summary-assistant-results')?.replaceChildren();
+ });
+}
+
 function renderNav(){const shell=$('section-nav');shell.innerHTML=catalog.sections.filter(s=>s.id!=='I').map(s=>`<div><button type="button" class="section-btn ${currentView===s.id?'selected':''}" data-chapter="${s.id}"><span><span class="section-index">${s.id}</span> ${safe(s.label)}</span><span>${s.domains.length?'⌄':'›'}</span></button>${currentView===s.id&&s.domains.length?`<div>${s.domains.map(d=>`<button type="button" class="domain-btn ${currentDomain===d.id?'selected':''}" data-domain="${safe(d.id)}"><span>${d.number?`${d.number}. `:''}${safe(d.label)}</span></button>`).join('')}</div>`:''}</div>`).join('');document.querySelector('[data-view="meta"]').classList.toggle('selected',currentView==='meta')}
 function render(){if(!valid())return;
  const storageLabel=$('report-storage-label');
@@ -935,12 +1091,12 @@ function render(){if(!valid())return;
  const tag=$('report-storage-status');
  if(tag)tag.textContent=isSharedReport()?'● مهمة سحابية — راجع حالة الحفظ لكل تعديل':'● تقرير محلي مؤقت في ذاكرة التبويب، غير متزامن';
  voiceDismissPanel();dismissEditorTemplatePanel();renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+renderReportNavigator('top')+(currentView==='meta'?renderMeta():renderChapter())+renderReportNavigator('bottom');voiceAttachControls(root);attachEditorTemplates(root);}
-function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
+function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${g.id==='summary'?`<button type="button" class="btn subtle summary-assistant-launch" data-summary-assist="${id}">اختيار مساهمات لإعداد الخلاصة</button>`:''}${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
 function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card" tabindex="-1" data-report-target="${safe(s.id)}"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
  const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card" data-report-target="${safe(i.id)}" tabindex="-1"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
 function renderEntryEditor(id,label){if(isSharedReport())return window.Report03CloudUI?.renderSharedEntry?.(id)||'<p>تعذر تحميل محرر المهمة المشتركة.</p>';const e=getEntry(id);return `<div class="entry-area">${[['findings','المعاينات','المعاينة'],['recommendations','التوصيات','التوصية']].map(([kind,title,placeholder])=>`<div class="entry-box"><h3>${title} <span class="pill count">${(e[kind]||[]).length}</span></h3>${(e[kind]||[]).length?`<ul class="item-list">${e[kind].map(v=>`<li>${safe(v.text)}<button type="button" class="remove-entry" data-remove="${id}" data-kind="${kind}" data-entry="${v.id}" title="حذف">×</button></li>`).join('')}</ul>`:'<p class="empty">لا يوجد إدخال بعد</p>'}<textarea data-input-target="${id}" data-input-kind="${kind}" placeholder="اكتب ${placeholder}؛ سيُضم النص عند التصدير حتى دون الضغط على زر الإضافة">${safe(pendingDrafts[id]?.[kind]||'')}</textarea><button type="button" class="add-button" data-add="${id}" data-kind="${kind}">+ إضافة ${placeholder}</button></div>`).join('')}</div>`}
 function commitPendingEntries(){let committed=0;for(const [id,kinds] of Object.entries(pendingDrafts)){if(id!=='X'&&id!=='XI'&&!target(id))continue;for(const kind of ['findings','recommendations']){const content=text(kinds[kind]);if(!content)continue;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:content.slice(0,30000)});committed++}}pendingDrafts=Object.create(null);if(committed){changed=true;updateProgress()}return committed}
-function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.id==='report-find-query'){reportFindQuery=n.value;refreshReportFind();return}if(n.dataset.sharedBody!==undefined){queueMicrotask(refreshReportFind);return}if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true;refreshReportFind();updateWorkMetrics()}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
+function bindHandlers(){bindSummaryAssistant();document.addEventListener('input',e=>{let n=e.target;if(n.id==='report-find-query'){reportFindQuery=n.value;refreshReportFind();return}if(n.dataset.sharedBody!==undefined){queueMicrotask(refreshReportFind);return}if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true;refreshReportFind();updateWorkMetrics()}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
  if(isSharedReport()&&n.dataset.group==='summary')setSharedSummaryStatus(n.dataset.field,'editing',n.value);
  }else if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
  if(inspector&&inspector[n.dataset.prop]!==n.value){
@@ -950,7 +1106,7 @@ function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(
  if(inspector&&inspector[n.dataset.prop]!==n.value){
   inspector[n.dataset.prop]=n.value;
   delete inspector.profileId;mayPrefillAccountInspector=false;changed=true;
- }}}if(n.matches('select[data-assessment]')){if(isSharedReport())return;const id=n.dataset.assessment;if(!target(id))return;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id].assessment=assessmentLabel(n.value)?n.value:null;n.closest('.assessment-control').dataset.value=n.value;changed=true;updateProgress()}});document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.reportNavStep!==undefined){reportNavigateStep(Number(b.dataset.reportNavStep));return}if(b.dataset.findTarget!==undefined){goToReportFindTarget(b.dataset.findTarget);return}if(b.dataset.draftContrast!==undefined){useStrongDraftHighlight=!useStrongDraftHighlight;document.body.classList.toggle('shared-draft-strong',useStrongDraftHighlight);b.setAttribute('aria-pressed',String(useStrongDraftHighlight));b.textContent=useStrongDraftHighlight?'تمييز المسودات: قوي — تغيير إلى هادئ':'تمييز المسودات: هادئ — تغيير إلى قوي';return}if(b.dataset.saveInstitution!==undefined){saveInstitution();return}if(b.dataset.deleteInstitution!==undefined){deleteInstitution();return}if(b.dataset.exportInstitutions!==undefined){exportInstitutions();return}if(b.dataset.importInstitutions!==undefined){$('institutions-file')?.click();return}if(b.dataset.view==='meta'){currentView='meta';render();scrollTop();return}if(b.dataset.openMap!==undefined){const url=googleMapsLink(state.institution.mapUrl);if(!url){showToast('ألصق أولًا رابطًا صحيحًا للموقع من خرائط Google');return}window.open(url,'_blank','noopener,noreferrer');return}if(b.dataset.chapter){currentView=b.dataset.chapter;currentDomain=sectionOf(currentView)?.domains[0]?.id??null;render();scrollTop();return}if(b.dataset.domain){currentView=target(b.dataset.domain).section.id;currentDomain=b.dataset.domain;render();scrollTop();return}if(b.id==='add-directory-inspector'){const selection=$('report-colleague-select');if(!selection?.value){showToast('اختر مفتشًا من الدليل أولًا');return}addDirectoryInspector(selection.value);return}if(b.id==='add-inspector'){mayPrefillAccountInspector=false;state.inspectors.push({id:makeId(),name:'',role:'IFEP',district:''});changed=true;render();return}if(b.dataset.removeInspector!==undefined){if(state.inspectors.length<=1)return;mayPrefillAccountInspector=false;state.inspectors.splice(Number(b.dataset.removeInspector),1);changed=true;render();return}if(b.dataset.add){if(isSharedReport())return;const id=b.dataset.add,kind=b.dataset.kind;const el=Array.from(document.querySelectorAll('[data-input-target]')).find(n=>n.dataset.inputTarget===id&&n.dataset.inputKind===kind);if(!el||!text(el.value)){showToast('اكتب النص أولًا');return}if(!state.entries[id])state.entries[id]={findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:text(el.value)});if(pendingDrafts[id]){delete pendingDrafts[id][kind];if(!Object.keys(pendingDrafts[id]).length)delete pendingDrafts[id]}changed=true;render();showToast('أضيفت الفقرة');return}if(b.dataset.remove){if(isSharedReport())return;const {remove:id,kind,entry:entryId}=b.dataset;if(!confirm('حذف هذا الإدخال؟'))return;state.entries[id][kind]=state.entries[id][kind].filter(v=>v.id!==entryId);changed=true;render();return}});
+ }}}if(n.matches('select[data-assessment]')){if(isSharedReport())return;const id=n.dataset.assessment;if(!target(id))return;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id].assessment=assessmentLabel(n.value)?n.value:null;n.closest('.assessment-control').dataset.value=n.value;changed=true;updateProgress()}});document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.summaryAssist!==undefined){summaryAssistantOpen(b.dataset.summaryAssist);return}if(b.dataset.reportNavStep!==undefined){reportNavigateStep(Number(b.dataset.reportNavStep));return}if(b.dataset.findTarget!==undefined){goToReportFindTarget(b.dataset.findTarget);return}if(b.dataset.draftContrast!==undefined){useStrongDraftHighlight=!useStrongDraftHighlight;document.body.classList.toggle('shared-draft-strong',useStrongDraftHighlight);b.setAttribute('aria-pressed',String(useStrongDraftHighlight));b.textContent=useStrongDraftHighlight?'تمييز المسودات: قوي — تغيير إلى هادئ':'تمييز المسودات: هادئ — تغيير إلى قوي';return}if(b.dataset.saveInstitution!==undefined){saveInstitution();return}if(b.dataset.deleteInstitution!==undefined){deleteInstitution();return}if(b.dataset.exportInstitutions!==undefined){exportInstitutions();return}if(b.dataset.importInstitutions!==undefined){$('institutions-file')?.click();return}if(b.dataset.view==='meta'){currentView='meta';render();scrollTop();return}if(b.dataset.openMap!==undefined){const url=googleMapsLink(state.institution.mapUrl);if(!url){showToast('ألصق أولًا رابطًا صحيحًا للموقع من خرائط Google');return}window.open(url,'_blank','noopener,noreferrer');return}if(b.dataset.chapter){currentView=b.dataset.chapter;currentDomain=sectionOf(currentView)?.domains[0]?.id??null;render();scrollTop();return}if(b.dataset.domain){currentView=target(b.dataset.domain).section.id;currentDomain=b.dataset.domain;render();scrollTop();return}if(b.id==='add-directory-inspector'){const selection=$('report-colleague-select');if(!selection?.value){showToast('اختر مفتشًا من الدليل أولًا');return}addDirectoryInspector(selection.value);return}if(b.id==='add-inspector'){mayPrefillAccountInspector=false;state.inspectors.push({id:makeId(),name:'',role:'IFEP',district:''});changed=true;render();return}if(b.dataset.removeInspector!==undefined){if(state.inspectors.length<=1)return;mayPrefillAccountInspector=false;state.inspectors.splice(Number(b.dataset.removeInspector),1);changed=true;render();return}if(b.dataset.add){if(isSharedReport())return;const id=b.dataset.add,kind=b.dataset.kind;const el=Array.from(document.querySelectorAll('[data-input-target]')).find(n=>n.dataset.inputTarget===id&&n.dataset.inputKind===kind);if(!el||!text(el.value)){showToast('اكتب النص أولًا');return}if(!state.entries[id])state.entries[id]={findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:text(el.value)});if(pendingDrafts[id]){delete pendingDrafts[id][kind];if(!Object.keys(pendingDrafts[id]).length)delete pendingDrafts[id]}changed=true;render();showToast('أضيفت الفقرة');return}if(b.dataset.remove){if(isSharedReport())return;const {remove:id,kind,entry:entryId}=b.dataset;if(!confirm('حذف هذا الإدخال؟'))return;state.entries[id][kind]=state.entries[id][kind].filter(v=>v.id!==entryId);changed=true;render();return}});
  $('btn-export').addEventListener('click',async()=>{
   const button=$('btn-export');
   button.disabled=true;

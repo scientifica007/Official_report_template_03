@@ -571,3 +571,47 @@ body:not(.shared-draft-strong) .shared-draft-warning{
 .editor-template-actions .btn{min-height:42px}
 @media(max-width:730px){.editor-template-panel{padding:10px}.editor-template-launch,.editor-template-actions .btn{min-height:44px}.editor-template-actions{display:grid;grid-template-columns:1fr}}
 @media print{.editor-template-panel,.editor-template-launch{display:none!important}}
+
+
+/* UX-06 — comprehensive review of saved source contributions, screen only. */
+.summary-assistant-launch{min-height:40px;margin:9px 0;font-size:12px}
+.report-summary-assistant{width:min(96vw,1100px);max-width:1100px;max-height:94dvh;padding:0;border:1px solid #b7cabe;border-radius:15px;color:#243e34;background:#f5f8f6;box-shadow:0 20px 65px #102a223b}
+.report-summary-assistant[open]{display:flex;flex-direction:column}
+.report-summary-assistant::backdrop{background:#122720ad}
+.summary-assistant-header,.summary-assistant-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 16px;background:#fff;flex-shrink:0}
+.summary-assistant-header{border-bottom:1px solid var(--border)}
+.summary-assistant-header h2{font-size:17px;margin:0 0 5px}
+.summary-assistant-header p{font-size:12px;margin:0;color:var(--muted)}
+.summary-assistant-header button,.summary-assistant-footer button{min-height:43px;white-space:normal}
+.summary-assistant-content{padding:15px;min-height:0;overflow-y:auto;display:grid;gap:11px}
+.summary-assistant-warning{margin:0;padding:10px 12px;border-right:3px solid #b18c4d;background:#fffbf1;font-size:12px;line-height:1.8}
+.summary-assistant-filters{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.summary-assistant-filters label,.summary-assistant-preview-label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#345749}
+.summary-assistant-filters input,.summary-assistant-filters select,.summary-assistant-preview-label textarea{width:100%;min-width:0;border:1px solid #bccbc1;border-radius:8px;padding:9px;background:white;color:#223d32;font:inherit}
+.summary-assistant-preview-label textarea{font-size:13px;line-height:1.85;resize:vertical;min-height:125px}
+.summary-assistant-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.summary-assistant-controls button{min-height:40px}
+.summary-assistant-controls span{font-size:12px;color:#52665b}
+.summary-assistant-results{border:1px solid #c6d4cb;border-radius:10px;background:#fff;overflow:auto;max-height:35vh;min-height:100px;display:grid;align-content:start}
+.summary-assistant-source{display:flex;align-items:start;gap:10px;padding:12px;border-bottom:1px solid #edf1ed;cursor:pointer}
+.summary-assistant-source:hover{background:#f3f9f5}
+.summary-assistant-source input{flex-shrink:0;margin-top:5px;min-width:17px;min-height:17px}
+.summary-assistant-source-main{min-width:0;display:grid;gap:6px;font-size:12px;line-height:1.75}
+.summary-assistant-source-main strong{font-size:12px;color:#185645}
+.summary-assistant-source-main small{font-size:11px;color:#52695c}
+.summary-assistant-source-text{white-space:pre-wrap;overflow-wrap:anywhere;color:#293b31}
+.summary-assistant-empty{margin:0;padding:16px;color:var(--muted);font-size:12px}
+.summary-assistant-feedback{color:#aa4325;font-size:12px;margin:0;min-height:1em}
+.summary-assistant-footer{border-top:1px solid var(--border)}
+.summary-assistant-footer span{font-size:11px;color:var(--muted);line-height:1.7}
+.summary-assistant-footer button:disabled{opacity:.5}
+@media(max-width:730px){
+ .report-summary-assistant{width:100vw;max-width:none;max-height:100dvh;height:100dvh;border-radius:0}
+ .summary-assistant-header,.summary-assistant-footer{padding:10px;flex-direction:column;align-items:stretch}
+ .summary-assistant-header h2{font-size:15px}
+ .summary-assistant-content{padding:10px}
+ .summary-assistant-filters{grid-template-columns:1fr}
+ .summary-assistant-results{max-height:32vh}
+ .summary-assistant-controls button,.summary-assistant-footer button,.summary-assistant-launch{min-height:44px}
+}
+@media print{.report-summary-assistant,.summary-assistant-launch{display:none!important}}
