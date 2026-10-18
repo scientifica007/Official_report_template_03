@@ -476,3 +476,18 @@ body:not(.shared-draft-strong) .shared-draft-warning{
  .workspace{padding-bottom:115px}
 }
 @media print{.report-workflow-nav{display:none!important}}
+
+
+/* UX-02: factual coverage, assessments and unsent-draft counts only. */
+.report-work-metrics{padding:12px clamp(22px,4vw,66px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;background:#f6faf8;border-bottom:1px solid var(--border)}
+.report-work-metric{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;display:flex;flex-direction:column;gap:6px;min-width:0}
+.report-work-metric span{font-size:11px;color:var(--muted);line-height:1.5}
+.report-work-metric strong{font-size:15px;font-weight:700;color:#155648;overflow-wrap:anywhere}
+.report-work-save,.report-work-explainer{grid-column:1/-1;margin:0;font-size:12px;line-height:1.7}
+.report-work-save{border-right:3px solid #738d83;padding:6px 11px;background:#fff;color:#30483c}
+.report-work-save[data-tone="pending"]{border-right-color:#be9656;background:#fff9ed}
+.report-work-save[data-tone="error"]{border-right-color:#b73b32;background:#fff3f2;color:#892c27}
+.report-work-save[data-tone="local"]{border-right-color:#7e8d9b}
+.report-work-explainer{color:var(--muted);font-size:11px}
+@media(max-width:730px){.report-work-metrics{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px 12px;gap:7px}.report-work-metric{padding:9px}.report-work-metric strong{font-size:13px}}
+@media print{.report-work-metrics{display:none!important}}
