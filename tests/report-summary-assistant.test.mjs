@@ -193,3 +193,9 @@ test('assistant actions are screen-only and leave cloud writes and output genera
  assert.doesNotMatch(helpers,/fetch\(|localStorage\.setItem|sessionStorage\.setItem|\/rest\/v1\/rpc/);
  assert.doesNotMatch(helpers,/commitPendingEntries\(|saveEmbedded\(|exportDOCX\(|exportPDF\(/);
 });
+
+test('recommendations assistant warns against repeating recommendations already in report output',()=>{
+ const h=harness();
+ assert.equal(h.ctx.api.summaryAssistantOpen('generalRecommendations'),true);
+ assert.match(h.els['summary-assistant-warning'].textContent,/تُدرج أصلًا في التقرير النهائي/);
+});
