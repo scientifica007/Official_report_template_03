@@ -595,7 +595,7 @@ function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(
    $('export-dialog').showModal();
   }catch(e){alert('لا يمكن إصدار التقرير قبل التحقق من الحفظ المشترك: '+e.message)}
   finally{button.disabled=false}
- });$('close-dialog').onclick=$('dialog-cancel').onclick=()=>$('export-dialog').close();$('do-json').onclick=exportJSON;$('do-docx').onclick=exportDOCX;$('do-pdf').onclick=exportPDF;$('btn-import').onclick=()=>{if(isSharedReport()){showToast('استيراد JSON متاح للتقرير الفردي فقط.');return}$('import-file').click()};$('import-file').addEventListener('change',importJSON);document.addEventListener('change',e=>{if(e.target.id==='institutions-file')importInstitutions(e)});$('btn-clear').onclick=$('dialog-clear').onclick=clearReport;$('menu-toggle').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');window.addEventListener('beforeunload',e=>{
+ });$('close-dialog').onclick=$('dialog-cancel').onclick=()=>$('export-dialog').close();$('do-json').onclick=exportJSON;$('do-docx').onclick=exportDOCX;$('do-pdf').onclick=exportPDF;const previewButton=$('btn-preview'),previewClose=$('close-report-preview'),previewDialog=$('report-preview-dialog');if(previewButton&&previewClose&&previewDialog){previewButton.onclick=openReportPreview;previewClose.onclick=closeReportPreview;previewDialog.addEventListener('close',clearReportPreview)}$('btn-import').onclick=()=>{if(isSharedReport()){showToast('استيراد JSON متاح للتقرير الفردي فقط.');return}$('import-file').click()};$('import-file').addEventListener('change',importJSON);document.addEventListener('change',e=>{if(e.target.id==='institutions-file')importInstitutions(e)});$('btn-clear').onclick=$('dialog-clear').onclick=clearReport;$('menu-toggle').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');window.addEventListener('beforeunload',e=>{
  const pendingShared=isSharedReport()&&(pendingSharedSummaryFields().length>0||
   window.Report03CloudUI?.hasUnsentSharedDrafts?.());
  if(changed||pendingShared){e.preventDefault();e.returnValue=''}
@@ -731,6 +731,58 @@ function buildPrint(){const m=state.mission,i=state.institution,d=state.director
  }
 
  html+=`<section class="print-section print-closing"><h2>X. التقدير العام /</h2><p class="print-para">${safe(state.summary.generalAssessment||'')}</p>${entryHtml('X')}</section><section class="print-section print-closing"><h2>XI. التوصيات /</h2>${collectRecommendations().map(x=>`<div class="print-rec">• ${safe(x)}</div>`).join('')}${entryHtml('XI')}<p class="print-footer">تقرير التفتيش المعمق — النموذج 03 — نسخة تجريبية</p></section>`;html+=printSignatures();$('print-root').innerHTML=html}
+
+/* UX-03 — read-only report preview. Uses the official print markup, never a
+ * competing export template or a write to Supabase. */
+function hasUncommittedLocalPreviewDrafts(){
+ return Object.values(pendingDrafts).some(kinds=>
+  ['findings','recommendations'].some(kind=>Boolean(text(kinds?.[kind]))));
+}
+async function prepareReportPreview(){
+ if(isSharedReport()){
+  const missionId=sharedReportMissionId;
+  // The very same server freshness and unsent-save gate as the export dialog.
+  const payload=await window.Report03CloudUI?.prepareSharedExport?.();
+  if(!payload||!isSharedReport()||payload.missionId!==missionId||
+     sharedReportMissionId!==missionId)
+   throw Error('تعذر التحقق من نسخة المهمة السحابية المحفوظة. أعد فتح المهمة وحاول مجددًا.');
+  if(window.Report03CloudBridge?.applySharedReportData?.(payload)!==true)
+   throw Error('تعذر عرض أحدث نسخة محفوظة من المهمة. احفظ التعديلات وأعد المحاولة.');
+  return true;
+ }
+ if(hasUncommittedLocalPreviewDrafts())
+  throw Error('توجد معاينة أو توصية محلية مكتوبة ولم تُضف بعد. اضغط «+ إضافة» بجانب النص قبل عرض المعاينة؛ لن نتجاهل المسودة أو نحفظها دون إذنك.');
+ return true;
+}
+function renderReportPreviewContent(){
+ const printRoot=$('print-root'),previewBody=$('report-preview-body');
+ if(!printRoot||!previewBody)throw Error('واجهة المعاينة غير متاحة.');
+ buildPrint();
+ // Clone exactly the markup the current PDF print function produced. The
+ // preview is a screen-only presentation of the same report structure.
+ previewBody.replaceChildren(...Array.from(printRoot.children,node=>node.cloneNode(true)));
+ printRoot.replaceChildren();
+}
+async function openReportPreview(){
+ const button=$('btn-preview'),dialog=$('report-preview-dialog');
+ if(!dialog||!button||button.disabled)return;
+ button.disabled=true;
+ try{
+  await prepareReportPreview();
+  renderReportPreviewContent();
+  dialog.showModal();
+ }catch(err){
+  alert('تعذر فتح المعاينة: '+(err?.message||'خطأ غير معروف'));
+ }finally{button.disabled=false}
+}
+function closeReportPreview(){
+ const dialog=$('report-preview-dialog');
+ if(dialog?.open)dialog.close();
+}
+function clearReportPreview(){
+ $('report-preview-body')?.replaceChildren();
+}
+
 function collectRecommendations(){const out=[];for(const s of catalog.sections){if(s.id==='XI')continue;const ids=[s.id,...s.domains.flatMap(d=>[d.id,...d.indicators.map(x=>x.id)])];for(const id of ids)for(const x of getEntry(id).recommendations)out.push(x.text)}for(const line of String(state.summary.generalRecommendations||'').split('\n').map(s=>s.trim()).filter(Boolean))out.push(line);return [...new Set(out)]}
 function exportPDF(){commitPendingEntries();buildPrint();$('export-dialog').close();showToast('للتصدير PDF: الصفحات التمهيدية والخاتمة عمودية، والجداول أفقية. احتفظ بتنسيق الصفحة المحدد في الموقع، وألغِ «الرؤوس والتذييلات» إذا ظهرت.');setTimeout(()=>window.print(),100)}
 /* Dependency-free, editable DOCX generation. ZIP entries use STORE; no server is involved. */

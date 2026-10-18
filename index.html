@@ -47,6 +47,7 @@
       <div><div class="eyebrow">وزارة التكوين والتعليم المهنيين — النموذج 03</div><h1>تقرير التفتيش المعمق</h1></div>
       <div class="top-actions">
         <button class="btn subtle" type="button" id="btn-import">استيراد JSON</button>
+        <button class="btn subtle" type="button" id="btn-preview">معاينة التقرير</button>
         <button class="btn primary" type="button" id="btn-export">الإصدار والتصدير</button>
         <input id="import-file" type="file" accept=".json,application/json" hidden />
       </div>
@@ -74,6 +75,16 @@
 <section id="cloud-shell" class="portal-shell" aria-label="بوابة المفتشين"><div id="cloud-content" class="cloud-content portal-content"><p>جارٍ التحقق من تسجيل الدخول...</p></div></section>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="print-root" aria-hidden="true"></div>
+<dialog id="report-preview-dialog" class="report-preview-dialog" aria-labelledby="report-preview-title">
+  <div class="report-preview-toolbar">
+    <div>
+      <h2 id="report-preview-title">معاينة التقرير قبل التصدير</h2>
+      <p>عرض للقراءة باستخدام محتوى التقرير المخصص للطباعة. لا يُثبت توزيع الصفحات النهائي؛ تحقّق منه في معاينة الطباعة عند إصدار PDF.</p>
+    </div>
+    <button type="button" id="close-report-preview" class="btn subtle">العودة إلى التحرير</button>
+  </div>
+  <div id="report-preview-body" class="report-preview-body" dir="rtl" aria-label="المحتوى الكامل للتقرير"></div>
+</dialog>
 <dialog id="export-dialog">
   <div class="dialog-content">
     <div class="dialog-head"><h2>إصدار التقرير</h2><button id="close-dialog" type="button" class="icon-btn" aria-label="إغلاق">×</button></div>
