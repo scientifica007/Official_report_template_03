@@ -64,6 +64,7 @@ const itemGroup=id=>GROUPS.find(g=>g.items.some(i=>i.id===id));
 const knownWeights=new Set(GROUPS.flatMap(g=>g.items.map(i=>i.id)));
 const knownDiscussion=new Set(DISCUSSION.map(i=>i.id));
 const halfUnits=n=>Number.isFinite(n)&&n>=0&&Number.isInteger(n*2)?n*2:null;
+export const SCORE_STEP=0.5; // Field-accepted choice for all scoring fields, not only rubric weights.
 const numericInput=raw=>{
  if(typeof raw==="number")return Number.isFinite(raw)?raw:null;
  if(typeof raw!=="string"||!raw.trim()||!/^(?:\d+)(?:\.\d+)?$/.test(raw.trim()))return null;
@@ -149,7 +150,7 @@ export function withScore(draft,phase,id,raw){
  if(raw===null||raw===""){delete next.scores[phase][id];return next}
  const n=numericInput(raw);
  if(n===null||n<0||n>item.cap)throw Error("العلامة خارج المجال 0 إلى "+item.cap);
- // No fractional scoring policy is imposed in this research prototype.
+ if(halfUnits(n)===null)throw Error("أدخل العلامة بخطوة 0.5 نقطة (مثل 0 أو 1.5 أو 2)");
  next.scores[phase][id]=n;
  return next;
 }
@@ -161,7 +162,7 @@ function phaseTotal(draft,phase,items){
   required++;
   if(!Object.hasOwn(marks,item.id))continue;
   const n=marks[item.id];
-  if(typeof n!=="number"||!Number.isFinite(n)||n<0||n>item.cap)throw Error("علامة غير صالحة");
+  if(typeof n!=="number"||halfUnits(n)===null||n>item.cap)throw Error("علامة غير صالحة");
   entered++;sum+=n;
  }
  return {complete:entered===required,entered,required,
