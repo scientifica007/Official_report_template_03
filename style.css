@@ -491,3 +491,46 @@ body:not(.shared-draft-strong) .shared-draft-warning{
 .report-work-explainer{color:var(--muted);font-size:11px}
 @media(max-width:730px){.report-work-metrics{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px 12px;gap:7px}.report-work-metric{padding:9px}.report-work-metric strong{font-size:13px}}
 @media print{.report-work-metrics{display:none!important}}
+
+
+/* UX-03 — screen-only inspection of the exact print-root markup.
+ * Existing @page / @media print export selectors remain unchanged. */
+.report-preview-dialog{width:min(96vw,1180px);max-width:1180px;max-height:94vh;padding:0;border:1px solid #b9cdc3;border-radius:14px;color:#263d34;background:#f1f5f3;box-shadow:0 20px 65px #102f2740}
+.report-preview-dialog[open]{display:flex;flex-direction:column}
+.report-preview-dialog::backdrop{background:#0b211cbb}
+.report-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 18px;background:#fff;border-bottom:1px solid var(--border);position:relative;flex-shrink:0}
+.report-preview-toolbar h2{font-size:18px;margin:0 0 6px;color:#164d40}
+.report-preview-toolbar p{font-size:12px;margin:0;color:#5c6d64;line-height:1.65}
+.report-preview-toolbar button{white-space:nowrap;min-height:42px}
+.report-preview-body{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:18px;direction:rtl;flex:1;min-height:0}
+.report-preview-body>section{background:#fff;margin:0 auto 20px;padding:22px;border:1px solid #c7d2ca;box-shadow:0 3px 15px #0d33251a;border-radius:5px;line-height:1.8;color:#111;font-family:"Traditional Arabic",Tahoma,Arial,serif;overflow-wrap:anywhere}
+.report-preview-body>.print-first,.report-preview-body>.print-cover,.report-preview-body>.print-intro,.report-preview-body>.print-closing{max-width:760px}
+.report-preview-body>.print-table-section{max-width:1100px;overflow-x:auto}
+.report-preview-body .print-first{min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:space-around;text-align:center}
+.report-preview-body .print-first .oval,.report-preview-body .print-first .title-box{border:1px solid #666;border-radius:14px;padding:10px 25px;font-weight:700}
+.report-preview-body .print-first .title-box{background:#faf0d9;font-size:21px}
+.report-preview-body .print-cover{min-height:640px;display:flex;flex-direction:column;align-items:center;text-align:center;border:2px solid #555}
+.report-preview-body .print-cover h2{font-size:21px;margin:38px auto}
+.report-preview-body .print-cover .cover-state{border:1px solid #777;padding:18px;max-width:90%;width:480px}
+.report-preview-body .print-cover .cover-team{text-align:right;align-self:stretch;margin-top:40px}
+.report-preview-body .print-cover .cover-date{margin-top:auto}
+.report-preview-body .print-section h2{font-size:21px;text-decoration:underline;margin:16px 0 12px}
+.report-preview-body .print-section h3{font-size:17px;margin:14px 0 7px}
+.report-preview-body .print-section .print-para,.report-preview-body .print-cell-line,.report-preview-body .print-note{white-space:pre-wrap}
+.report-preview-body .print-table-section .report-four-column-table{border-collapse:collapse;table-layout:fixed;min-width:780px;width:100%;font-size:13px;line-height:1.65;margin:10px 0}
+.report-preview-body .print-table-section th,.report-preview-body .print-table-section td{border:1px solid #606c67;padding:7px;vertical-align:top;text-align:right;overflow-wrap:anywhere}
+.report-preview-body .print-table-section th{background:#e6ebe7;text-align:center}
+.report-preview-body .print-rec{margin:12px 0}
+.report-preview-body .print-meta-row{margin:7px 0}
+.report-preview-body .print-draft,.report-preview-body .print-footer{font-size:12px;color:#66736d}
+@media(max-width:730px){
+ .report-preview-dialog{width:100vw;max-width:none;max-height:100dvh;height:100dvh;border-radius:0}
+ .report-preview-toolbar{align-items:stretch;flex-direction:column;gap:9px;padding:12px}
+ .report-preview-toolbar h2{font-size:16px}
+ .report-preview-toolbar button{width:100%}
+ .report-preview-body{padding:10px}
+ .report-preview-body>section{padding:14px;margin-bottom:12px}
+ .report-preview-body .print-cover{min-height:450px}
+ .report-preview-body .print-table-section .report-four-column-table{min-width:700px}
+}
+@media print{.report-preview-dialog{display:none!important}}
