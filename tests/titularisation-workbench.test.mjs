@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {execFileSync} from "node:child_process";
 import {
- SCHEMA,RUBRICS,GROUPS,TEN,DISCUSSION,newDraft,isAnalytical,
+ SCHEMA,RUBRICS,GROUPS,TEN,DISCUSSION,SCORE_STEP,newDraft,isAnalytical,
  suggestedWeights,withWeight,validateWeights,withSuggestions,freezeWeights,
  lessonItems,withScore,totals,groupSummaries,validateImport,serialize
 } from "../prototypes/titularisation-workbench/engine.mjs";
@@ -228,4 +228,75 @@ test("zero-weight indicator does not count as an unentered group score or fabric
  assert.equal(result.total,3);
  assert.equal(Object.hasOwn(d.scores.lesson,"g2_1"),false);
  assert.deepEqual(groupSummaries(newDraft("grouped5")),[]);
+});
+
+test("all three lesson rubrics and the discussion use an attained score increment of 0.5",()=>{
+ assert.equal(SCORE_STEP,.5);
+ for(const [rubric,id,limit] of [
+  ["grouped5","g1",12],["inspector10","c1",5],["analytical14","g1_1",4]
+ ]){
+  let d=newDraft(rubric);
+  if(rubric==="analytical14")d=freezeWeights(withSuggestions(d));
+  d=withScore(d,"lesson",id,0);
+  assert.equal(d.scores.lesson[id],0,"zero is valid");
+  d=withScore(d,"lesson",id,.5);
+  assert.equal(d.scores.lesson[id],.5);
+  d=withScore(d,"lesson",id,limit-.5);
+  assert.equal(d.scores.lesson[id],limit-.5);
+  d=withScore(d,"discussion","d1",2.5);
+  assert.equal(d.scores.discussion.d1,2.5);
+  assert.equal(totals(d).lesson.partial,limit-.5);
+  check(()=>withScore(d,"lesson",id,1.25),/خطوة 0.5/);
+  check(()=>withScore(d,"discussion","d2",1.75),/خطوة 0.5/);
+  check(()=>withScore(d,"lesson",id,-.5),/خارج المجال/);
+  check(()=>withScore(d,"lesson",id,limit+.5),/خارج المجال/);
+ }
+});
+test("fractional score validity is preserved during JSON import and export",()=>{
+ let d=newDraft("grouped5");
+ d=withScore(d,"lesson","g1",6.5);
+ d=withScore(d,"discussion","d1",1.5);
+ assert.deepEqual(validateImport(JSON.parse(serialize(d))),d);
+ const invalid=structuredClone(d);
+ invalid.scores.lesson.g1=6.25;
+ check(()=>validateImport(invalid),/خطوة 0.5/);
+ const invalidDiscussion=structuredClone(d);
+ invalidDiscussion.scores.discussion.d1=1.25;
+ check(()=>validateImport(invalidDiscussion),/خطوة 0.5/);
+});
+test("the attached historical grouped-five draft remains valid without changing stored numbers",()=>{
+ // Non-identifying score-only regression assembled from the user's test JSON;
+ // the uploaded file itself is not copied into the public repository.
+ const old={
+  schema:SCHEMA,revision:1,rubricId:RUBRICS.grouped5.id,profile:null,
+  scores:{
+   lesson:{g1:6,g2:5,g3:4,g4:4,g5:4},
+   discussion:{d1:2,d2:2,d3:1,d4:1,d5:2,d6:2,d7:2}
+  }
+ };
+ const restored=validateImport(old),result=totals(restored);
+ assert.deepEqual(restored,old);
+ assert.equal(result.lesson.total,23);
+ assert.equal(result.discussion.total,12);
+ assert.equal(result.total60,35);
+ assert.equal(result.score20,35/3);
+ assert.deepEqual(validateImport(JSON.parse(serialize(restored))),old);
+});
+test("the five grouped criteria display their fourteen original indicators only as reminders",()=>{
+ assert.match(app,/GROUPS\.find\(group=>group\.id===item\.id\)\?\.items/);
+ assert.match(app,/phase==='lesson'&&draft\.rubricId===RUBRICS\.grouped5\.id/);
+ assert.match(app,/المؤشرات التابعة لهذا المعيار \(للتذكير فقط\)/);
+ assert.match(app,/class="indicator-reminders"/);
+ assert.match(app,/reminders\.map\(indicator=>/);
+ assert.match(css,/\.indicator-reminders/);
+ assert.equal(GROUPS.reduce((a,g)=>a+g.items.length,0),14);
+ assert.equal(lessonItems(newDraft("grouped5")).length,5,"no extra scoring fields added");
+ assert.equal(lessonItems(newDraft("inspector10")).length,10);
+});
+test("input boxes expose step=0.5 instead of any; weights remain independently configurable",()=>{
+ assert.match(app,/item\.cap,SCORE_STEP/);
+ assert.doesNotMatch(app,/item\.cap,'any'/);
+ assert.match(app,/item\.cap,\.5,/); // weight field retains 0.5 increment
+ assert.match(app,/data-score=/);
+ assert.match(app,/العلامة المحصلة هي 0.5 نقطة/);
 });
