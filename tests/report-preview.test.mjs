@@ -50,8 +50,8 @@ test('the preview button and accessible modal are part of the report editor',()=
  assert.match(html,/id="report-preview-dialog"/);
  assert.match(html,/id="report-preview-body"/);
  assert.match(html,/id="close-report-preview"/);
- assert.match(app,/btn-preview'\)\.onclick=openReportPreview/);
- assert.match(app,/report-preview-dialog'\)\.addEventListener\('close',clearReportPreview\)/);
+ assert.match(app,/previewButton\.onclick=openReportPreview/);
+ assert.match(app,/previewDialog\.addEventListener\('close',clearReportPreview\)/);
 });
 test('local preview refuses uncommitted findings without silently saving them',async()=>{
  const h=harness();
