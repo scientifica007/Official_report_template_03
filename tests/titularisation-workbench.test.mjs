@@ -298,5 +298,5 @@ test("input boxes expose step=0.5 instead of any; weights remain independently c
  assert.doesNotMatch(app,/item\.cap,'any'/);
  assert.match(app,/group\.cap,\.5,/); // weight field retains 0.5 increment
  assert.match(app,/data-score=/);
- assert.match(app,/العلامة المحصلة هي 0.5 نقطة/);
+ assert.match(app,/أصغر خطوة للعلامة المحصلة هي 0\.5 نقطة/);
 });
