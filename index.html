@@ -17,6 +17,23 @@
     </a>
     <div class="sidebar-heading">إعداد التقرير</div>
     <button class="nav-control selected" data-view="meta" type="button"><span>بيانات المهمة والمؤسسة</span><span>◀</span></button>
+
+    <div class="report-find-panel" role="search" aria-label="البحث في فهرس التقرير">
+      <label for="report-find-query">بحث سريع في عناصر الفحص</label>
+      <input id="report-find-query" type="search" autocomplete="off" placeholder="مثال: الشهادات، التسرب، المخزن" aria-controls="report-find-results" />
+      <label for="report-find-filter">عرض المواضع حسب البيانات</label>
+      <select id="report-find-filter" aria-controls="report-find-results">
+        <option value="all">جميع المواضع</option>
+        <option value="entries">بها معاينات أو توصيات</option>
+        <option value="assessed">بها تقييم اختياري</option>
+        <option value="unrecorded">دون بيانات مسجلة</option>
+        <option value="unsaved">بها مسودات غير محفوظة</option>
+      </select>
+      <div id="report-find-summary" class="report-find-summary"></div>
+      <div id="report-find-counter" class="report-find-counter" role="status" aria-live="polite">اكتب كلمة أو اختر مرشحًا لعرض المواضع.</div>
+      <div id="report-find-results" class="report-find-results" aria-label="نتائج البحث"></div>
+      <small class="report-find-disclaimer">وجود بيانات لا يعني اكتمال فحص المجال. النتائج تخص البيانات المعروضة حاليًا.</small>
+    </div>
     <div class="sidebar-heading">الأبواب الرسمية</div>
     <div id="section-nav" class="section-nav"></div>
     <div class="sidebar-footer">
