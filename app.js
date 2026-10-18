@@ -39,6 +39,7 @@ function setSharedSummaryStatus(key,status,value){
  if(wrap)wrap.dataset.saveState=status;
  const line=document.querySelector?.('[data-summary-status="'+key+'"]');
  if(line)line.textContent=sharedSummaryText(key);
+ updateWorkMetrics();
  return true;
 }
 function focusSharedSummary(key){
@@ -357,7 +358,47 @@ function getEntry(id){return state.entries[id]??{assessment:null,findings:[],rec
 function renderAssessmentControl(id){const e=getEntry(id);return `<div class="assessment-control" data-value="${safe(e.assessment||'')}"><label for="assessment-${safe(id)}">نتيجة الفحص أو التقييم</label><select id="assessment-${safe(id)}" data-assessment="${safe(id)}" aria-label="نتيجة فحص أو تقييم هذا العنصر"><option value="" ${!assessmentLabel(e.assessment)?'selected':''}>لم يُقيّم بعد</option>${Object.entries(ASSESSMENTS).map(([code,label])=>`<option value="${code}" ${e.assessment===code?'selected':''}>${label}</option>`).join('')}</select><span class="assessment-hint">تصنيف اختياري؛ لا يُنشئ معاينة أو توصية تلقائيًا.</span></div>`}
 
 function counts(){let f=0,r=0;for(const e of Object.values(state.entries)){f+=(e.findings||[]).length;r+=(e.recommendations||[]).length}return {f,r}}
-function updateProgress(){const {f,r}=counts();const assessed=Object.values(state.entries).filter(e=>assessmentLabel(e.assessment)).length;$('report-progress').textContent=`${f} معاينة — ${r} توصية — ${assessed} عنصرًا مقيّمًا`;refreshReportFind();}
+
+/* UX-02 — descriptive work-state metrics; never infer that a domain has been reviewed.
+ * Existing RLS-backed save confirmations remain the only authority for cloud persistence. */
+function reportWorkState(){
+ const nodes=reportFindTargets();
+ const withEntries=nodes.filter(node=>reportFindHasEntries(node.id)).length;
+ const assessments=nodes.filter(node=>reportFindHasAssessment(node.id)).length;
+ const drafts=reportFindDrafts().filter(d=>nodes.some(node=>node.id===d.itemId)).length;
+ const pendingSummary=pendingSharedSummaryFields();
+ return {total:nodes.length,withEntries,assessments,drafts,pendingSummary};
+}
+function reportWorkPersistenceMessage(work){
+ if(!isSharedReport())return {tone:'local',message:'تقرير محلي في ذاكرة التبويب؛ ليس محفوظًا سحابيًا.'};
+ const statuses=work.pendingSummary.map(field=>field.status);
+ if(statuses.includes('error'))return {tone:'error',message:'فشل حفظ حقل في الخلاصة؛ راجع التنبيه بجواره قبل التصدير.'};
+ if(work.drafts||statuses.includes('editing')||statuses.includes('saving')){
+  const parts=[];
+  if(work.drafts)parts.push(work.drafts+' مسودة مساهمة غير مرسلة');
+  if(statuses.includes('editing'))parts.push('تعديلات خلاصة غير محفوظة');
+  if(statuses.includes('saving'))parts.push('حفظ الخلاصة قيد التنفيذ');
+  return {tone:'pending',message:parts.join(' — ')+'.'};
+ }
+ return {tone:'neutral',message:'لا توجد مسودات غير مرسلة ظاهرة؛ تأكيد حفظ كل مساهمة يظهر في محررها.'};
+}
+function updateWorkMetrics(){
+ if(!valid())return;
+ const work=reportWorkState();
+ const coverage=$('report-metric-entries'),assessed=$('report-metric-assessed');
+ const drafts=$('report-metric-drafts'),review=$('report-metric-review');
+ if(coverage)coverage.textContent=work.withEntries+' / '+work.total;
+ if(assessed)assessed.textContent=String(work.assessments);
+ if(drafts)drafts.textContent=String(work.drafts);
+ if(review)review.textContent='لا تُستنتج آليًا';
+ const save=$('report-persistence-status');
+ if(save){const persistence=reportWorkPersistenceMessage(work);
+  save.textContent=persistence.message;
+  save.dataset.tone=persistence.tone;
+ }
+}
+
+function updateProgress(){const {f,r}=counts();const assessed=Object.values(state.entries).filter(e=>assessmentLabel(e.assessment)).length;$('report-progress').textContent=`${f} معاينة — ${r} توصية — ${assessed} عنصرًا مقيّمًا`;refreshReportFind();updateWorkMetrics();}
 function showToast(message){const n=$('toast');n.textContent=message;n.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>n.classList.remove('show'),3200)}
 
 /* Presentation-only catalog search. Filtering never writes report data. */
@@ -517,14 +558,16 @@ function reportNavigateStep(direction){
 function renderNav(){const shell=$('section-nav');shell.innerHTML=catalog.sections.filter(s=>s.id!=='I').map(s=>`<div><button type="button" class="section-btn ${currentView===s.id?'selected':''}" data-chapter="${s.id}"><span><span class="section-index">${s.id}</span> ${safe(s.label)}</span><span>${s.domains.length?'⌄':'›'}</span></button>${currentView===s.id&&s.domains.length?`<div>${s.domains.map(d=>`<button type="button" class="domain-btn ${currentDomain===d.id?'selected':''}" data-domain="${safe(d.id)}"><span>${d.number?`${d.number}. `:''}${safe(d.label)}</span></button>`).join('')}</div>`:''}</div>`).join('');document.querySelector('[data-view="meta"]').classList.toggle('selected',currentView==='meta')}
 function render(){if(!valid())return;
  const storageLabel=$('report-storage-label');
- if(storageLabel)storageLabel.textContent=isSharedReport()?'مهمة سحابية — محفوظة في Supabase':'تقرير محلي غير متزامن (وضع قديم)';
+ if(storageLabel)storageLabel.textContent=isSharedReport()?'مهمة سحابية — يتحقق الحفظ لكل تعديل':'تقرير محلي غير متزامن (وضع قديم)';
+ const tag=$('report-storage-status');
+ if(tag)tag.textContent=isSharedReport()?'● مهمة سحابية — راجع حالة الحفظ لكل تعديل':'● تقرير محلي مؤقت في ذاكرة التبويب، غير متزامن';
  renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+renderReportNavigator('top')+(currentView==='meta'?renderMeta():renderChapter())+renderReportNavigator('bottom');}
 function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
 function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card" tabindex="-1" data-report-target="${safe(s.id)}"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
  const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card" data-report-target="${safe(i.id)}" tabindex="-1"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
 function renderEntryEditor(id,label){if(isSharedReport())return window.Report03CloudUI?.renderSharedEntry?.(id)||'<p>تعذر تحميل محرر المهمة المشتركة.</p>';const e=getEntry(id);return `<div class="entry-area">${[['findings','المعاينات','المعاينة'],['recommendations','التوصيات','التوصية']].map(([kind,title,placeholder])=>`<div class="entry-box"><h3>${title} <span class="pill count">${(e[kind]||[]).length}</span></h3>${(e[kind]||[]).length?`<ul class="item-list">${e[kind].map(v=>`<li>${safe(v.text)}<button type="button" class="remove-entry" data-remove="${id}" data-kind="${kind}" data-entry="${v.id}" title="حذف">×</button></li>`).join('')}</ul>`:'<p class="empty">لا يوجد إدخال بعد</p>'}<textarea data-input-target="${id}" data-input-kind="${kind}" placeholder="اكتب ${placeholder}؛ سيُضم النص عند التصدير حتى دون الضغط على زر الإضافة">${safe(pendingDrafts[id]?.[kind]||'')}</textarea><button type="button" class="add-button" data-add="${id}" data-kind="${kind}">+ إضافة ${placeholder}</button></div>`).join('')}</div>`}
 function commitPendingEntries(){let committed=0;for(const [id,kinds] of Object.entries(pendingDrafts)){if(id!=='X'&&id!=='XI'&&!target(id))continue;for(const kind of ['findings','recommendations']){const content=text(kinds[kind]);if(!content)continue;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:content.slice(0,30000)});committed++}}pendingDrafts=Object.create(null);if(committed){changed=true;updateProgress()}return committed}
-function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.id==='report-find-query'){reportFindQuery=n.value;refreshReportFind();return}if(n.dataset.sharedBody!==undefined){queueMicrotask(refreshReportFind);return}if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true;refreshReportFind()}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
+function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.id==='report-find-query'){reportFindQuery=n.value;refreshReportFind();return}if(n.dataset.sharedBody!==undefined){queueMicrotask(refreshReportFind);return}if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true;refreshReportFind();updateWorkMetrics()}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
  if(isSharedReport()&&n.dataset.group==='summary')setSharedSummaryStatus(n.dataset.field,'editing',n.value);
  }else if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
  if(inspector&&inspector[n.dataset.prop]!==n.value){
@@ -731,6 +774,7 @@ window.Report03CloudBridge={
    const pending=Boolean(textarea.value.trim());
    textarea.closest('.shared-editor-card')?.classList.toggle('unsaved-draft',pending);
   }
+  updateWorkMetrics();
  },
  focusSharedDraft(id){
   if(!isSharedReport())return false;
