@@ -438,3 +438,21 @@ body:not(.shared-draft-strong) .shared-draft-warning{
  .mission-quick-card{padding:14px}
 }
 @media print{.mission-workspace,.mission-quick-card,.legacy-report-option{display:none!important}}
+
+
+/* Search and progress filters: editor navigation only, never exported. */
+.report-find-panel{display:grid;gap:7px;margin:14px 0 18px;padding:12px;border:1px solid var(--border);border-radius:13px;background:#f7faf8}
+.report-find-panel>label{font-size:12px;font-weight:700;color:var(--ink)}
+.report-find-panel input,.report-find-panel select{width:100%;min-width:0;padding:9px 10px;border:1px solid #becfc6;border-radius:9px;background:#fff;color:var(--ink);font-size:13px}
+.report-find-summary{font-size:11px;line-height:1.7;color:var(--ink);padding:6px 0;border-bottom:1px solid var(--border)}
+.report-find-counter{font-size:11px;color:var(--muted);line-height:1.6}
+.report-find-results{display:grid;gap:6px;max-height:280px;overflow:auto;overscroll-behavior:contain}
+.report-find-hit{width:100%;display:grid;gap:3px;text-align:right;background:white;color:var(--ink);padding:9px;border:1px solid var(--border);border-radius:9px;min-height:44px}
+.report-find-hit:hover,.report-find-hit:focus-visible{border-color:var(--primary);background:#edf6f2}
+.report-find-hit-title{font-size:12px;font-weight:700;white-space:normal;overflow-wrap:anywhere}
+.report-find-hit-context{font-size:11px;color:var(--muted);line-height:1.4}
+.report-find-hit-state{font-size:11px;color:#256f5a}
+.report-find-empty,.report-find-disclaimer{font-size:11px;line-height:1.55;color:var(--muted);margin:0}
+.indicator-card[data-report-target]:focus{outline:2px solid var(--primary);outline-offset:3px}
+@media(max-width:730px){.report-find-panel{margin:8px 0 14px;padding:10px}.report-find-results{max-height:36vh}}
+@media print{.report-find-panel{display:none!important}}
