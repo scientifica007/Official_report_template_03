@@ -456,3 +456,23 @@ body:not(.shared-draft-strong) .shared-draft-warning{
 .indicator-card[data-report-target]:focus{outline:2px solid var(--primary);outline-offset:3px}
 @media(max-width:730px){.report-find-panel{margin:8px 0 14px;padding:10px}.report-find-results{max-height:36vh}}
 @media print{.report-find-panel{display:none!important}}
+
+
+/* UX-01: catalog-derived previous/next domain navigation, entirely screen-only. */
+.report-workflow-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--border);border-radius:13px;padding:10px 12px;margin:0 0 14px;box-shadow:0 2px 12px rgba(17,55,45,.035)}
+.report-workflow-nav-bottom{display:none}
+.report-workflow-location{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;flex:1;text-align:center}
+.report-workflow-count{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.report-workflow-title{font-size:13px;line-height:1.4;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report-workflow-chapter{font-size:11px;color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report-workflow-btn{min-width:88px;min-height:40px;flex-shrink:0}
+.report-workflow-btn:disabled{opacity:.43;cursor:not-allowed}
+@media(max-width:730px){
+ .report-workflow-nav-top{display:none}
+ .report-workflow-nav-bottom{display:flex;position:fixed;z-index:18;right:0;left:0;bottom:0;margin:0;border-radius:13px 13px 0 0;border-right:0;border-left:0;border-bottom:0;padding:9px max(10px,env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));box-shadow:0 -4px 20px rgba(12,47,36,.14)}
+ .report-workflow-btn{min-width:70px;min-height:46px;padding:8px}
+ .report-workflow-location{gap:2px}
+ .report-workflow-title{font-size:12px}
+ .workspace{padding-bottom:115px}
+}
+@media print{.report-workflow-nav{display:none!important}}
