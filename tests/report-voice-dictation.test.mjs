@@ -171,7 +171,7 @@ test('CSS hides voice UI from print; cloud persists only on its own submit actio
  assert.match(cloud,/data-shared-body/);
  assert.match(cloud,/data-shared-action="save"/);
  assert.match(app,/voiceAttachControls\(root\)/);
- assert.match(app,/voiceDismissPanel\(\);renderNav\(\)/);
+ assert.match(app,/voiceDismissPanel\(\);dismissEditorTemplatePanel\(\);renderNav\(\)/);
  assert.doesNotMatch(code,/localStorage\.setItem|fetch\(|saveEmbedded\(|commitPendingEntries\(/);
 });
 
