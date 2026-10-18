@@ -124,7 +124,7 @@ test('filters and selecting visible items do not erase previously selected hidde
  h.els['summary-assistant-kind'].value='findings';
  h.els['summary-assistant-kind'].listeners.change();
  h.els['summary-assistant-select-visible'].listeners.click();
- assert.equal(h.ctx.api.summaryAssistantSelectedRows.length,0); // reference stays a function, no writes
+ assert.equal((h.els['summary-assistant-preview'].value.match(/^\d+\. /gm)||[]).length,26);
  assert.equal(h.els['summary-assistant-preview'].value.includes('توصية أصيلة'),false);
  h.els['summary-assistant-kind'].value='recommendations';
  h.els['summary-assistant-kind'].listeners.change();
