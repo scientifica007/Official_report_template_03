@@ -1,6 +1,6 @@
 import {
  GROUPS,DISCUSSION,RUBRICS,newDraft,isAnalytical,lessonItems,
- withWeight,withSuggestions,validateWeights,freezeWeights,withScore,totals,
+ withWeight,withSuggestions,validateWeights,freezeWeights,withScore,totals,groupSummaries,
  validateImport,serialize
 } from "./engine.mjs";
 
@@ -63,9 +63,13 @@ function renderWeights(){
 function renderMarks(){
  const result=totals(draft),ready=!isAnalytical(draft)||draft.profile.frozen;
  const items=ready?lessonItems(draft):[];
+ const subgroupResults=ready&&isAnalytical(draft)?groupSummaries(draft):[];
  const lesson=ready?(isAnalytical(draft)?
   GROUPS.map(group=>'<section class="group"><h3>'+escapeHTML(group.label)+' <small>/ '+group.cap+
-  '</small></h3>'+scoreRows('lesson',items.filter(item=>item.groupId===group.id))+'</section>').join(''):
+  '</small></h3>'+scoreRows('lesson',items.filter(item=>item.groupId===group.id))+
+  '<p class="group-hint">مجموع المعيار: '+show(subgroupResults.find(r=>r.id===group.id)?.total)+' / '+group.cap+
+  ' (مُدخل '+(subgroupResults.find(r=>r.id===group.id)?.entered??0)+' من '+
+  (subgroupResults.find(r=>r.id===group.id)?.required??0)+')</p></section>').join(''):
   scoreRows('lesson',items)):
   '<p class="message">ثبت مجموع أوزان المؤشرات الأربعة عشر أولًا، ثم تصبح حقول علامات الحصة متاحة.</p>';
  return '<section class="pane"><h2>الحصة التدريسية <small>/ 40</small></h2>'+
