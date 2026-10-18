@@ -31,7 +31,7 @@ function harness({shared=false,remote=null}={}){
   text:value=>String(value??'').trim(),
   isSharedReport:()=>active,
   window:{Report03CloudUI:{
-   prepareSharedExport:remote||async()=>({missionId})
+   prepareSharedExport:remote||(async()=>({missionId}))
   },Report03CloudBridge:{applySharedReportData:()=>true}},
   buildPrint(){
    renderCalls++;
