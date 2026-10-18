@@ -159,7 +159,7 @@ test("60/60, unfinished report, and repeating decimal final20 are represented wi
  assert.equal(totals(unfinished).threshold30,null);
  let repeating=newDraft("grouped5");
  repeating=scoreAll(repeating,"lesson",lessonItems(repeating),()=>5);
- repeating=scoreAll(repeating,"discussion",DISCUSSION,(c,i)=>i<6?1.5:1); // 25+10 = 35
+ repeating=scoreAll(repeating,"discussion",DISCUSSION,c=>c.id==="d7"?1:1.5); // 25 + 10 = 35
  assert.equal(totals(repeating).total60,35);
  assert.equal(totals(repeating).score20,35/3);
 });
