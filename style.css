@@ -534,3 +534,19 @@ body:not(.shared-draft-strong) .shared-draft-warning{
  .report-preview-body .print-table-section .report-four-column-table{min-width:700px}
 }
 @media print{.report-preview-dialog{display:none!important}}
+
+
+/* UX-04: optional microphone transcription, isolated from saved report content. */
+.voice-launch{display:inline-flex;align-items:center;justify-content:center;margin:8px 0 12px;min-height:40px;font-size:12px}
+.voice-dictation-panel{background:#f7fbf9;border:1px solid #a7c7b7;border-radius:12px;padding:12px;margin:8px 0 15px;display:grid;gap:10px;max-width:100%}
+.voice-privacy-note{margin:0;border-right:3px solid #b48b48;padding:8px 10px;background:#fffbf2;color:#574830;line-height:1.75;font-size:12px}
+.voice-dictation-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.voice-dictation-actions .btn{min-height:42px;font-size:12px}
+.voice-dictation-actions button:disabled{opacity:.55;cursor:not-allowed}
+.voice-dictation-status{margin:0;color:#225545;font-size:12px;line-height:1.6}
+.voice-language-label,.voice-transcript-label{display:grid;gap:6px;color:#294e41;font-size:12px;font-weight:700}
+.voice-language-label select{padding:8px;width:min(100%,300px);border:1px solid #b2c6bb;border-radius:7px;background:white;color:#264f42}
+.voice-transcript-label textarea{min-height:95px;width:100%;min-width:0;resize:vertical;padding:10px;border:1px solid #acc5b7;border-radius:8px;line-height:1.7;font-weight:400}
+.voice-unsupported{font-size:11px;color:#6b756e;margin:8px 0}
+@media(max-width:730px){.voice-dictation-panel{padding:10px}.voice-dictation-actions{display:grid;grid-template-columns:1fr}.voice-dictation-actions .btn,.voice-launch{min-height:44px}}
+@media print{.voice-launch,.voice-dictation-panel,.voice-unsupported{display:none!important}}
