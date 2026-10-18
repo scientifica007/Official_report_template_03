@@ -296,7 +296,7 @@ test("the five grouped criteria display their fourteen original indicators only 
 test("input boxes expose step=0.5 instead of any; weights remain independently configurable",()=>{
  assert.match(app,/item\.cap,SCORE_STEP/);
  assert.doesNotMatch(app,/item\.cap,'any'/);
- assert.match(app,/item\.cap,\.5,/); // weight field retains 0.5 increment
+ assert.match(app,/group\.cap,\.5,/); // weight field retains 0.5 increment
  assert.match(app,/data-score=/);
  assert.match(app,/العلامة المحصلة هي 0.5 نقطة/);
 });
