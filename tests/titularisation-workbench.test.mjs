@@ -5,7 +5,7 @@ import {execFileSync} from "node:child_process";
 import {
  SCHEMA,RUBRICS,GROUPS,TEN,DISCUSSION,newDraft,isAnalytical,
  suggestedWeights,withWeight,validateWeights,withSuggestions,freezeWeights,
- lessonItems,withScore,totals,validateImport,serialize
+ lessonItems,withScore,totals,groupSummaries,validateImport,serialize
 } from "../prototypes/titularisation-workbench/engine.mjs";
 
 const folder="prototypes/titularisation-workbench/";
@@ -199,4 +199,33 @@ test("malformed import schema, shapes, implicit scoring before frozen profile re
  check(()=>validateImport({...d,profile:[]}),/ملف الأوزان/);
  check(()=>validateImport({...d,scores:{lesson:[],discussion:{}}}),/بنية العلامات/);
  check(()=>validateImport({...d,scores:{lesson:{g2_1:0},discussion:{}}}),/قبل تثبيت الأوزان/);
+});
+
+test("analytical group totals are null until every positive-weight indicator is explicitly scored",()=>{
+ let d=freezeWeights(withSuggestions(newDraft("analytical14")));
+ const empty=groupSummaries(d);
+ assert.equal(empty.length,5);
+ assert.equal(empty[0].total,null);
+ d=withScore(d,"lesson","g2_1",3);
+ d=withScore(d,"lesson","g2_2",0);
+ assert.equal(groupSummaries(d)[1].total,null);
+ assert.equal(groupSummaries(d)[1].partial,3);
+ d=withScore(d,"lesson","g2_3",2);
+ assert.equal(groupSummaries(d)[1].total,5);
+ assert.equal(groupSummaries(d)[1].cap,8);
+});
+test("zero-weight indicator does not count as an unentered group score or fabricate a mark",()=>{
+ let d=withSuggestions(newDraft("analytical14"));
+ d=withWeight(d,"g2_1",0);
+ d=withWeight(d,"g2_2",5);
+ d=withWeight(d,"g2_3",3);
+ d=freezeWeights(d);
+ d=withScore(d,"lesson","g2_2",2);
+ d=withScore(d,"lesson","g2_3",1);
+ const result=groupSummaries(d)[1];
+ assert.equal(result.required,2);
+ assert.equal(result.entered,2);
+ assert.equal(result.total,3);
+ assert.equal(Object.hasOwn(d.scores.lesson,"g2_1"),false);
+ assert.deepEqual(groupSummaries(newDraft("grouped5")),[]);
 });
