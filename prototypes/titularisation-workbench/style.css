@@ -29,3 +29,8 @@ button:hover,.file-button:hover{background:#10513e}button.outline{background:whi
 footer{padding:24px 20px;text-align:center;color:#496657;font-size:12px}
 @media(max-width:680px){.hero{padding:18px 14px}.pane{padding:13px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mark-row{gap:6px}.mark-label strong{font-size:12px}input[type=number]{width:94px}.actions>*{flex:1;min-width:120px}.group{padding:8px}}
 @media print{body{display:none!important}}
+/* ARCH-01D1.1 — source-derived indicators under grouped rubric titles, no individual scoring. */
+.indicator-intro{margin:6px 0 2px!important;font-size:11px;color:#567060}
+.indicator-reminders{margin:2px 0 8px;padding-inline-start:23px;display:grid;gap:2px;list-style:disc}
+.indicator-reminders li{font-size:12px;line-height:1.8;color:#3f564a}
+@media(max-width:680px){.indicator-reminders{padding-inline-start:18px}.indicator-reminders li{font-size:11px}}
