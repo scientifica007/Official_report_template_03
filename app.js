@@ -788,13 +788,153 @@ function voiceAttachControls(root){
  }
 }
 
+
+/* UX-05 — generic, opt-in professional writing scaffolds.
+ * Never infer a fact, classify a finding, submit a contribution or write a
+ * stored report. Text is inserted only into the currently editable draft. */
+const EDITOR_WRITING_SCAFFOLDS=Object.freeze({
+ findings:Object.freeze([
+  {id:'verified-facts',title:'وصف معاينة موثقة',
+   body:'موضوع المعاينة: [حدد العنصر أو النشاط الذي فُحص]\nالوقائع المتثبت منها: [اكتب ما تحققْتَ منه فعليًا]\nوسيلة التحقق: [حدد الوثيقة أو المشاهدة أو المقابلة، إن وجدت]\nتفاصيل أو حدود التحقق: [أضف التفاصيل اللازمة أو اذكر ما لم يتسنّ التحقق منه]'},
+  {id:'evidence-comparison',title:'ربط الوقائع بالسند',
+   body:'المرجع المعتمد: [حدد النص أو الوثيقة المرجعية]\nالوقائع التي تم التحقق منها: [صف الوقائع المثبتة دون افتراض]\nنتيجة المقارنة: [بيّن النتيجة بحسب الدليل المتوفر]\nالمستندات المؤيدة: [اذكر السند المتاح أو اتركه موضحًا لحين التثبت]'},
+  {id:'verification-limits',title:'تحديد حدود التحقق',
+   body:'موضوع التحقق: [حدد المسألة المراد فحصها]\nالمعطيات التي أتيح الاطلاع عليها: [حدد المعطيات المؤكدة]\nالمعطيات التي لم يتسنّ التحقق منها: [حددها بدقة]\nما يلزم لاستكمال التحقق: [حدد الوثيقة أو الإجراء عند الحاجة]'}
+ ]),
+ recommendations:Object.freeze([
+  {id:'action-followup',title:'توصية بإجراء ومتابعة',
+   body:'الإجراء المقترح: [حدد الإجراء المناسب للوقائع المثبتة]\nالأساس المهني: [اربط الاقتراح بالمعاينة أو المرجع]\nالجهة المعنية: [حددها إن كانت معلومة]\nآلية المتابعة: [حدد كيفية التحقق من إنجاز الإجراء]'},
+  {id:'process-improvement',title:'اقتراح تحسين إجراء',
+   body:'المجال المعني: [حدد المجال]\nالتحسين المقترح: [صف التحسين المقصود]\nمبررات الاقتراح: [استند إلى ما ثبت من معاينات]\nمؤشر التحقق من التنفيذ: [حدد مؤشرًا مناسبًا إن أمكن]'},
+  {id:'complete-verification',title:'استكمال التحقق من معطى',
+   body:'المعطى المطلوب استكمال التحقق منه: [حدده]\nالإجراء المقترح: [حدد الوثيقة أو المعاينة أو التحقق اللازم]\nالمصلحة المعنية: [حدد الجهة المعنية إن وجدت]\nطريقة توثيق النتيجة: [بيّن وسيلة التحقق من إتمام المتابعة]'}
+ ])
+});
+let editorTemplatePanelSession=null;
+function editorTemplateChoices(kind){
+ return EDITOR_WRITING_SCAFFOLDS[kind]||[];
+}
+function editorTemplateKind(target){
+ if(!target||target.disabled||target.readOnly)return null;
+ const localKind=target.dataset?.inputKind;
+ if(localKind==='findings'||localKind==='recommendations')return localKind;
+ if(target.dataset?.sharedBody===undefined)return null;
+ const select=target.closest?.('.shared-inline-editor')?.querySelector?.('[data-shared-kind]');
+ if(select?.value==='finding')return 'findings';
+ if(select?.value==='recommendation')return 'recommendations';
+ return null; // Do not insert templates into replies or corrections.
+}
+function editorTemplateCompose(existing,addition,limit=30000){
+ const textBefore=String(existing??''),extra=String(addition??'');
+ if(!extra.trim())return null;
+ const proposed=textBefore+(textBefore&& !textBefore.endsWith('\n')?'\n':'')+extra;
+ return Number.isFinite(limit)&&limit>0&&proposed.length>limit?null:proposed;
+}
+function dismissEditorTemplatePanel(){
+ editorTemplatePanelSession?.panel?.remove?.();
+ editorTemplatePanelSession=null;
+}
+function openEditorTemplatePanel(target){
+ if(!target?.isConnected||target.disabled||target.readOnly)return false;
+ dismissEditorTemplatePanel();
+ const kind=editorTemplateKind(target);
+ if(!kind)return false;
+ const choices=editorTemplateChoices(kind);
+ if(!choices.length)return false;
+ const panel=document.createElement('section');
+ panel.className='editor-template-panel';
+ panel.setAttribute('aria-label','قوالب إرشادية لصياغة التقارير');
+ const note=document.createElement('p');
+ note.className='editor-template-notice';
+ note.textContent='هذه هياكل صياغة فارغة وليست معاينات أو أحكامًا جاهزة. املأ ما بين الأقواس بمعلومات تحققت منها، واحذف ما لا يلزم. الإدراج لا يحفظ المساهمة ولا يغيّر نصًا محفوظًا.';
+ const label=document.createElement('label');
+ label.className='editor-template-label';
+ label.textContent='اختر قالبًا إرشاديًا';
+ const select=document.createElement('select');
+ select.className='editor-template-select';
+ select.setAttribute('aria-label','اختيار قالب إرشادي');
+ for(const choice of choices){
+  const option=document.createElement('option');
+  option.value=choice.id;option.textContent=choice.title;select.appendChild(option);
+ }
+ label.appendChild(select);
+ const previewLabel=document.createElement('strong');
+ previewLabel.className='editor-template-preview-label';
+ previewLabel.textContent='معاينة النص الذي سيُضاف';
+ const preview=document.createElement('pre');
+ preview.className='editor-template-preview';
+ const feedback=document.createElement('p');
+ feedback.className='editor-template-feedback';
+ feedback.setAttribute('role','status');
+ const controls=document.createElement('div');
+ controls.className='editor-template-actions';
+ const insert=document.createElement('button');
+ insert.type='button';insert.className='btn primary';
+ insert.textContent='إدراج القالب في المسودة';
+ const cancel=document.createElement('button');
+ cancel.type='button';cancel.className='btn subtle';cancel.textContent='إغلاق دون إدراج';
+ controls.append(insert,cancel);
+ panel.append(note,label,previewLabel,preview,feedback,controls);
+ target.insertAdjacentElement('afterend',panel);
+ const session={target,panel,kind};
+ editorTemplatePanelSession=session;
+ const active=()=>editorTemplatePanelSession===session&&target.isConnected;
+ const selected=()=>choices.find(c=>c.id===select.value);
+ const showPreview=()=>{
+  const choice=selected();
+  preview.textContent=choice?.body||'';
+  feedback.textContent='';
+ };
+ select.addEventListener('change',showPreview);
+ insert.addEventListener('click',()=>{
+  if(!active())return;
+  if(editorTemplateKind(target)!==kind){
+   feedback.textContent='تغير نوع المساهمة؛ أعد اختيار قالب يتوافق مع نوعها الحالي.';
+   return;
+  }
+  const item=selected();
+  if(!item)return;
+  const limit=target.maxLength>0?target.maxLength:30000;
+  const next=editorTemplateCompose(target.value,item.body,limit);
+  if(next===null){
+   feedback.textContent='لا تكفي المساحة المتاحة لإضافة القالب. راجع طول المسودة أو احذف جزءًا منها أولًا.';
+   return;
+  }
+  target.value=next;
+  target.dispatchEvent(new Event('input',{bubbles:true}));
+  dismissEditorTemplatePanel();
+  target.focus();
+ });
+ cancel.addEventListener('click',dismissEditorTemplatePanel);
+ showPreview();
+ return true;
+}
+function attachEditorTemplates(root){
+ if(!root?.querySelectorAll)return;
+ for(const textarea of root.querySelectorAll('textarea[data-input-target],textarea[data-shared-body]')){
+  if(textarea.readOnly||textarea.disabled)continue;
+  const trigger=document.createElement('button');
+  trigger.type='button';trigger.className='btn subtle editor-template-launch';
+  trigger.textContent='قوالب صياغة';
+  trigger.setAttribute('aria-label','فتح القوالب الإرشادية الاختيارية');
+  trigger.addEventListener('click',()=>{
+   if(!openEditorTemplatePanel(textarea)){
+    // Shared replies and corrections intentionally have no template library.
+    if(textarea.dataset?.sharedBody!==undefined)
+     alert('القوالب متاحة للمعاينات والتوصيات فقط، ولا تطبق على التعقيبات أو التصحيحات.');
+   }
+  });
+  textarea.insertAdjacentElement('afterend',trigger);
+ }
+}
+
 function renderNav(){const shell=$('section-nav');shell.innerHTML=catalog.sections.filter(s=>s.id!=='I').map(s=>`<div><button type="button" class="section-btn ${currentView===s.id?'selected':''}" data-chapter="${s.id}"><span><span class="section-index">${s.id}</span> ${safe(s.label)}</span><span>${s.domains.length?'⌄':'›'}</span></button>${currentView===s.id&&s.domains.length?`<div>${s.domains.map(d=>`<button type="button" class="domain-btn ${currentDomain===d.id?'selected':''}" data-domain="${safe(d.id)}"><span>${d.number?`${d.number}. `:''}${safe(d.label)}</span></button>`).join('')}</div>`:''}</div>`).join('');document.querySelector('[data-view="meta"]').classList.toggle('selected',currentView==='meta')}
 function render(){if(!valid())return;
  const storageLabel=$('report-storage-label');
  if(storageLabel)storageLabel.textContent=isSharedReport()?'مهمة سحابية — يتحقق الحفظ لكل تعديل':'تقرير محلي غير متزامن (وضع قديم)';
  const tag=$('report-storage-status');
  if(tag)tag.textContent=isSharedReport()?'● مهمة سحابية — راجع حالة الحفظ لكل تعديل':'● تقرير محلي مؤقت في ذاكرة التبويب، غير متزامن';
- voiceDismissPanel();renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+renderReportNavigator('top')+(currentView==='meta'?renderMeta():renderChapter())+renderReportNavigator('bottom');voiceAttachControls(root);}
+ voiceDismissPanel();dismissEditorTemplatePanel();renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+renderReportNavigator('top')+(currentView==='meta'?renderMeta():renderChapter())+renderReportNavigator('bottom');voiceAttachControls(root);attachEditorTemplates(root);}
 function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
 function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card" tabindex="-1" data-report-target="${safe(s.id)}"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
  const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card" data-report-target="${safe(i.id)}" tabindex="-1"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
