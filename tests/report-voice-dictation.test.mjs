@@ -290,3 +290,9 @@ test('browser reload is guarded when an uninserted speech transcript exists',()=
  assert.match(code,/يضيع عند إعادة تحميل الصفحة أو إغلاق التبويب/);
  assert.doesNotMatch(code,/sessionStorage\.setItem|localStorage\.setItem|fetch\(/);
 });
+
+test('importing another JSON report cannot silently lose an active voice transcript',()=>{
+ assert.match(app,/async function importJSON\(ev\)[\s\S]*?if\(voiceHasPendingTranscript\(\)\)/);
+ assert.match(app,/حتى لا تختلط المسودات/);
+ assert.match(app,/const validIds=new Set\([\s\S]*?voiceForgetAll\(\);pendingDrafts=Object\.create\(null\)/);
+});
