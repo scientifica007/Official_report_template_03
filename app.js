@@ -627,7 +627,7 @@ function voiceOpenPanel(target){
  const key=voiceTargetKey(target),restored=voiceDrafts.get(key);
  const panel=document.createElement('div');
  panel.className='voice-dictation-panel';
- panel.innerHTML='<p class="voice-privacy-note">الخصوصية: قد يرسل المتصفح صوتك إلى مزوّد خارجي للتعرف عليه. لا تستخدم الإملاء مع معطيات سرية قبل التحقق من سياسة متصفحك. تحتفظ هذه الصفحة مؤقتًا بالنص داخل ذاكرة التبويب لتتمكن من استعادته بعد التنقل، وليس في Supabase أو مساحة تخزين الجهاز. يضيع عند إعادة تحميل الصفحة أو إغلاق التبويب ما لم تنسخه أو تدرجه. بعد المراجعة يمكنك إدراجه في المسودة، ثم حفظ المساهمة بالطريقة المعتادة.</p>'+
+ panel.innerHTML='<p class="voice-privacy-note">الخصوصية: قد يرسل المتصفح صوتك إلى مزوّد خارجي للتعرف عليه. لا تستخدم الإملاء مع معطيات سرية قبل التحقق من سياسة متصفحك. لا تحفظ المنصة الصوت بنفسها. تحتفظ هذه الصفحة مؤقتًا بالنص داخل ذاكرة التبويب لتتمكن من استعادته بعد التنقل، وليس في Supabase أو مساحة تخزين الجهاز. يضيع عند إعادة تحميل الصفحة أو إغلاق التبويب ما لم تنسخه أو تدرجه. بعد المراجعة يمكنك إدراجه في المسودة، ثم حفظ المساهمة بالطريقة المعتادة.</p>'+
   '<label class="voice-language-label">لغة التعرف <select data-voice-language><option value="ar-DZ">العربية — الجزائر</option><option value="ar-SA">العربية — السعودية</option><option value="ar">العربية العامة</option></select></label>'+
   '<div class="voice-dictation-actions"><button type="button" class="btn subtle" data-voice-start>بدء الاستماع بعد الاطلاع على التنبيه</button><button type="button" class="btn subtle" data-voice-stop disabled>إيقاف الاستماع</button></div>'+
   '<p class="voice-dictation-status" role="status" aria-live="polite" data-voice-status>لم يبدأ الاستماع. السكوت القصير لا يوجب إنهاء المسودة.</p>'+
