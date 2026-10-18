@@ -27,7 +27,9 @@ function scoreRows(phase,items){
    '</strong><span>'+(zero?'الوزن صفر؛ محفوظ ضمن الشبكة دون تنقيط':'الحد الأقصى: '+show(item.cap))+
    '</span></div>'+(zero?'<output class="zero-indicator">غير منقّط (وزن صفر)</output>':
    input('score-'+phase+'-'+item.id,has?marks[item.id]:'',0,item.cap,'any',
-     'data-score="'+phase+'" data-score-id="'+item.id+'" aria-label="علامة '+escapeHTML(item.label)+'"'))+
+     'data-score="'+phase+'" data-score-id="'+item.id+'" '+
+     (isAnalytical(draft)&&!draft.profile.frozen?'disabled ':'')+
+     'aria-label="علامة '+escapeHTML(item.label)+'"'))+
    '</div>';
  }).join('');
 }
