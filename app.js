@@ -357,29 +357,134 @@ function getEntry(id){return state.entries[id]??{assessment:null,findings:[],rec
 function renderAssessmentControl(id){const e=getEntry(id);return `<div class="assessment-control" data-value="${safe(e.assessment||'')}"><label for="assessment-${safe(id)}">نتيجة الفحص أو التقييم</label><select id="assessment-${safe(id)}" data-assessment="${safe(id)}" aria-label="نتيجة فحص أو تقييم هذا العنصر"><option value="" ${!assessmentLabel(e.assessment)?'selected':''}>لم يُقيّم بعد</option>${Object.entries(ASSESSMENTS).map(([code,label])=>`<option value="${code}" ${e.assessment===code?'selected':''}>${label}</option>`).join('')}</select><span class="assessment-hint">تصنيف اختياري؛ لا يُنشئ معاينة أو توصية تلقائيًا.</span></div>`}
 
 function counts(){let f=0,r=0;for(const e of Object.values(state.entries)){f+=(e.findings||[]).length;r+=(e.recommendations||[]).length}return {f,r}}
-function updateProgress(){const {f,r}=counts();const assessed=Object.values(state.entries).filter(e=>assessmentLabel(e.assessment)).length;$('report-progress').textContent=`${f} معاينة — ${r} توصية — ${assessed} عنصرًا مقيّمًا`;}
+function updateProgress(){const {f,r}=counts();const assessed=Object.values(state.entries).filter(e=>assessmentLabel(e.assessment)).length;$('report-progress').textContent=`${f} معاينة — ${r} توصية — ${assessed} عنصرًا مقيّمًا`;refreshReportFind();}
 function showToast(message){const n=$('toast');n.textContent=message;n.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>n.classList.remove('show'),3200)}
+
+/* Presentation-only catalog search. Filtering never writes report data. */
+let reportFindQuery='',reportFindFilter='all';
+function normalizeReportFind(value){
+ return String(value??'').normalize('NFKC').toLocaleLowerCase('ar')
+  .replace(/[\u064b-\u065f\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا')
+  .replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
+}
+function reportFindTargets(){
+ if(!valid())return [];
+ return catalog.sections.flatMap(section=>{
+  if(section.id==='I')return [];
+  if(!section.domains.length)return [{id:section.id,sectionId:section.id,domainId:null,
+   label:section.label,context:'الباب '+section.id}];
+  return section.domains.flatMap(domain=>[
+   {id:domain.id,sectionId:section.id,domainId:domain.id,label:domain.label,
+    context:'الباب '+section.id+' — '+section.label+' — مجال'},
+   ...domain.indicators.map(item=>({id:item.id,sectionId:section.id,domainId:domain.id,
+    label:item.label,context:'الباب '+section.id+' — '+domain.label}))
+  ]);
+ });
+}
+function reportFindHasEntries(id){
+ const entry=getEntry(id);
+ return Boolean((entry.findings?.length||0)+(entry.recommendations?.length||0));
+}
+function reportFindHasAssessment(id){return Boolean(assessmentLabel(getEntry(id).assessment))}
+function reportFindDrafts(){
+ if(isSharedReport())return window.Report03CloudUI?.pendingSharedDrafts?.()||[];
+ return Object.entries(pendingDrafts).flatMap(([id,kinds])=>
+  ['findings','recommendations'].filter(kind=>text(kinds?.[kind])).map(kind=>({
+   itemId:id,preview:text(kinds[kind]).slice(0,100)
+  })));
+}
+function reportFindSearchText(node,drafts){
+ const entry=getEntry(node.id);
+ const saved=[...(entry.findings||[]),...(entry.recommendations||[])]
+  .map(note=>note.text||'').join(' ');
+ return normalizeReportFind([node.id,node.label,node.context,saved,
+  ...drafts.filter(d=>d.itemId===node.id).map(d=>d.preview||'')].join(' '));
+}
+function reportFindFiltered(nodes,query,filter,drafts){
+ const normalized=normalizeReportFind(query);
+ const pending=new Set(drafts.map(d=>d.itemId));
+ return nodes.filter(node=>{
+  const entries=reportFindHasEntries(node.id);
+  const assessed=reportFindHasAssessment(node.id);
+  if(filter==='entries'&&!entries)return false;
+  if(filter==='assessed'&&!assessed)return false;
+  if(filter==='unrecorded'&&(entries||assessed))return false;
+  if(filter==='unsaved'&&!pending.has(node.id))return false;
+  return !normalized||reportFindSearchText(node,drafts).includes(normalized);
+ });
+}
+function refreshReportFind(){
+ const results=$('report-find-results');
+ if(!results||!valid())return;
+ const nodes=reportFindTargets(),drafts=reportFindDrafts();
+ const withEntries=nodes.filter(node=>reportFindHasEntries(node.id)).length;
+ const assessed=nodes.filter(node=>reportFindHasAssessment(node.id)).length;
+ const summary=$('report-find-summary');
+ if(summary)summary.textContent='مواضع لها معاينات أو توصيات: '+withEntries+'/'+nodes.length+
+  ' — مواضع مقيّمة: '+assessed+'.';
+ const input=$('report-find-query'),select=$('report-find-filter');
+ if(input&&input.value!==reportFindQuery)input.value=reportFindQuery;
+ if(select&&select.value!==reportFindFilter)select.value=reportFindFilter;
+ const counter=$('report-find-counter');
+ if(!reportFindQuery.trim()&&reportFindFilter==='all'){
+  if(counter)counter.textContent='اكتب كلمة أو اختر مرشحًا لعرض المواضع.';
+  results.replaceChildren();
+  return;
+ }
+ const filtered=reportFindFiltered(nodes,reportFindQuery,reportFindFilter,drafts);
+ const shown=filtered.slice(0,35);
+ if(counter)counter.textContent=filtered.length+
+  ' نتيجة'+(filtered.length>shown.length?' — تظهر أول '+shown.length+' نتيجة، أدخل كلمة لتضييق البحث.':'');
+ const pending=new Set(drafts.map(d=>d.itemId));
+ results.innerHTML=shown.map(node=>{
+  const types=[reportFindHasEntries(node.id)?'معاينة/توصية':'',
+   reportFindHasAssessment(node.id)?'تقييم':'',
+   pending.has(node.id)?'مسودة غير محفوظة':''].filter(Boolean);
+  return '<button type="button" class="report-find-hit" data-find-target="'+safe(node.id)+
+   '" title="الانتقال إلى '+safe(node.label)+'"><span class="report-find-hit-title">'+
+   safe(node.label)+'</span><span class="report-find-hit-context">'+safe(node.context)+
+   '</span><span class="report-find-hit-state">'+
+   safe(types.join('، ')||'دون بيانات مسجلة')+'</span></button>';
+ }).join('')||'<p class="report-find-empty">لا توجد مواضع تطابق البحث والمرشح.</p>';
+}
+function goToReportFindTarget(id){
+ const node=reportFindTargets().find(item=>item.id===id);
+ if(!node)return false;
+ currentView=node.sectionId;
+ currentDomain=node.domainId;
+ render();
+ document.querySelector('.sidebar')?.classList.remove('open');
+ const card=[...document.querySelectorAll('[data-report-target]')]
+  .find(element=>element.dataset.reportTarget===id);
+ if(card){
+  card.querySelector('.shared-editor-card')?.setAttribute('open','');
+  card.scrollIntoView?.({block:'start',behavior:'smooth'});
+  card.focus?.({preventScroll:true});
+ }else window.scrollTo?.({top:0,behavior:'instant'});
+ return true;
+}
+
 function renderNav(){const shell=$('section-nav');shell.innerHTML=catalog.sections.filter(s=>s.id!=='I').map(s=>`<div><button type="button" class="section-btn ${currentView===s.id?'selected':''}" data-chapter="${s.id}"><span><span class="section-index">${s.id}</span> ${safe(s.label)}</span><span>${s.domains.length?'⌄':'›'}</span></button>${currentView===s.id&&s.domains.length?`<div>${s.domains.map(d=>`<button type="button" class="domain-btn ${currentDomain===d.id?'selected':''}" data-domain="${safe(d.id)}"><span>${d.number?`${d.number}. `:''}${safe(d.label)}</span></button>`).join('')}</div>`:''}</div>`).join('');document.querySelector('[data-view="meta"]').classList.toggle('selected',currentView==='meta')}
 function render(){if(!valid())return;
  const storageLabel=$('report-storage-label');
  if(storageLabel)storageLabel.textContent=isSharedReport()?'مهمة سحابية — محفوظة في Supabase':'تقرير محلي غير متزامن (وضع قديم)';
  renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+(currentView==='meta'?renderMeta():renderChapter());}
 function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
-function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
- const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
+function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card" tabindex="-1" data-report-target="${safe(s.id)}"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
+ const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card" data-report-target="${safe(i.id)}" tabindex="-1"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
 function renderEntryEditor(id,label){if(isSharedReport())return window.Report03CloudUI?.renderSharedEntry?.(id)||'<p>تعذر تحميل محرر المهمة المشتركة.</p>';const e=getEntry(id);return `<div class="entry-area">${[['findings','المعاينات','المعاينة'],['recommendations','التوصيات','التوصية']].map(([kind,title,placeholder])=>`<div class="entry-box"><h3>${title} <span class="pill count">${(e[kind]||[]).length}</span></h3>${(e[kind]||[]).length?`<ul class="item-list">${e[kind].map(v=>`<li>${safe(v.text)}<button type="button" class="remove-entry" data-remove="${id}" data-kind="${kind}" data-entry="${v.id}" title="حذف">×</button></li>`).join('')}</ul>`:'<p class="empty">لا يوجد إدخال بعد</p>'}<textarea data-input-target="${id}" data-input-kind="${kind}" placeholder="اكتب ${placeholder}؛ سيُضم النص عند التصدير حتى دون الضغط على زر الإضافة">${safe(pendingDrafts[id]?.[kind]||'')}</textarea><button type="button" class="add-button" data-add="${id}" data-kind="${kind}">+ إضافة ${placeholder}</button></div>`).join('')}</div>`}
 function commitPendingEntries(){let committed=0;for(const [id,kinds] of Object.entries(pendingDrafts)){if(id!=='X'&&id!=='XI'&&!target(id))continue;for(const kind of ['findings','recommendations']){const content=text(kinds[kind]);if(!content)continue;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:content.slice(0,30000)});committed++}}pendingDrafts=Object.create(null);if(committed){changed=true;updateProgress()}return committed}
-function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
+function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(n.id==='report-find-query'){reportFindQuery=n.value;refreshReportFind();return}if(n.dataset.sharedBody!==undefined){queueMicrotask(refreshReportFind);return}if(n.dataset.inputTarget&&['findings','recommendations'].includes(n.dataset.inputKind)){const id=n.dataset.inputTarget;if(!pendingDrafts[id])pendingDrafts[id]={};pendingDrafts[id][n.dataset.inputKind]=n.value;changed=true;refreshReportFind()}else if(n.dataset.group&&n.dataset.field){state[n.dataset.group][n.dataset.field]=n.value;changed=true;
  if(isSharedReport()&&n.dataset.group==='summary')setSharedSummaryStatus(n.dataset.field,'editing',n.value);
  }else if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
  if(inspector&&inspector[n.dataset.prop]!==n.value){
   inspector[n.dataset.prop]=n.value;
   delete inspector.profileId;mayPrefillAccountInspector=false;changed=true;
- }}}});document.addEventListener('change',e=>{let n=e.target;if(n.dataset.storedInstitution!==undefined){chooseInstitution(n.value);return}if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
+ }}}});document.addEventListener('change',e=>{let n=e.target;if(n.id==='report-find-filter'){reportFindFilter=n.value;refreshReportFind();return}if(n.dataset.storedInstitution!==undefined){chooseInstitution(n.value);return}if(n.dataset.inspector&&n.dataset.prop){{const inspector=state.inspectors[Number(n.dataset.inspector)];
  if(inspector&&inspector[n.dataset.prop]!==n.value){
   inspector[n.dataset.prop]=n.value;
   delete inspector.profileId;mayPrefillAccountInspector=false;changed=true;
- }}}if(n.matches('select[data-assessment]')){if(isSharedReport())return;const id=n.dataset.assessment;if(!target(id))return;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id].assessment=assessmentLabel(n.value)?n.value:null;n.closest('.assessment-control').dataset.value=n.value;changed=true;updateProgress()}});document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.draftContrast!==undefined){useStrongDraftHighlight=!useStrongDraftHighlight;document.body.classList.toggle('shared-draft-strong',useStrongDraftHighlight);b.setAttribute('aria-pressed',String(useStrongDraftHighlight));b.textContent=useStrongDraftHighlight?'تمييز المسودات: قوي — تغيير إلى هادئ':'تمييز المسودات: هادئ — تغيير إلى قوي';return}if(b.dataset.saveInstitution!==undefined){saveInstitution();return}if(b.dataset.deleteInstitution!==undefined){deleteInstitution();return}if(b.dataset.exportInstitutions!==undefined){exportInstitutions();return}if(b.dataset.importInstitutions!==undefined){$('institutions-file')?.click();return}if(b.dataset.view==='meta'){currentView='meta';render();scrollTop();return}if(b.dataset.openMap!==undefined){const url=googleMapsLink(state.institution.mapUrl);if(!url){showToast('ألصق أولًا رابطًا صحيحًا للموقع من خرائط Google');return}window.open(url,'_blank','noopener,noreferrer');return}if(b.dataset.chapter){currentView=b.dataset.chapter;currentDomain=sectionOf(currentView)?.domains[0]?.id??null;render();scrollTop();return}if(b.dataset.domain){currentView=target(b.dataset.domain).section.id;currentDomain=b.dataset.domain;render();scrollTop();return}if(b.id==='add-directory-inspector'){const selection=$('report-colleague-select');if(!selection?.value){showToast('اختر مفتشًا من الدليل أولًا');return}addDirectoryInspector(selection.value);return}if(b.id==='add-inspector'){mayPrefillAccountInspector=false;state.inspectors.push({id:makeId(),name:'',role:'IFEP',district:''});changed=true;render();return}if(b.dataset.removeInspector!==undefined){if(state.inspectors.length<=1)return;mayPrefillAccountInspector=false;state.inspectors.splice(Number(b.dataset.removeInspector),1);changed=true;render();return}if(b.dataset.add){if(isSharedReport())return;const id=b.dataset.add,kind=b.dataset.kind;const el=Array.from(document.querySelectorAll('[data-input-target]')).find(n=>n.dataset.inputTarget===id&&n.dataset.inputKind===kind);if(!el||!text(el.value)){showToast('اكتب النص أولًا');return}if(!state.entries[id])state.entries[id]={findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:text(el.value)});if(pendingDrafts[id]){delete pendingDrafts[id][kind];if(!Object.keys(pendingDrafts[id]).length)delete pendingDrafts[id]}changed=true;render();showToast('أضيفت الفقرة');return}if(b.dataset.remove){if(isSharedReport())return;const {remove:id,kind,entry:entryId}=b.dataset;if(!confirm('حذف هذا الإدخال؟'))return;state.entries[id][kind]=state.entries[id][kind].filter(v=>v.id!==entryId);changed=true;render();return}});
+ }}}if(n.matches('select[data-assessment]')){if(isSharedReport())return;const id=n.dataset.assessment;if(!target(id))return;if(!state.entries[id])state.entries[id]={assessment:null,findings:[],recommendations:[]};state.entries[id].assessment=assessmentLabel(n.value)?n.value:null;n.closest('.assessment-control').dataset.value=n.value;changed=true;updateProgress()}});document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.findTarget!==undefined){goToReportFindTarget(b.dataset.findTarget);return}if(b.dataset.draftContrast!==undefined){useStrongDraftHighlight=!useStrongDraftHighlight;document.body.classList.toggle('shared-draft-strong',useStrongDraftHighlight);b.setAttribute('aria-pressed',String(useStrongDraftHighlight));b.textContent=useStrongDraftHighlight?'تمييز المسودات: قوي — تغيير إلى هادئ':'تمييز المسودات: هادئ — تغيير إلى قوي';return}if(b.dataset.saveInstitution!==undefined){saveInstitution();return}if(b.dataset.deleteInstitution!==undefined){deleteInstitution();return}if(b.dataset.exportInstitutions!==undefined){exportInstitutions();return}if(b.dataset.importInstitutions!==undefined){$('institutions-file')?.click();return}if(b.dataset.view==='meta'){currentView='meta';render();scrollTop();return}if(b.dataset.openMap!==undefined){const url=googleMapsLink(state.institution.mapUrl);if(!url){showToast('ألصق أولًا رابطًا صحيحًا للموقع من خرائط Google');return}window.open(url,'_blank','noopener,noreferrer');return}if(b.dataset.chapter){currentView=b.dataset.chapter;currentDomain=sectionOf(currentView)?.domains[0]?.id??null;render();scrollTop();return}if(b.dataset.domain){currentView=target(b.dataset.domain).section.id;currentDomain=b.dataset.domain;render();scrollTop();return}if(b.id==='add-directory-inspector'){const selection=$('report-colleague-select');if(!selection?.value){showToast('اختر مفتشًا من الدليل أولًا');return}addDirectoryInspector(selection.value);return}if(b.id==='add-inspector'){mayPrefillAccountInspector=false;state.inspectors.push({id:makeId(),name:'',role:'IFEP',district:''});changed=true;render();return}if(b.dataset.removeInspector!==undefined){if(state.inspectors.length<=1)return;mayPrefillAccountInspector=false;state.inspectors.splice(Number(b.dataset.removeInspector),1);changed=true;render();return}if(b.dataset.add){if(isSharedReport())return;const id=b.dataset.add,kind=b.dataset.kind;const el=Array.from(document.querySelectorAll('[data-input-target]')).find(n=>n.dataset.inputTarget===id&&n.dataset.inputKind===kind);if(!el||!text(el.value)){showToast('اكتب النص أولًا');return}if(!state.entries[id])state.entries[id]={findings:[],recommendations:[]};state.entries[id][kind].push({id:makeId(),text:text(el.value)});if(pendingDrafts[id]){delete pendingDrafts[id][kind];if(!Object.keys(pendingDrafts[id]).length)delete pendingDrafts[id]}changed=true;render();showToast('أضيفت الفقرة');return}if(b.dataset.remove){if(isSharedReport())return;const {remove:id,kind,entry:entryId}=b.dataset;if(!confirm('حذف هذا الإدخال؟'))return;state.entries[id][kind]=state.entries[id][kind].filter(v=>v.id!==entryId);changed=true;render();return}});
  $('btn-export').addEventListener('click',async()=>{
   const button=$('btn-export');
   button.disabled=true;
