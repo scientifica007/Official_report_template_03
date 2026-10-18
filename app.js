@@ -556,12 +556,29 @@ function reportNavigateStep(direction){
 }
 
 
-/* UX-04: opt-in dictation for finding/recommendation drafts only.
- * Browser speech recognition may use a vendor-operated remote recognizer.
- * No audio is captured, uploaded, or stored by this application's code. */
+/* UX-04.1 — opt-in, resilient recognition with an in-tab transcript recovery buffer.
+ * The browser may transmit audio to its recognition provider. The app never saves
+ * audio or recognized text to a server. The transcript is not a report entry until
+ * the inspector explicitly reviews and inserts it, then saves the report draft. */
 let voiceDictationSession=null;
+const voiceDrafts=new Map();
 function voiceRecognitionConstructor(){
  return window.SpeechRecognition||window.webkitSpeechRecognition||null;
+}
+function voiceTargetKey(target){
+ if(target?.dataset?.sharedBody!==undefined)
+  return 'shared:'+sharedReportMissionId+':'+target.dataset.sharedBody;
+ if(target?.dataset?.inputTarget!==undefined)
+  return 'local:'+target.dataset.inputTarget+':'+target.dataset.inputKind;
+ return '';
+}
+function voiceHasPendingTranscript(){
+ return [...voiceDrafts.values()].some(d=>Boolean(String(d?.text||'').trim()))||
+  Boolean(voiceDictationSession?.transcript?.value?.trim());
+}
+function voiceForgetAll(){
+ voiceDismissPanel(true);
+ voiceDrafts.clear();
 }
 function voiceComposeDraft(original,addition){
  const first=String(original??''),second=String(addition??'').trim();
@@ -572,21 +589,33 @@ function voiceRecognitionError(code){
   'not-allowed':'رُفض إذن الميكروفون. تحقق من سماح المتصفح باستعماله.',
   'service-not-allowed':'خدمة التعرف الصوتي غير متاحة أو غير مسموح بها في المتصفح.',
   'audio-capture':'تعذر الوصول إلى الميكروفون.',
-  'no-speech':'لم يُلتقط كلام واضح. يمكنك إعادة المحاولة.',
-  'network':'تعذر الاتصال بخدمة التعرف الصوتي التي يستخدمها المتصفح.',
+  'no-speech':'لم يُلتقط كلام واضح. سيحاول البرنامج الاستئناف إن أمكن.',
+  'network':'تعذر الاتصال بخدمة التعرف الصوتي للمتصفح. جرّب Chrome أو Edge أو الكتابة اليدوية.',
   'language-not-supported':'هذه اللغة غير مدعومة. جرّب خيارًا عربيًا آخر.',
   'aborted':'توقف التعرف الصوتي.'
  };
  return messages[code]||'تعذر التعرف على الكلام. يمكنك إعادة المحاولة أو الكتابة يدويًا.';
 }
-function voiceDismissPanel(){
+function voiceRemember(session){
+ if(!session?.key)return;
+ const value=String(session.transcript?.value??'');
+ if(value.trim())voiceDrafts.set(session.key,{text:value,language:session.language?.value||'ar-DZ'});
+ else voiceDrafts.delete(session.key);
+}
+function voiceDismissPanel(discard=false){
  const session=voiceDictationSession;
  voiceDictationSession=null;
  if(!session)return;
+ if(discard)voiceDrafts.delete(session.key);
+ else voiceRemember(session);
+ session.keepListening=false;
+ if(session.retryTimer!=null)window.clearTimeout(session.retryTimer);
+ session.retryTimer=null;
  if(session.recognizer){
   const recognition=session.recognizer;
   recognition.onresult=null;recognition.onerror=null;recognition.onend=null;
   try{recognition.abort()}catch(e){}
+  session.recognizer=null;
  }
  session.panel?.remove?.();
 }
@@ -595,67 +624,131 @@ function voiceOpenPanel(target){
  const Recognition=voiceRecognitionConstructor();
  if(!Recognition)return;
  voiceDismissPanel();
+ const key=voiceTargetKey(target),restored=voiceDrafts.get(key);
  const panel=document.createElement('div');
  panel.className='voice-dictation-panel';
- panel.innerHTML='<p class="voice-privacy-note">الخصوصية: قد يرسل المتصفح صوتك إلى مزوّد خارجي للتعرف عليه. لا تستخدم الإملاء مع معطيات سرية قبل التأكد من سياسة متصفحك. لا تحفظ المنصة الصوت؛ والنص الناتج لا يدخل في التقرير حتى تراجعه وتضغط «إدراج في المسودة»، ثم تحفظ المساهمة بالطريقة المعتادة.</p>'+
+ panel.innerHTML='<p class="voice-privacy-note">الخصوصية: قد يرسل المتصفح صوتك إلى مزوّد خارجي للتعرف عليه. لا تستخدم الإملاء مع معطيات سرية قبل التحقق من سياسة متصفحك. لا تحفظ المنصة الصوت بنفسها. تحتفظ هذه الصفحة مؤقتًا بالنص داخل ذاكرة التبويب لتتمكن من استعادته بعد التنقل، وليس في Supabase أو مساحة تخزين الجهاز. يضيع عند إعادة تحميل الصفحة أو إغلاق التبويب ما لم تنسخه أو تدرجه. بعد المراجعة يمكنك إدراجه في المسودة، ثم حفظ المساهمة بالطريقة المعتادة.</p>'+
   '<label class="voice-language-label">لغة التعرف <select data-voice-language><option value="ar-DZ">العربية — الجزائر</option><option value="ar-SA">العربية — السعودية</option><option value="ar">العربية العامة</option></select></label>'+
   '<div class="voice-dictation-actions"><button type="button" class="btn subtle" data-voice-start>بدء الاستماع بعد الاطلاع على التنبيه</button><button type="button" class="btn subtle" data-voice-stop disabled>إيقاف الاستماع</button></div>'+
-  '<p class="voice-dictation-status" role="status" aria-live="polite" data-voice-status>لم يبدأ الاستماع.</p>'+
-  '<label class="voice-transcript-label">النص المتعرف عليه — راجعه وصححه قبل الإدراج<textarea data-voice-transcript rows="3" placeholder="سيظهر النص هنا ويمكن تعديله"></textarea></label>'+
-  '<div class="voice-dictation-actions"><button type="button" class="btn primary" data-voice-insert>إدراج في المسودة فقط</button><button type="button" class="btn subtle" data-voice-cancel>إلغاء دون إدراج</button></div>';
+  '<p class="voice-dictation-status" role="status" aria-live="polite" data-voice-status>لم يبدأ الاستماع. السكوت القصير لا يوجب إنهاء المسودة.</p>'+
+  '<label class="voice-transcript-label">نص الإملاء المؤقت — راجعه وصححه قبل الإدراج<textarea data-voice-transcript rows="5" placeholder="سيظهر النص هنا ويمكن تعديله"></textarea></label>'+
+  '<div class="voice-dictation-actions"><button type="button" class="btn subtle" data-voice-copy>نسخ النص احتياطيًا</button><button type="button" class="btn primary" data-voice-insert>إدراج في المسودة فقط</button><button type="button" class="btn subtle" data-voice-cancel>إلغاء وحذف نص الإملاء</button></div>';
  target.insertAdjacentElement('afterend',panel);
- const session={target,panel,recognizer:null};
- voiceDictationSession=session;
  const status=panel.querySelector('[data-voice-status]'),
   transcript=panel.querySelector('[data-voice-transcript]'),
   start=panel.querySelector('[data-voice-start]'),
   stop=panel.querySelector('[data-voice-stop]'),
   language=panel.querySelector('[data-voice-language]');
+ const session={key,target,panel,transcript,language,recognizer:null,retryTimer:null,
+  keepListening:false,emptyStops:0};
+ voiceDictationSession=session;
+ if(restored){
+  transcript.value=restored.text;
+  language.value=restored.language;
+  status.textContent='استُعيد نص إملاء غير مُدرج من ذاكرة هذا التبويب. يمكنك إكماله أو نسخه أو إدراجه.';
+ }
  const active=()=>voiceDictationSession===session&&target.isConnected;
  const setStatus=message=>{if(active())status.textContent=message};
- start.addEventListener('click',()=>{
-  if(!active()||session.recognizer)return;
+ const keepDraft=()=>{if(active())voiceRemember(session)};
+ transcript.addEventListener('input',keepDraft);
+ function beginListening(){
+  if(!active()||!session.keepListening||session.recognizer)return;
   let recognition;
-  try{recognition=new Recognition()}catch(e){setStatus('تعذر تهيئة التعرف الصوتي في هذا المتصفح.');return}
+  try{recognition=new Recognition()}catch(e){
+   session.keepListening=false;start.disabled=false;stop.disabled=true;
+   setStatus('تعذر تهيئة التعرف الصوتي في هذا المتصفح. بقي النص محفوظًا مؤقتًا.');
+   return;
+  }
   session.recognizer=recognition;
+  const seenFinal=new Set();
+  let gotWords=false,failed=false;
   recognition.lang=language.value||'ar-DZ';
-  recognition.continuous=false;
+  recognition.continuous=true; // Browser support varies; onend restarts after silence.
   recognition.interimResults=false;
   recognition.maxAlternatives=1;
   recognition.onresult=event=>{
-   if(!active())return;
+   if(!active()||session.recognizer!==recognition)return;
    const parts=[];
    for(let i=event.resultIndex||0;i<event.results.length;i++){
     const result=event.results[i];
-    if(result?.isFinal&&result[0]?.transcript)parts.push(result[0].transcript.trim());
+    if(result?.isFinal&&result[0]?.transcript&&!seenFinal.has(i)){
+     seenFinal.add(i);parts.push(result[0].transcript.trim());
+    }
    }
    if(parts.length){
-    transcript.value=[transcript.value.trim(),...parts].filter(Boolean).join(' ');
-    setStatus('التعرف اكتمل. راجع النص وصححه قبل إدراجه.');
+    gotWords=true;session.emptyStops=0;
+    transcript.value=voiceComposeDraft(transcript.value,parts.filter(Boolean).join(' '));
+    keepDraft();
+    setStatus('أضيف النص إلى مسودة الإملاء المؤقتة. يمكنك متابعة الحديث أو المراجعة أو النسخ.');
    }
   };
-  recognition.onerror=event=>setStatus(voiceRecognitionError(event?.error));
+  recognition.onerror=event=>{
+   if(!active()||session.recognizer!==recognition)return;
+   const code=event?.error;
+   if(code!=='no-speech'&&code!=='aborted'){
+    failed=true;session.keepListening=false;
+    start.disabled=false;stop.disabled=true;
+   }
+   setStatus(voiceRecognitionError(code));
+  };
   recognition.onend=()=>{
-   if(!active())return;
-   session.recognizer=null;start.disabled=false;stop.disabled=true;
-   if(!transcript.value.trim()&&!String(status.textContent).includes('تعذر')&&
-      !String(status.textContent).includes('رُفض')&&
-      !String(status.textContent).includes('لم يُلتقط'))
-    setStatus('انتهى الاستماع دون نص. يمكنك إعادة المحاولة أو الكتابة يدويًا.');
+   if(!active()||session.recognizer!==recognition)return;
+   session.recognizer=null;
+   if(!session.keepListening||failed){
+    start.disabled=false;stop.disabled=true;
+    return;
+   }
+   if(!gotWords)session.emptyStops++;
+   if(session.emptyStops>=6){
+    session.keepListening=false;start.disabled=false;stop.disabled=true;
+    setStatus('توقف التعرف بعد عدة فترات صمت. النص السابق محفوظ مؤقتًا؛ اضغط «استئناف الاستماع» لمواصلة الإملاء.');
+    start.textContent='استئناف الاستماع';
+    return;
+   }
+   setStatus('توقف التعرف مؤقتًا؛ سيحاول استئناف الاستماع. النص السابق محفوظ في التبويب.');
+   session.retryTimer=window.setTimeout(()=>{
+    session.retryTimer=null;
+    if(active()&&session.keepListening)beginListening();
+   },400);
   };
   try{
    recognition.start();
    start.disabled=true;stop.disabled=false;
-   setStatus('الميكروفون يعمل عبر المتصفح. تحدّث الآن؛ يمكنك إيقاف الاستماع.');
+   setStatus('الاستماع جارٍ. يمكنك الكلام مع فواصل قصيرة؛ يظل النص السابق محفوظًا.');
   }catch(e){
-   session.recognizer=null;start.disabled=false;stop.disabled=true;
-   setStatus('تعذر بدء الاستماع. تحقق من إذن الميكروفون ودعم المتصفح.');
+   session.recognizer=null;session.keepListening=false;
+   start.disabled=false;stop.disabled=true;
+   setStatus('تعذر بدء الاستماع أو استئنافه. جرّب مجددًا أو اختر متصفحًا آخر؛ النص باقٍ.');
   }
+ }
+ start.addEventListener('click',()=>{
+  if(!active()||session.keepListening)return;
+  session.keepListening=true;session.emptyStops=0;
+  beginListening();
  });
  stop.addEventListener('click',()=>{
-  if(!active()||!session.recognizer)return;
-  try{session.recognizer.stop();setStatus('جارٍ إنهاء الاستماع وانتظار النص...')}
-  catch(e){setStatus('تعذر إيقاف التعرف تلقائيًا. اختر إلغاء إن لزم.')}
+  if(!active())return;
+  session.keepListening=false;
+  if(session.retryTimer!=null)window.clearTimeout(session.retryTimer);
+  session.retryTimer=null;start.disabled=false;stop.disabled=true;
+  if(session.recognizer){
+   try{session.recognizer.stop()}catch(e){}
+  }
+  start.textContent='استئناف الاستماع';
+  setStatus('تم إيقاف الاستماع. النص محفوظ مؤقتًا؛ راجعه أو انسخه أو أدرجه.');
+ });
+ panel.querySelector('[data-voice-copy]').addEventListener('click',async()=>{
+  if(!active())return;
+  const value=transcript.value;
+  if(!value.trim()){setStatus('لا يوجد نص للنسخ.');return}
+  try{
+   if(!navigator.clipboard?.writeText)throw Error('clipboard unavailable');
+   await navigator.clipboard.writeText(value);
+   setStatus('نُسخ النص إلى الحافظة. لا يزال متاحًا للمراجعة والإدراج.');
+  }catch(e){
+   transcript.focus();transcript.select?.();
+   setStatus('تعذر النسخ التلقائي؛ حُدد النص لتنسخه يدويًا.');
+  }
  });
  panel.querySelector('[data-voice-insert]').addEventListener('click',()=>{
   if(!active())return;
@@ -663,10 +756,14 @@ function voiceOpenPanel(target){
   if(!draft){setStatus('لا يوجد نص لإدراجه. يمكنك كتابته أو إعادة الإملاء.');return}
   target.value=voiceComposeDraft(target.value,draft);
   target.dispatchEvent(new Event('input',{bubbles:true}));
-  voiceDismissPanel();
+  voiceDismissPanel(true);
   target.focus();
  });
- panel.querySelector('[data-voice-cancel]').addEventListener('click',voiceDismissPanel);
+ panel.querySelector('[data-voice-cancel]').addEventListener('click',()=>{
+  if(!active())return;
+  if(transcript.value.trim()&&!confirm('سيُحذف نص الإملاء المؤقت دون إدراجه في التقرير. هل تؤكد الحذف؟'))return;
+  voiceDismissPanel(true);
+ });
 }
 function voiceAttachControls(root){
  if(!root?.querySelectorAll)return;
@@ -682,9 +779,9 @@ function voiceAttachControls(root){
  }
  for(const textarea of inputs){
   const button=document.createElement('button');
-  button.type='button';
-  button.className='btn subtle voice-launch';
-  button.textContent='إملاء صوتي';
+  button.type='button';button.className='btn subtle voice-launch';
+  button.textContent=voiceDrafts.has(voiceTargetKey(textarea))
+   ?'استعادة نص إملاء مؤقت':'إملاء صوتي';
   button.setAttribute('aria-label','إملاء صوتي اختياري؛ قد يستخدم المتصفح خدمة خارجية للتعرف على الكلام');
   button.addEventListener('click',()=>voiceOpenPanel(textarea));
   textarea.insertAdjacentElement('afterend',button);
@@ -734,14 +831,18 @@ function bindHandlers(){document.addEventListener('input',e=>{let n=e.target;if(
  });$('close-dialog').onclick=$('dialog-cancel').onclick=()=>$('export-dialog').close();$('do-json').onclick=exportJSON;$('do-docx').onclick=exportDOCX;$('do-pdf').onclick=exportPDF;const previewButton=$('btn-preview'),previewClose=$('close-report-preview'),previewDialog=$('report-preview-dialog');if(previewButton&&previewClose&&previewDialog){previewButton.onclick=openReportPreview;previewClose.onclick=closeReportPreview;previewDialog.addEventListener('close',clearReportPreview)}$('btn-import').onclick=()=>{if(isSharedReport()){showToast('استيراد JSON متاح للتقرير الفردي فقط.');return}$('import-file').click()};$('import-file').addEventListener('change',importJSON);document.addEventListener('change',e=>{if(e.target.id==='institutions-file')importInstitutions(e)});$('btn-clear').onclick=$('dialog-clear').onclick=clearReport;$('menu-toggle').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');window.addEventListener('beforeunload',e=>{
  const pendingShared=isSharedReport()&&(pendingSharedSummaryFields().length>0||
   window.Report03CloudUI?.hasUnsentSharedDrafts?.());
- if(changed||pendingShared){e.preventDefault();e.returnValue=''}
+ if(changed||pendingShared||voiceHasPendingTranscript()){e.preventDefault();e.returnValue=''}
 });}
 function scrollTop(){document.querySelector('.sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'instant'})}
 function download(bytes,type,extension){const a=document.createElement('a');const blob=new Blob([bytes],{type});a.href=URL.createObjectURL(blob);const c=(state.institution.code||'report03').replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,40);a.download=`inspection_03_${c}_${new Date().toISOString().slice(0,10)}.${extension}`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}
 function exportSnapshot(){if(!isSharedReport())commitPendingEntries();const entries={};for(const [key,e] of Object.entries(state.entries)){if(!(e.findings.length||e.recommendations.length||assessmentLabel(e.assessment)))continue;entries[key]={assessment:assessmentLabel(e.assessment)?e.assessment:null,findings:e.findings.map(x=>({...x})),recommendations:e.recommendations.map(x=>({...x}))}}return {templateId:state.templateId,catalogVersion:catalog.catalogVersion,exportVersion:'1.0',status:'draft',issuedAt:new Date().toISOString(),mission:{...state.mission},institution:{...state.institution},director:{...state.director},summary:{...state.summary},inspectors:state.inspectors.map(x=>({...x})),legacyAssessments:state.legacyAssessments.map(x=>({...x})),entries,...(isSharedReport()?{collaboration:structuredClone(sharedProvenance)}:{})}}
 function exportJSON(){const out=JSON.stringify(exportSnapshot(),null,2);download(out,'application/json;charset=utf-8','json');changed=false;showToast('تم تنزيل ملف JSON. يمكنك استيراده لاحقًا.')}
-async function importJSON(ev){const file=ev.target.files?.[0];ev.target.value='';if(!file)return;try{if(file.size>5_000_000)throw Error('حجم الملف كبير جدًا');const x=JSON.parse(await file.text());if(x.templateId!=='OFFICIAL_REPORT_TEMPLATE_03'||typeof x.entries!=='object'||!x.entries||Array.isArray(x.entries))throw Error('هذا الملف ليس تقريرًا مدعومًا');const validIds=new Set([...[...catalog.sections.map(s=>s.id)],...allDomains().flatMap(d=>[d.id,...d.indicators.map(i=>i.id)])]);pendingDrafts=Object.create(null);const entries={};const legacyAssessments=Array.isArray(x.legacyAssessments)?x.legacyAssessments.slice(0,100).filter(v=>v&&typeof v==='object'&&assessmentLabel(v.assessment)).map(v=>({sourceId:String(v.sourceId||'').slice(0,100),label:String(v.label||'').slice(0,2000),assessment:v.assessment})):[];for(const [oldId,e] of Object.entries(x.entries)){const split=catalog.splitHistory?.find(rule=>rule.legacyId===oldId);const id=split?split.domainId:(oldId==='III-02-I006'?'III-02-I005':oldId);if(!validIds.has(id)||!e||typeof e!=='object')continue;if(!entries[id])entries[id]={assessment:null,findings:[],recommendations:[]};if(assessmentLabel(e.assessment)){if(split){legacyAssessments.push({sourceId:split.legacyId,label:split.legacyLabel,assessment:e.assessment})}else entries[id].assessment=e.assessment}for(const kind of ['findings','recommendations']){if(Array.isArray(e[kind]))entries[id][kind].push(...e[kind].slice(0,500).filter(v=>v&&typeof v.text==='string').map(v=>({id:makeId(),text:v.text.slice(0,30000)})))}}selectedInstitutionId='';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();mayPrefillAccountInspector=false;state={...emptyState(),mission:x.mission&&typeof x.mission==='object'?x.mission:{},institution:x.institution&&typeof x.institution==='object'?x.institution:{},director:x.director&&typeof x.director==='object'?x.director:{},summary:x.summary&&typeof x.summary==='object'?x.summary:{},inspectors:Array.isArray(x.inspectors)&&x.inspectors.length?x.inspectors.slice(0,30).map(v=>({id:makeId(),name:String(v.name||'').slice(0,200),role:['IFEP','ITP','IAF'].includes(v.role)?v.role:'IFEP',district:String(v.district||'').slice(0,100),...(typeof v.profileId==='string'&&/^[0-9a-fA-F-]{36}$/.test(v.profileId)?{profileId:v.profileId}:{})})):[{id:makeId(),name:'',role:'IFEP',district:''}],entries,legacyAssessments};currentView='meta';changed=true;render();showToast(legacyAssessments.length?'تم الاستيراد؛ تقييمات المؤشرات المركبة القديمة محفوظة للمراجعة في JSON ولم تُوزّع على عناصر جديدة':'تم استيراد بيانات التقرير إلى ذاكرة التبويب')}catch(err){alert('تعذّر الاستيراد: '+err.message)}}
-function clearReport(){if(isSharedReport()){showToast('لا يمكن محو البيانات المركزية من محرر المهمة. ارجع إلى مهام التفتيش.');return}if(!confirm('سيتم محو جميع بيانات التقرير الحالية من ذاكرة هذا التبويب. هل تأكدت من تنزيل ملف JSON أو DOCX أو PDF قبل المتابعة؟'))return;state=emptyState();mayPrefillAccountInspector=true;prefillFromCurrentSession();selectedInstitutionId='';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;$('print-root').replaceChildren();$('import-file').value='';$('export-dialog').close();render();showToast('تم محو بيانات التقرير من الواجهة')}
+async function importJSON(ev){const file=ev.target.files?.[0];ev.target.value='';if(!file)return;
+ if(voiceHasPendingTranscript()){
+  alert('توجد كتابة صوتية مؤقتة لم تُدرج في التقرير. انسخها أو أدرجها أو ألغها قبل استيراد تقرير آخر، حتى لا تختلط المسودات.');return;
+ }
+ try{if(file.size>5_000_000)throw Error('حجم الملف كبير جدًا');const x=JSON.parse(await file.text());if(x.templateId!=='OFFICIAL_REPORT_TEMPLATE_03'||typeof x.entries!=='object'||!x.entries||Array.isArray(x.entries))throw Error('هذا الملف ليس تقريرًا مدعومًا');const validIds=new Set([...[...catalog.sections.map(s=>s.id)],...allDomains().flatMap(d=>[d.id,...d.indicators.map(i=>i.id)])]);voiceForgetAll();pendingDrafts=Object.create(null);const entries={};const legacyAssessments=Array.isArray(x.legacyAssessments)?x.legacyAssessments.slice(0,100).filter(v=>v&&typeof v==='object'&&assessmentLabel(v.assessment)).map(v=>({sourceId:String(v.sourceId||'').slice(0,100),label:String(v.label||'').slice(0,2000),assessment:v.assessment})):[];for(const [oldId,e] of Object.entries(x.entries)){const split=catalog.splitHistory?.find(rule=>rule.legacyId===oldId);const id=split?split.domainId:(oldId==='III-02-I006'?'III-02-I005':oldId);if(!validIds.has(id)||!e||typeof e!=='object')continue;if(!entries[id])entries[id]={assessment:null,findings:[],recommendations:[]};if(assessmentLabel(e.assessment)){if(split){legacyAssessments.push({sourceId:split.legacyId,label:split.legacyLabel,assessment:e.assessment})}else entries[id].assessment=e.assessment}for(const kind of ['findings','recommendations']){if(Array.isArray(e[kind]))entries[id][kind].push(...e[kind].slice(0,500).filter(v=>v&&typeof v.text==='string').map(v=>({id:makeId(),text:v.text.slice(0,30000)})))}}selectedInstitutionId='';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();mayPrefillAccountInspector=false;state={...emptyState(),mission:x.mission&&typeof x.mission==='object'?x.mission:{},institution:x.institution&&typeof x.institution==='object'?x.institution:{},director:x.director&&typeof x.director==='object'?x.director:{},summary:x.summary&&typeof x.summary==='object'?x.summary:{},inspectors:Array.isArray(x.inspectors)&&x.inspectors.length?x.inspectors.slice(0,30).map(v=>({id:makeId(),name:String(v.name||'').slice(0,200),role:['IFEP','ITP','IAF'].includes(v.role)?v.role:'IFEP',district:String(v.district||'').slice(0,100),...(typeof v.profileId==='string'&&/^[0-9a-fA-F-]{36}$/.test(v.profileId)?{profileId:v.profileId}:{})})):[{id:makeId(),name:'',role:'IFEP',district:''}],entries,legacyAssessments};currentView='meta';changed=true;render();showToast(legacyAssessments.length?'تم الاستيراد؛ تقييمات المؤشرات المركبة القديمة محفوظة للمراجعة في JSON ولم تُوزّع على عناصر جديدة':'تم استيراد بيانات التقرير إلى ذاكرة التبويب')}catch(err){alert('تعذّر الاستيراد: '+err.message)}}
+function clearReport(){if(isSharedReport()){showToast('لا يمكن محو البيانات المركزية من محرر المهمة. ارجع إلى مهام التفتيش.');return}if(!confirm('سيتم محو جميع بيانات التقرير الحالية من ذاكرة هذا التبويب. هل تأكدت من تنزيل ملف JSON أو DOCX أو PDF قبل المتابعة؟'))return;voiceForgetAll();state=emptyState();mayPrefillAccountInspector=true;prefillFromCurrentSession();selectedInstitutionId='';selectedCloudInstitutionId='';window.Report03CloudUI?.resetSelection?.();pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;$('print-root').replaceChildren();$('import-file').value='';$('export-dialog').close();render();showToast('تم محو بيانات التقرير من الواجهة')}
 function entryHtml(id){const e=getEntry(id);if(!e.findings.length&&!e.recommendations.length&&!assessmentLabel(e.assessment))return '';return `<div class="print-note">${assessmentLabel(e.assessment)?`<div class="print-assessment">نتيجة الفحص أو التقييم: ${safe(assessmentLabel(e.assessment))}</div>`:''}${e.findings.length?`<span class="print-label">المعاينات:</span><ul>${e.findings.map(x=>`<li>${safe(x.text)}</li>`).join('')}</ul>`:''}${e.recommendations.length?`<span class="print-label">التوصيات:</span><ul>${e.recommendations.map(x=>`<li>${safe(x.text)}</li>`).join('')}</ul>`:''}</div>`}
 
 /* Parallel print columns: findings and recommendations always align with their own criterion. */
@@ -1044,12 +1145,12 @@ window.Report03CloudBridge={
  },
  prepareLogout(){
   if(isSharedReport()&&this.exitSharedMission()===false)return false;
-  const reportHasData=hasInspectionInput()||
+  const reportHasData=hasInspectionInput()||voiceHasPendingTranscript()||
     ['mission','institution','director','summary'].some(group=>
       Object.values(state[group]||{}).some(value=>Boolean(text(value))))||
     (state.inspectors||[]).some(i=>Object.values(i).some(value=>Boolean(text(value))));
   if(reportHasData&&!confirm('سيؤدي تسجيل الخروج إلى محو بيانات التقرير الجاري من ذاكرة التبويب. صدّر JSON أو DOCX أو PDF قبل المتابعة. هل تريد تسجيل الخروج ومحو المسودة؟'))return false;
-  state=emptyState();mayPrefillAccountInspector=true;selectedInstitutionId='';selectedCloudInstitutionId='';
+  voiceForgetAll();state=emptyState();mayPrefillAccountInspector=true;selectedInstitutionId='';selectedCloudInstitutionId='';
   pendingDrafts=Object.create(null);changed=false;currentView='meta';currentDomain=null;
   $('print-root')?.replaceChildren();
   const file=$('import-file');if(file)file.value='';

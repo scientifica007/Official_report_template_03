@@ -550,3 +550,9 @@ body:not(.shared-draft-strong) .shared-draft-warning{
 .voice-unsupported{font-size:11px;color:#6b756e;margin:8px 0}
 @media(max-width:730px){.voice-dictation-panel{padding:10px}.voice-dictation-actions{display:grid;grid-template-columns:1fr}.voice-dictation-actions .btn,.voice-launch{min-height:44px}}
 @media print{.voice-launch,.voice-dictation-panel,.voice-unsupported{display:none!important}}
+
+/* UX-04.1 — transcript remains recoverable in the current tab; no persistence API. */
+.voice-launch{max-width:100%;white-space:normal}
+.voice-transcript-label textarea{min-height:144px}
+.voice-dictation-actions button[data-voice-copy]{border-color:#8bab9b}
+@media(max-width:730px){.voice-transcript-label textarea{min-height:160px}}
