@@ -56,10 +56,18 @@
       </div>
     </header>
     <div class="status-row">
-      <div class="status-tag">● التقرير في ذاكرة التبويب؛ المؤسسات المحفوظة على هذا الجهاز</div>
+      <div class="status-tag" id="report-storage-status">● حالة الحفظ تُحدد حسب نوع المهمة</div>
       <div id="report-progress" class="progress-text">0 معاينة — 0 توصية</div>
       <button id="btn-clear" class="text-danger" type="button">محو بيانات التقرير</button>
     </div>
+    <section class="report-work-metrics" aria-label="متابعة بيانات التقرير">
+      <div class="report-work-metric"><span>مواضع بها معاينات أو توصيات</span><strong id="report-metric-entries">0 / 217</strong></div>
+      <div class="report-work-metric"><span>مواضع ذات تقييم اختياري</span><strong id="report-metric-assessed">0</strong></div>
+      <div class="report-work-metric"><span>مسودات مساهمات غير مرسلة</span><strong id="report-metric-drafts">0</strong></div>
+      <div class="report-work-metric"><span>حالة المراجعة المهنية</span><strong id="report-metric-review">لا تُستنتج آليًا</strong></div>
+      <p class="report-work-save" id="report-persistence-status" role="status" aria-live="polite"></p>
+      <p class="report-work-explainer">هذه مؤشرات لوجود بيانات أو تقييمات؛ لا تعني اكتمال فحص المجال أو اعتماد التقرير. لا تُعدّ المسودة محفوظة سحابيًا قبل تأكيد الخادم.</p>
+    </section>
     <main id="workspace" class="workspace" tabindex="-1"></main>
   </div>
 </div>
