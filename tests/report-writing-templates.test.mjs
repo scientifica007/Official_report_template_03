@@ -7,7 +7,7 @@ const app=readFileSync('app.js','utf8');
 const css=readFileSync('style.css','utf8');
 const cloud=readFileSync('cloud.js','utf8');
 const start=app.indexOf('/* UX-05 — generic, opt-in professional writing scaffolds.');
-const end=app.indexOf('function renderNav(){',start);
+const end=app.indexOf('/* UX-06 — source-based summary assembly,',start);
 assert.ok(start>=0&&end>start,'UX-05 helpers should be isolated');
 const source=app.slice(start,end);
 
