@@ -168,6 +168,21 @@ function phaseTotal(draft,phase,items){
   total:entered===required?sum:null,
   partial:sum,cap:phase==="lesson"?40:20};
 }
+export function groupSummaries(draft){
+ if(!isAnalytical(draft)||!draft.profile?.frozen)return [];
+ const marks=draft.scores.lesson,items=lessonItems(draft);
+ return GROUPS.map(group=>{
+  let entered=0,required=0,partial=0;
+  for(const item of items.filter(item=>item.groupId===group.id)){
+   if(item.cap===0)continue;
+   required++;
+   if(!Object.hasOwn(marks,item.id))continue;
+   entered++;partial+=marks[item.id];
+  }
+  return {id:group.id,label:group.label,cap:group.cap,entered,required,
+   complete:entered===required,total:entered===required?partial:null,partial};
+ });
+}
 export function totals(draft){
  const lesson=isAnalytical(draft)&&!draft.profile?.frozen?
   {complete:false,entered:0,required:14,total:null,partial:0,cap:40}:
