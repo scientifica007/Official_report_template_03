@@ -1,6 +1,6 @@
 import {
  GROUPS,DISCUSSION,RUBRICS,newDraft,isAnalytical,lessonItems,
- withWeight,withSuggestions,validateWeights,freezeWeights,withScore,totals,groupSummaries,
+ withWeight,withSuggestions,validateWeights,freezeWeights,withScore,totals,groupSummaries,SCORE_STEP,
  validateImport,serialize
 } from "./engine.mjs";
 
@@ -23,10 +23,15 @@ function scoreRows(phase,items){
  const marks=draft.scores[phase];
  return items.map(item=>{
   const zero=item.cap===0,has=Object.hasOwn(marks,item.id);
+  const reminders=phase==='lesson'&&draft.rubricId===RUBRICS.grouped5.id?
+   GROUPS.find(group=>group.id===item.id)?.items:null;
+  const reminderHTML=reminders?
+   '<p class="indicator-intro">المؤشرات التابعة لهذا المعيار (للتذكير فقط):</p><ul class="indicator-reminders">'+
+   reminders.map(indicator=>'<li>'+escapeHTML(indicator.label)+'</li>').join('')+'</ul>':'';
   return '<div class="mark-row"><div class="mark-label"><strong>'+escapeHTML(item.label)+
-   '</strong><span>'+(zero?'الوزن صفر؛ محفوظ ضمن الشبكة دون تنقيط':'الحد الأقصى: '+show(item.cap))+
+   '</strong>'+reminderHTML+'<span>'+(zero?'الوزن صفر؛ محفوظ ضمن الشبكة دون تنقيط':'الحد الأقصى: '+show(item.cap))+
    '</span></div>'+(zero?'<output class="zero-indicator">غير منقّط (وزن صفر)</output>':
-   input('score-'+phase+'-'+item.id,has?marks[item.id]:'',0,item.cap,'any',
+   input('score-'+phase+'-'+item.id,has?marks[item.id]:'',0,item.cap,SCORE_STEP,
      'data-score="'+phase+'" data-score-id="'+item.id+'" '+
      (isAnalytical(draft)&&!draft.profile.frozen?'disabled ':'')+
      'aria-label="علامة '+escapeHTML(item.label)+'"'))+
@@ -91,7 +96,7 @@ function renderSummary(){
  return '<section class="pane" aria-label="نتيجة الحساب"><h2>حالة الحساب التجريبي</h2>'+
   '<div class="metrics">'+metrics+'</div><p class="message">'+escapeHTML(status)+
   '. عتبة 30/60 مرجع عددي في النص التنظيمي، <strong>وليست قرار اللجنة</strong>.</p>'+
-  '<p class="muted small">تُعرض نتيجة القسمة استرشاديًا حتى أربع منازل، دون اعتماد سياسة تقريب. دقة إدخال العلامة المحصلة غير محسومة بعد. لا تُولّد هذه الصفحة تقريرًا رسميًا أو محضرًا.</p>'+
+  '<p class="muted small">تُعرض نتيجة القسمة استرشاديًا حتى أربع منازل، دون اعتماد سياسة تقريب. أصغر خطوة للعلامة المحصلة هي 0.5 نقطة في الشبكات الثلاث والمناقشة، ويظل تقريب /20 مسألة مستقلة. لا تُولّد هذه الصفحة تقريرًا رسميًا أو محضرًا.</p>'+
   '</section>';
 }
 function render(){
