@@ -1027,7 +1027,7 @@ function summaryAssistantOpen(fieldKey){
  if(search)search.value='';
  if(filter)filter.value='all';
  const warning=$('summary-assistant-warning');
- if(warning)warning.textContent=rows.length?'اختر ما يناسب الخلاصة من جميع المساهمات المحفوظة. لا توجد أولوية آلية أو حذف للمصادر. تُنسخ النصوص كما هي مع سياقها؛ عليك مراجعتها وصياغة الحكم المهني بنفسك.':
+ if(warning)warning.textContent=rows.length?('اختر ما يناسب الخلاصة من جميع المساهمات المحفوظة. لا توجد أولوية آلية أو حذف للمصادر. تُنسخ النصوص كما هي مع سياقها؛ عليك مراجعتها وصياغة الحكم المهني بنفسك.'+(fieldKey==='generalRecommendations'?' تنبيه: توصيات المجالات تُدرج أصلًا في التقرير النهائي؛ أعد تحرير المواد المنتقاة ولا تكرر التوصيات نفسها هنا.':'')):
   'لا توجد معاينات أو توصيات محفوظة في البيانات المحملة حاليًا. أضف مساهمات أو حدّث المهمة، ثم أعد المحاولة.';
  const feedback=$('summary-assistant-feedback');
  if(feedback)feedback.textContent='';
