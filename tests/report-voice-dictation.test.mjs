@@ -77,7 +77,8 @@ test('Arabic dictation starts only through explicit user activation with privacy
 });
 test('combining recognized text preserves all typed material without auto-save',()=>{
  const h=harness();
- assert.equal(h.ctx.api.voiceComposeDraft('معاينة سابقة  ','ملاحظة جديدة'),'معاينة سابقة\nملاحظة جديدة');
+ assert.equal(h.ctx.api.voiceComposeDraft('معاينة سابقة  ','ملاحظة جديدة'),'معاينة سابقة  \nملاحظة جديدة');
+ assert.equal(h.ctx.api.voiceComposeDraft('فقرة\n','إضافة'),'فقرة\nإضافة');
  assert.equal(h.ctx.api.voiceComposeDraft('السطر الموجود',''),'السطر الموجود');
  assert.equal(h.ctx.api.voiceComposeDraft('',' نصّ جديد '),'نصّ جديد');
  assert.equal(h.ctx.api.voiceComposeDraft('السطر الموجود','  '),'السطر الموجود');
