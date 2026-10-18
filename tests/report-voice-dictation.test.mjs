@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const app=readFileSync('app.js','utf8');
 const css=readFileSync('style.css','utf8');
 const cloud=readFileSync('cloud.js','utf8');
-const first=app.indexOf('/* UX-04: opt-in dictation');
+const first=app.indexOf('/* UX-04.1 — opt-in, resilient recognition');
 const last=app.indexOf('function renderNav(){',first);
 assert.ok(first>=0&&last>first,'UX-04 helpers are isolated');
 const code=app.slice(first,last);
