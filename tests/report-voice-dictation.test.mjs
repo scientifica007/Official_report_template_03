@@ -58,7 +58,7 @@ function harness({speech=true}={}){
  const window=speech?{SpeechRecognition:Recognition}:{};
  window.setTimeout=fn=>{const id=++nextTimer;timers.set(id,fn);return id};
  window.clearTimeout=id=>timers.delete(id);
- const ctx={window,document:doc,navigator:{clipboard:{writeText:async()=>{}}},
+ const ctx={window,document:doc,sharedReportMissionId:'mission-1',navigator:{clipboard:{writeText:async()=>{}}},
   confirm:()=>approvedCancel,
   Event:class Event{constructor(type,init){this.type=type;this.bubbles=init?.bubbles}}};
  vm.createContext(ctx);
@@ -277,7 +277,7 @@ test('shared and local speech drafts cannot leak between reports or tasks',()=>{
  h.ctx.api.voiceDismissPanel();
  const shared=h.textarea('same-id');
  delete shared.dataset.inputTarget;shared.dataset.sharedBody='same-id';
- assert.equal(h.ctx.api.voiceTargetKey(shared),'shared:undefined:same-id');
+ assert.equal(h.ctx.api.voiceTargetKey(shared),'shared:mission-1:same-id');
  h.ctx.api.voiceOpenPanel(shared);
  assert.equal(shared.inserted[0].children['[data-voice-transcript]'].value,'');
  h.ctx.api.voiceForgetAll();
@@ -287,6 +287,6 @@ test('browser reload is guarded when an uninserted speech transcript exists',()=
  assert.match(app,/if\(changed\|\|pendingShared\|\|voiceHasPendingTranscript\(\)\)/);
  assert.match(app,/voiceForgetAll\(\);state=emptyState/);
  assert.match(app,/voiceForgetAll\(\);state=emptyState\(\)/);
- assert.match(code,/تضيع عند إعادة تحميل الصفحة أو إغلاق التبويب/);
+ assert.match(code,/يضيع عند إعادة تحميل الصفحة أو إغلاق التبويب/);
  assert.doesNotMatch(code,/sessionStorage\.setItem|localStorage\.setItem|fetch\(/);
 });
