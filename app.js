@@ -555,13 +555,149 @@ function reportNavigateStep(direction){
  return true;
 }
 
+
+/* UX-04: opt-in dictation for finding/recommendation drafts only.
+ * Browser speech recognition may use a vendor-operated remote recognizer.
+ * No audio is captured, uploaded, or stored by this application's code. */
+let voiceDictationSession=null;
+function voiceRecognitionConstructor(){
+ return window.SpeechRecognition||window.webkitSpeechRecognition||null;
+}
+function voiceComposeDraft(original,addition){
+ const first=String(original??''),second=String(addition??'').trim();
+ return second?(first?first+(first.endsWith('\n')?'':'\n')+second:second):first;
+}
+function voiceRecognitionError(code){
+ const messages={
+  'not-allowed':'رُفض إذن الميكروفون. تحقق من سماح المتصفح باستعماله.',
+  'service-not-allowed':'خدمة التعرف الصوتي غير متاحة أو غير مسموح بها في المتصفح.',
+  'audio-capture':'تعذر الوصول إلى الميكروفون.',
+  'no-speech':'لم يُلتقط كلام واضح. يمكنك إعادة المحاولة.',
+  'network':'تعذر الاتصال بخدمة التعرف الصوتي التي يستخدمها المتصفح.',
+  'language-not-supported':'هذه اللغة غير مدعومة. جرّب خيارًا عربيًا آخر.',
+  'aborted':'توقف التعرف الصوتي.'
+ };
+ return messages[code]||'تعذر التعرف على الكلام. يمكنك إعادة المحاولة أو الكتابة يدويًا.';
+}
+function voiceDismissPanel(){
+ const session=voiceDictationSession;
+ voiceDictationSession=null;
+ if(!session)return;
+ if(session.recognizer){
+  const recognition=session.recognizer;
+  recognition.onresult=null;recognition.onerror=null;recognition.onend=null;
+  try{recognition.abort()}catch(e){}
+ }
+ session.panel?.remove?.();
+}
+function voiceOpenPanel(target){
+ if(!target||!target.isConnected||target.readOnly||target.disabled)return;
+ const Recognition=voiceRecognitionConstructor();
+ if(!Recognition)return;
+ voiceDismissPanel();
+ const panel=document.createElement('div');
+ panel.className='voice-dictation-panel';
+ panel.innerHTML='<p class="voice-privacy-note">الخصوصية: قد يرسل المتصفح صوتك إلى مزوّد خارجي للتعرف عليه. لا تستخدم الإملاء مع معطيات سرية قبل التأكد من سياسة متصفحك. لا تحفظ المنصة الصوت؛ والنص الناتج لا يدخل في التقرير حتى تراجعه وتضغط «إدراج في المسودة»، ثم تحفظ المساهمة بالطريقة المعتادة.</p>'+
+  '<label class="voice-language-label">لغة التعرف <select data-voice-language><option value="ar-DZ">العربية — الجزائر</option><option value="ar-SA">العربية — السعودية</option><option value="ar">العربية العامة</option></select></label>'+
+  '<div class="voice-dictation-actions"><button type="button" class="btn subtle" data-voice-start>بدء الاستماع بعد الاطلاع على التنبيه</button><button type="button" class="btn subtle" data-voice-stop disabled>إيقاف الاستماع</button></div>'+
+  '<p class="voice-dictation-status" role="status" aria-live="polite" data-voice-status>لم يبدأ الاستماع.</p>'+
+  '<label class="voice-transcript-label">النص المتعرف عليه — راجعه وصححه قبل الإدراج<textarea data-voice-transcript rows="3" placeholder="سيظهر النص هنا ويمكن تعديله"></textarea></label>'+
+  '<div class="voice-dictation-actions"><button type="button" class="btn primary" data-voice-insert>إدراج في المسودة فقط</button><button type="button" class="btn subtle" data-voice-cancel>إلغاء دون إدراج</button></div>';
+ target.insertAdjacentElement('afterend',panel);
+ const session={target,panel,recognizer:null};
+ voiceDictationSession=session;
+ const status=panel.querySelector('[data-voice-status]'),
+  transcript=panel.querySelector('[data-voice-transcript]'),
+  start=panel.querySelector('[data-voice-start]'),
+  stop=panel.querySelector('[data-voice-stop]'),
+  language=panel.querySelector('[data-voice-language]');
+ const active=()=>voiceDictationSession===session&&target.isConnected;
+ const setStatus=message=>{if(active())status.textContent=message};
+ start.addEventListener('click',()=>{
+  if(!active()||session.recognizer)return;
+  let recognition;
+  try{recognition=new Recognition()}catch(e){setStatus('تعذر تهيئة التعرف الصوتي في هذا المتصفح.');return}
+  session.recognizer=recognition;
+  recognition.lang=language.value||'ar-DZ';
+  recognition.continuous=false;
+  recognition.interimResults=false;
+  recognition.maxAlternatives=1;
+  recognition.onresult=event=>{
+   if(!active())return;
+   const parts=[];
+   for(let i=event.resultIndex||0;i<event.results.length;i++){
+    const result=event.results[i];
+    if(result?.isFinal&&result[0]?.transcript)parts.push(result[0].transcript.trim());
+   }
+   if(parts.length){
+    transcript.value=[transcript.value.trim(),...parts].filter(Boolean).join(' ');
+    setStatus('التعرف اكتمل. راجع النص وصححه قبل إدراجه.');
+   }
+  };
+  recognition.onerror=event=>setStatus(voiceRecognitionError(event?.error));
+  recognition.onend=()=>{
+   if(!active())return;
+   session.recognizer=null;start.disabled=false;stop.disabled=true;
+   if(!transcript.value.trim()&&!String(status.textContent).includes('تعذر')&&
+      !String(status.textContent).includes('رُفض')&&
+      !String(status.textContent).includes('لم يُلتقط'))
+    setStatus('انتهى الاستماع دون نص. يمكنك إعادة المحاولة أو الكتابة يدويًا.');
+  };
+  try{
+   recognition.start();
+   start.disabled=true;stop.disabled=false;
+   setStatus('الميكروفون يعمل عبر المتصفح. تحدّث الآن؛ يمكنك إيقاف الاستماع.');
+  }catch(e){
+   session.recognizer=null;start.disabled=false;stop.disabled=true;
+   setStatus('تعذر بدء الاستماع. تحقق من إذن الميكروفون ودعم المتصفح.');
+  }
+ });
+ stop.addEventListener('click',()=>{
+  if(!active()||!session.recognizer)return;
+  try{session.recognizer.stop();setStatus('جارٍ إنهاء الاستماع وانتظار النص...')}
+  catch(e){setStatus('تعذر إيقاف التعرف تلقائيًا. اختر إلغاء إن لزم.')}
+ });
+ panel.querySelector('[data-voice-insert]').addEventListener('click',()=>{
+  if(!active())return;
+  const draft=transcript.value.trim();
+  if(!draft){setStatus('لا يوجد نص لإدراجه. يمكنك كتابته أو إعادة الإملاء.');return}
+  target.value=voiceComposeDraft(target.value,draft);
+  target.dispatchEvent(new Event('input',{bubbles:true}));
+  voiceDismissPanel();
+  target.focus();
+ });
+ panel.querySelector('[data-voice-cancel]').addEventListener('click',voiceDismissPanel);
+}
+function voiceAttachControls(root){
+ if(!root?.querySelectorAll)return;
+ const inputs=[...root.querySelectorAll('textarea[data-input-target],textarea[data-shared-body]')]
+  .filter(input=>!input.readOnly&&!input.disabled);
+ if(!inputs.length)return;
+ if(!voiceRecognitionConstructor()){
+  const msg=document.createElement('p');
+  msg.className='voice-unsupported';
+  msg.textContent='الإملاء الصوتي غير متاح في هذا المتصفح؛ يمكنك متابعة الكتابة يدويًا.';
+  inputs[0].insertAdjacentElement('afterend',msg);
+  return;
+ }
+ for(const textarea of inputs){
+  const button=document.createElement('button');
+  button.type='button';
+  button.className='btn subtle voice-launch';
+  button.textContent='إملاء صوتي';
+  button.setAttribute('aria-label','إملاء صوتي اختياري؛ قد يستخدم المتصفح خدمة خارجية للتعرف على الكلام');
+  button.addEventListener('click',()=>voiceOpenPanel(textarea));
+  textarea.insertAdjacentElement('afterend',button);
+ }
+}
+
 function renderNav(){const shell=$('section-nav');shell.innerHTML=catalog.sections.filter(s=>s.id!=='I').map(s=>`<div><button type="button" class="section-btn ${currentView===s.id?'selected':''}" data-chapter="${s.id}"><span><span class="section-index">${s.id}</span> ${safe(s.label)}</span><span>${s.domains.length?'⌄':'›'}</span></button>${currentView===s.id&&s.domains.length?`<div>${s.domains.map(d=>`<button type="button" class="domain-btn ${currentDomain===d.id?'selected':''}" data-domain="${safe(d.id)}"><span>${d.number?`${d.number}. `:''}${safe(d.label)}</span></button>`).join('')}</div>`:''}</div>`).join('');document.querySelector('[data-view="meta"]').classList.toggle('selected',currentView==='meta')}
 function render(){if(!valid())return;
  const storageLabel=$('report-storage-label');
  if(storageLabel)storageLabel.textContent=isSharedReport()?'مهمة سحابية — يتحقق الحفظ لكل تعديل':'تقرير محلي غير متزامن (وضع قديم)';
  const tag=$('report-storage-status');
  if(tag)tag.textContent=isSharedReport()?'● مهمة سحابية — راجع حالة الحفظ لكل تعديل':'● تقرير محلي مؤقت في ذاكرة التبويب، غير متزامن';
- renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+renderReportNavigator('top')+(currentView==='meta'?renderMeta():renderChapter())+renderReportNavigator('bottom');}
+ voiceDismissPanel();renderNav();updateProgress();const root=$('workspace');root.innerHTML=(isSharedReport()?sharedMissionBanner():'')+renderReportNavigator('top')+(currentView==='meta'?renderMeta():renderChapter())+renderReportNavigator('bottom');voiceAttachControls(root);}
 function renderMeta(){return `<h2 class="page-title">إعداد بيانات مهمة التفتيش</h2><p class="page-sub">املأ بيانات الغلاف والمقدمة والمؤسسة، ثم انتقل إلى الأبواب الرسمية لإضافة المعاينات والتوصيات. ${isSharedReport()?'مدخلات المهمة المشتركة تُحفظ لدى Supabase وتُعرض لجميع أعضائها.':'تظل بيانات التقرير الفردي في ذاكرة التبويب ويمكن اختيار مؤسسة من السجل المركزي أو سجل المؤسسات المحلي.'}</p><div class="scope-warning">${isSharedReport()?'محرر مهمة مشتركة: أعضاء المهمة المعتمدون متساوون، وتُحفظ المساهمات بأسماء أصحابها. بيانات المؤسسة مثبتة عند إنشاء المهمة.':'للتقرير الفردي: إدراج أسماء مفتشين آخرين على الغلاف لا يُنشئ مهمة مشتركة ولا يمنحهم حق التحرير.'}</div>${state.legacyAssessments.length?`<div class="scope-warning">استُعيد ${state.legacyAssessments.length} تقييم سابق لمؤشر مركّب. حُفظت الحالات الأصلية في JSON للمراجعة، ولم تُنقل تلقائيًا إلى عناصر التقييم المفصّلة.</div>`:''}${FIELDSETS.map(g=>`<section class="card"><h2>${g.label}</h2>${g.id==='institution'&&!isSharedReport()?renderInstitutionBook():''}<div class="field-grid">${g.fields.map(([id,label,type])=>`<div class="field ${type==='textarea'?'wide':''} ${isSharedReport()&&g.id==='summary'?'shared-summary-field':''}" ${isSharedReport()&&g.id==='summary'?`data-save-state="${sharedSummaryStatus[id]||''}"`:''}><label for="${g.id}-${id}">${label}</label>${type==='textarea'?`<textarea id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" rows="3" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''}>${safe(state[g.id][id]||'')}</textarea>${isSharedReport()&&g.id==='summary'? `<div class="shared-summary-controls"><span data-summary-status="${id}" class="shared-summary-status" role="status" aria-live="polite">${sharedSummaryText(id)}</span><button type="button" class="btn subtle shared-summary-save" data-save-shared-summary="${id}">حفظ التعديل</button></div>`:''}`:`<input type="text" id="${g.id}-${id}" data-group="${g.id}" data-field="${id}" value="${safe(state[g.id][id]||'')}" placeholder="${safe(label)}" ${isSharedReport()&&!(['mission','summary'].includes(g.id)&&!['purpose','visitDates'].includes(id))?'readonly':''} />`}</div>`).join('')}</div>${g.id==='institution'?`<div class="map-help"><span>ألصق رابط المشاركة من خرائط Google. لا يُفتح الرابط إلا عند ضغطك على الزر.</span><button type="button" class="add-button" data-open-map="true">فتح موقع المؤسسة على Google Maps</button></div>`:''}</section>`).join('')}<section class="card"><h2>المفتشون المشاركون في إعداد التقرير</h2><p class="helper">${isSharedReport()?'أسماء المشاركين المقبولين مستخرجة من عضوية المهمة المشتركة ولا تُعدّل هنا.':'يُدرج المفتش صاحب الحساب تلقائيًا ويمكن إضافة مفتشين للغلاف دون منح صلاحية تحرير مشترك.'}</p><div id="inspector-rows">${isSharedReport()?state.inspectors.map(p=>`<div class="team-row"><strong>${safe(p.name)}</strong><span>${safe(inspectorTitle(p.role))} — ${safe(p.district)}</span></div>`).join(''):state.inspectors.map((p,i)=>`<div class="team-row"><div class="field"><label>الاسم واللقب</label><input value="${safe(p.name)}" data-inspector="${i}" data-prop="name" placeholder="الاسم واللقب" /></div><div class="field"><label>الصفة</label><select data-inspector="${i}" data-prop="role">${[['IFEP','مفتش التكوين والتعليم المهنيين (IFEP)'],['ITP','مفتش تقني وبيداغوجي (ITP)'],['IAF','مفتش إداري ومالي (IAF)']].map(([v,l])=>`<option ${p.role===v?'selected':''} value="${v}">${l}</option>`).join('')}</select></div><div class="field"><label>المقاطعة</label><input data-inspector="${i}" data-prop="district" value="${safe(p.district)}" placeholder="المقاطعة" /></div><button type="button" class="remove-button" data-remove-inspector="${i}" ${state.inspectors.length===1?'disabled title="يلزم وجود مفتش واحد على الأقل"':''}>حذف</button></div>`).join('')}</div>${isSharedReport()?'':renderReportColleaguePicker()+'<button class="add-button" type="button" id="add-inspector">+ إضافة مفتش يدويًا</button>'}</section>`}
 function renderChapter(){const s=sectionOf(currentView);if(!s)return '';if(s.id==='I')return renderMeta();if(!s.domains.length){return `<div class="domain-head"><span class="crumb">الباب ${s.id}</span><h2>${safe(s.label)}</h2></div><div class="card" tabindex="-1" data-report-target="${safe(s.id)}"><div class="chapter-empty">${s.id==='X'?'يُحرر التقدير العام في صفحة «بيانات المهمة والمؤسسة»، مع إمكانية إضافة معاينات عامة أدناه.':'تُجمع التوصيات المعتمدة تلقائيًا من المجالات، ويمكن إضافة توصيات عامة في صفحة البيانات.'}</div>${renderEntryEditor(s.id,'هذا الباب')}</div>`}
  const d=s.domains.find(x=>x.id===currentDomain)||s.domains[0];currentDomain=d.id;const items=[{id:d.id,label:'المجال كاملًا (معاينة أو توصية عامة)'},...d.indicators];return `<div class="domain-head"><div class="crumb">${s.id} — ${safe(s.label)}</div><h2>${d.number?`${d.number}. `:''}${safe(d.label)}</h2><p>${d.indicators.length} عناصر فحص أو تقييم واردة في الفهرس الأولي</p></div><div class="scope-warning">المعاينات والتوصيات التي تكتبها تخص العنصر المعروض. تحتفظ الصادرات بالمعرّفات الثابتة للفهرس. يمكن تحديد حالة المجال أو المؤشر اختياريا دون تغيير النص الرسمي أو توليد معاينات تلقائية.</div>${items.map((i,n)=>`<article class="indicator-card" data-report-target="${safe(i.id)}" tabindex="-1"><div class="indicator-header"><span class="indicator-heading">${n===0?'المجال كاملًا':safe(i.label)}</span><span class="pill">${n===0?'مجال':`مؤشر ${n}`}</span></div>${renderAssessmentControl(i.id)}${renderEntryEditor(i.id,n===0?'المجال':'المؤشر')}</article>`).join('')}`}
