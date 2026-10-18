@@ -564,8 +564,8 @@ function voiceRecognitionConstructor(){
  return window.SpeechRecognition||window.webkitSpeechRecognition||null;
 }
 function voiceComposeDraft(original,addition){
- const first=String(original??'').trimEnd(),second=String(addition??'').trim();
- return second?(first?first+'\n'+second:second):String(original??'');
+ const first=String(original??''),second=String(addition??'').trim();
+ return second?(first?first+(first.endsWith('\n')?'':'\n')+second:second):first;
 }
 function voiceRecognitionError(code){
  const messages={
