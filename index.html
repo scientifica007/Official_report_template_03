@@ -85,6 +85,45 @@
   </div>
   <div id="report-preview-body" class="report-preview-body" dir="rtl" aria-label="المحتوى الكامل للتقرير"></div>
 </dialog>
+
+<dialog id="report-summary-assistant" class="report-summary-assistant" aria-labelledby="summary-assistant-title">
+  <div class="summary-assistant-header">
+    <div>
+      <h2 id="summary-assistant-title">مساعد تجميع مواد الخلاصة</h2>
+      <p>الحقل المستهدف: <strong id="summary-assistant-target"></strong></p>
+    </div>
+    <button type="button" class="btn subtle" id="summary-assistant-close">العودة دون إدراج</button>
+  </div>
+  <div class="summary-assistant-content">
+    <p id="summary-assistant-warning" class="summary-assistant-warning"></p>
+    <div class="summary-assistant-filters">
+      <label>بحث داخل النصوص المسجلة
+        <input id="summary-assistant-query" type="search" placeholder="بحث في المعاينات أو التوصيات أو اسم المجال"/>
+      </label>
+      <label>نوع المساهمة
+        <select id="summary-assistant-kind">
+          <option value="all">المعاينات والتوصيات</option>
+          <option value="findings">المعاينات فقط</option>
+          <option value="recommendations">التوصيات فقط</option>
+        </select>
+      </label>
+    </div>
+    <div class="summary-assistant-controls">
+      <button type="button" class="btn subtle" id="summary-assistant-select-visible">تحديد جميع النتائج المعروضة</button>
+      <button type="button" class="btn subtle" id="summary-assistant-clear">إلغاء جميع الاختيارات</button>
+      <span id="summary-assistant-counter" role="status" aria-live="polite"></span>
+    </div>
+    <div id="summary-assistant-results" class="summary-assistant-results" aria-label="المساهمات المحفوظة القابلة للاختيار"></div>
+    <label class="summary-assistant-preview-label">النص المنتقى — راجعه قبل إدراجه
+      <textarea id="summary-assistant-preview" readonly rows="7" aria-label="معاينة النص المجمع قبل الإدراج"></textarea>
+    </label>
+    <p id="summary-assistant-feedback" class="summary-assistant-feedback" role="status" aria-live="polite"></p>
+  </div>
+  <div class="summary-assistant-footer">
+    <span>لن يتغير حقل الخلاصة إلا بعد الضغط على «إضافة المحدد إلى المسودة». الحفظ السحابي إجراء مستقل وفق قواعد المحرر.</span>
+    <button type="button" class="btn primary" id="summary-assistant-insert" disabled>إضافة المحدد إلى المسودة</button>
+  </div>
+</dialog>
 <dialog id="export-dialog">
   <div class="dialog-content">
     <div class="dialog-head"><h2>إصدار التقرير</h2><button id="close-dialog" type="button" class="icon-btn" aria-label="إغلاق">×</button></div>
