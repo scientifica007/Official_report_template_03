@@ -32,7 +32,8 @@ function scoreControls(phase,item,has,marks){
   'data-score="'+phase+'" '+data+(disabled?'disabled ':'')+
   'aria-label="علامة '+escapeHTML(item.label)+'"');
  const half=show(item.cap/2);
- const range='<input type="range" class="score-range" min="0" max="'+item.cap+
+ const range='<input type="range" class="score-range" id="range-'+phase+'-'+item.id+
+  '" min="0" max="'+item.cap+
   '" step="'+SCORE_STEP+'" value="'+(has?value:0)+'" data-range="'+phase+'" '+data+
   'data-empty="'+(has?'false':'true')+'" '+
   (disabled?'disabled ':'')+
@@ -137,25 +138,48 @@ $('rubric').addEventListener('change',event=>{
 });
 // During a drag, update the paired number and totals without replacing
 // the slider element. Rebuild other counters only when the gesture finishes.
+function updateRangeUI(range,value,recorded){
+ if(!range)return;
+ range.value=recorded?value:0;
+ range.dataset.empty=recorded?'false':'true';
+ range.style.setProperty('--range-progress',rangeFill(value,range.max,recorded));
+ range.setAttribute('aria-valuetext',recorded?show(Number(value))+' من '+range.max:'علامة لم تُدخل بعد');
+ const status=range.closest('.score-range-wrap')?.querySelector('.range-status');
+ if(status)status.textContent=recorded?'العلامة المختارة: '+show(Number(value))+' / '+range.max:
+  'لم تُسجل علامة بعد — حرّك الشريط أو أدخل قيمة';
+}
+function refreshLiveTotal(){
+ const summary=$('workbench').querySelector('[data-totals-panel]');
+ if(summary)summary.outerHTML=renderSummary();
+}
 function commitRange(range,{finish=false}={}){
  const phase=range.dataset.range,id=range.dataset.scoreId;
  draft=withScore(draft,phase,id,range.value);
- range.dataset.empty='false';
- range.style.setProperty('--range-progress',rangeFill(range.value,range.max,true));
- range.setAttribute('aria-valuetext',show(Number(range.value))+' من '+range.max);
+ updateRangeUI(range,range.value,true);
  const number=$('score-'+phase+'-'+id);
  if(number)number.value=range.value;
- const status=range.closest('.score-range-wrap')?.querySelector('.range-status');
- if(status)status.textContent='العلامة المختارة: '+show(Number(range.value))+' / '+range.max;
- const summary=$('workbench').querySelector('[data-totals-panel]');
- if(summary)summary.outerHTML=renderSummary();
+ refreshLiveTotal();
  notice='';
  if(finish)render();
 }
 $('workbench').addEventListener('input',event=>{
  const range=event.target.closest('[data-range]');
- if(!range)return;
- try{commitRange(range)}catch(err){feedback(err.message)}
+ if(range){
+  try{commitRange(range)}catch(err){feedback(err.message)}
+  return;
+ }
+ const number=event.target.closest('[data-score]');
+ if(!number)return;
+ // Do not replace the focused number input while the inspector types.
+ // Only valid complete values affect the saved draft/paired range. Invalid
+ // intermediate text remains visible for correction until change/blur.
+ try{
+  draft=withScore(draft,number.dataset.score,number.dataset.scoreId,number.value);
+  const paired=$('range-'+number.dataset.score+'-'+number.dataset.scoreId);
+  updateRangeUI(paired,number.value,number.value!=='');
+  refreshLiveTotal();
+  notice='';
+ }catch{ /* The change event validates and reports any unfinished value. */ }
 });
 $('workbench').addEventListener('keyup',event=>{
  const range=event.target.closest('[data-range]');
