@@ -21,7 +21,7 @@ function itemRow(container,state,who,phase,item,commit){
   const ref=assistance(state).means[phase][item.id];
   if(ref){
    const block=node("div","","member-grades");
-   block.append(node("strong","علامات أعضاء اللجنة (عدد "+ref.count+")، المتوسط الدقيق: "+show(ref.mean)));
+   block.append(node("strong","علامات أعضاء اللجنة (عدد "+ref.count+")، المتوسط: "+show(ref.sum)+" ÷ "+ref.count+" = "+show(ref.mean)));
    const list=node("ul","","source-marks");
    for(const e of ref.entries)list.append(node("li",e.label+": "+show(e.value)));
    block.append(list);
