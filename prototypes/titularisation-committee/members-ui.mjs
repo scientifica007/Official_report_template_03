@@ -14,6 +14,13 @@ export function renderMembers(target,state){
   for(const field of ["lessonSummary","discussionSummary","general","recommendations"]){
    if(c.submitted&&c.notes[field])d.append(node("p",c.notes[field]));
   }
+  if(c.submitted){
+   for(const phase of ["lesson","discussion"]){
+    for(const [id,value] of Object.entries(c.notes[phase])){
+     if(value)d.append(node("p",id+": "+value));
+    }
+   }
+  }
   target.append(d);
  }
 }
