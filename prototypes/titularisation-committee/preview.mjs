@@ -19,6 +19,19 @@ export function renderDocuments(container,state){
   const sheet=node("article","","paper");
   add(sheet,node("p","معاينة تجريبية غير مطابقة بعد للقالب الرسمي — ليست توقيعًا إلكترونيًا","caution"),
     node("h2",type==="report"?"مسودة تقرير التفتيش قصد الترسيم":"مسودة محضر لجنة الترسيم"));
+  if(state.mode==="individual"){
+   const suggestedScoreCount=Object.values(d.proposedSources.lesson).length+
+     Object.values(d.proposedSources.discussion).length;
+   const textOrigins=d.proposedSources.notes;
+   const suggestedTextCount=Object.values(textOrigins.lesson).length+
+     Object.values(textOrigins.discussion).length+
+     ["lessonSummary","discussionSummary","general","recommendations"]
+       .filter(k=>textOrigins[k]).length;
+   if(suggestedScoreCount||suggestedTextCount)
+    sheet.append(node("p","تتضمن المعاينة "+suggestedScoreCount+
+     " علامة و"+suggestedTextCount+
+     " تقديرًا مجمعًا مقترحًا من مساهمات الأعضاء؛ راجعها وعدلها قبل إعداد النسخة الورقية.","hint"));
+  }
   paragraph(sheet,"المؤسسة:",m.institution);
   paragraph(sheet,"الأستاذ/المترشح:",m.candidate);
   paragraph(sheet,"الرتبة:",m.rank);
