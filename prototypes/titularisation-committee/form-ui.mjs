@@ -53,10 +53,6 @@ function itemRow(container,state,who,phase,item,commit){
   action(details,"استعادة نصوص الأعضاء لهذا البند",
    ()=>commit(()=>resetFinalNote(state,phase,item.id)));
  box.append(details);container.append(box);
- if(who==="final"){
-  const mean=assistance(state).means[phase][item.id];
-  if(mean)container.append(node("p","متوسط الأعضاء: "+show(mean.mean)+" (عدد "+mean.count+") — للمقارنة فقط","hint"));
- }
 }
 export function renderForm(container,state,who,commit){
  clear(container);
