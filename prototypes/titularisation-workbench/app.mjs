@@ -56,7 +56,7 @@ function scoreRows(phase,items){
   const reminderHTML=reminders?
    '<p class="indicator-intro">المؤشرات التابعة لهذا المعيار (للتذكير فقط):</p><ul class="indicator-reminders">'+
    reminders.map(indicator=>'<li>'+escapeHTML(indicator.label)+'</li>').join('')+'</ul>':'';
-  return '<div class="mark-row"><div class="mark-label"><strong>'+escapeHTML(item.label)+
+  return '<div class="mark-row'+(zero?'':' score-mark-row')+'"><div class="mark-label"><strong>'+escapeHTML(item.label)+
    '</strong>'+reminderHTML+'<span>'+(zero?'الوزن صفر؛ محفوظ ضمن الشبكة دون تنقيط':'الحد الأقصى: '+show(item.cap))+
    '</span></div>'+(zero?'<output class="zero-indicator">غير منقّط (وزن صفر)</output>':
    scoreControls(phase,item,has,marks))+
@@ -156,6 +156,13 @@ $('workbench').addEventListener('input',event=>{
  const range=event.target.closest('[data-range]');
  if(!range)return;
  try{commitRange(range)}catch(err){feedback(err.message)}
+});
+$('workbench').addEventListener('keyup',event=>{
+ const range=event.target.closest('[data-range]');
+ // Home/left at the unscored zero endpoint may not produce an input event.
+ if(range?.dataset.empty==='true'&&['Home','ArrowLeft','ArrowDown'].includes(event.key)){
+  try{commitRange(range,{finish:true})}catch(err){feedback(err.message)}
+ }
 });
 $('workbench').addEventListener('change',event=>{
  const weight=event.target.closest('[data-weight]');
