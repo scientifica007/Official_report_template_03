@@ -19,6 +19,34 @@ function chip(value,kind){
  return '<span class="chip '+(kind||'')+'">'+escapeHTML(value)+'</span>';
 }
 function feedback(message){notice=message;$("feedback").textContent=message}
+// The range starts visually at zero without storing a score. Only deliberate
+// range input/change/click or number-field change writes an attained mark.
+function rangeFill(value,cap,recorded){
+ return recorded?Math.max(0,Math.min(100,Number(value)/cap*100))+'%':'0%';
+}
+function scoreControls(phase,item,has,marks){
+ const value=has?marks[item.id]:'';
+ const disabled=isAnalytical(draft)&&!draft.profile.frozen;
+ const data='data-score-id="'+escapeHTML(item.id)+'" ';
+ const numberField=input('score-'+phase+'-'+item.id,value,0,item.cap,SCORE_STEP,
+  'data-score="'+phase+'" '+data+(disabled?'disabled ':'')+
+  'aria-label="علامة '+escapeHTML(item.label)+'"');
+ const half=show(item.cap/2);
+ const range='<input type="range" class="score-range" min="0" max="'+item.cap+
+  '" step="'+SCORE_STEP+'" value="'+(has?value:0)+'" data-range="'+phase+'" '+data+
+  'data-empty="'+(has?'false':'true')+'" '+
+  (disabled?'disabled ':'')+
+  'style="--range-progress:'+rangeFill(value,item.cap,has)+'" '+
+  'aria-label="شريط تنقيط '+escapeHTML(item.label)+' من صفر إلى '+item.cap+'" '+
+  'aria-valuetext="'+(has?show(value)+' من '+item.cap:'علامة لم تُدخل بعد')+'">';
+ const status=has?'العلامة المختارة: '+show(value)+' / '+show(item.cap):
+  'لم تُسجل علامة بعد — حرّك الشريط أو أدخل قيمة';
+ return '<div class="score-controls">'+numberField+
+  '<div class="score-range-wrap">'+range+
+  '<div class="range-scale" dir="ltr" aria-hidden="true"><span>0</span><span>'+
+  half+'</span><span>'+show(item.cap)+'</span></div>'+
+  '<small class="range-status">'+status+'</small></div></div>';
+}
 function scoreRows(phase,items){
  const marks=draft.scores[phase];
  return items.map(item=>{
@@ -31,10 +59,7 @@ function scoreRows(phase,items){
   return '<div class="mark-row"><div class="mark-label"><strong>'+escapeHTML(item.label)+
    '</strong>'+reminderHTML+'<span>'+(zero?'الوزن صفر؛ محفوظ ضمن الشبكة دون تنقيط':'الحد الأقصى: '+show(item.cap))+
    '</span></div>'+(zero?'<output class="zero-indicator">غير منقّط (وزن صفر)</output>':
-   input('score-'+phase+'-'+item.id,has?marks[item.id]:'',0,item.cap,SCORE_STEP,
-     'data-score="'+phase+'" data-score-id="'+item.id+'" '+
-     (isAnalytical(draft)&&!draft.profile.frozen?'disabled ':'')+
-     'aria-label="علامة '+escapeHTML(item.label)+'"'))+
+   scoreControls(phase,item,has,marks))+
    '</div>';
  }).join('');
 }
@@ -93,7 +118,7 @@ function renderSummary(){
   ['الحصة /40',t.lesson.total],['المناقشة /20',t.discussion.total],
   ['المجموع /60',t.total60],['القسمة على 3 (/20)',t.score20]
  ].map(row=>'<div><small>'+row[0]+'</small><strong>'+show(row[1])+'</strong></div>').join('');
- return '<section class="pane" aria-label="نتيجة الحساب"><h2>حالة الحساب التجريبي</h2>'+
+ return '<section class="pane score-summary" data-totals-panel aria-label="نتيجة الحساب"><h2>حالة الحساب التجريبي</h2>'+
   '<div class="metrics">'+metrics+'</div><p class="message">'+escapeHTML(status)+
   '. عتبة 30/60 مرجع عددي في النص التنظيمي، <strong>وليست قرار اللجنة</strong>.</p>'+
   '<p class="muted small">تُعرض نتيجة القسمة استرشاديًا حتى أربع منازل، دون اعتماد سياسة تقريب. أصغر خطوة للعلامة المحصلة هي 0.5 نقطة في الشبكات الثلاث والمناقشة، ويظل تقريب /20 مسألة مستقلة. لا تُولّد هذه الصفحة تقريرًا رسميًا أو محضرًا.</p>'+
@@ -110,15 +135,48 @@ $('rubric').addEventListener('change',event=>{
  draft=newDraft(event.target.value);
  notice='أنشئت مسودة تجريبية جديدة؛ لم تُنقل أي علامات.';render();
 });
+// During a drag, update the paired number and totals without replacing
+// the slider element. Rebuild other counters only when the gesture finishes.
+function commitRange(range,{finish=false}={}){
+ const phase=range.dataset.range,id=range.dataset.scoreId;
+ draft=withScore(draft,phase,id,range.value);
+ range.dataset.empty='false';
+ range.style.setProperty('--range-progress',rangeFill(range.value,range.max,true));
+ range.setAttribute('aria-valuetext',show(Number(range.value))+' من '+range.max);
+ const number=$('score-'+phase+'-'+id);
+ if(number)number.value=range.value;
+ const status=range.closest('.score-range-wrap')?.querySelector('.range-status');
+ if(status)status.textContent='العلامة المختارة: '+show(Number(range.value))+' / '+range.max;
+ const summary=$('workbench').querySelector('[data-totals-panel]');
+ if(summary)summary.outerHTML=renderSummary();
+ notice='';
+ if(finish)render();
+}
+$('workbench').addEventListener('input',event=>{
+ const range=event.target.closest('[data-range]');
+ if(!range)return;
+ try{commitRange(range)}catch(err){feedback(err.message)}
+});
 $('workbench').addEventListener('change',event=>{
- const weight=event.target.closest('[data-weight]'),score=event.target.closest('[data-score]');
+ const weight=event.target.closest('[data-weight]');
+ const score=event.target.closest('[data-score]');
+ const range=event.target.closest('[data-range]');
  try{
   if(weight){draft=withWeight(draft,weight.dataset.weight,weight.value);notice=''}
   else if(score){draft=withScore(draft,score.dataset.score,score.dataset.scoreId,score.value);notice=''}
+  else if(range){commitRange(range,{finish:true});return}
+  else return;
   render();
  }catch(err){notice=err.message;render()}
 });
 $('workbench').addEventListener('click',event=>{
+ const range=event.target.closest('[data-range]');
+ // Clicking the zero endpoint while it is still empty may not fire a native
+ // input event. Treat that deliberate click as an explicit zero selection.
+ if(range?.dataset.empty==='true'){
+  try{commitRange(range,{finish:true})}catch(err){feedback(err.message)}
+  return;
+ }
  if(event.target.id==='suggest'){
   if(!confirm('التوزيع مثال غير رسمي؛ سيستبدل الأوزان غير المثبتة في هذه المسودة فقط. متابعة؟'))return;
   try{draft=withSuggestions(draft);notice='عُرض توزيع إرشادي؛ لم يُثبّت بعد.';render()}catch(e){feedback(e.message)}
