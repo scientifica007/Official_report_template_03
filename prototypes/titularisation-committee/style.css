@@ -34,3 +34,8 @@ body,main{background:white;width:100%;margin:0;padding:0}
 main>.panel:last-child{border:0;box-shadow:none;padding:0;margin:0}
 .paper{border:0;box-shadow:none;break-after:page;min-height:0;margin:0;padding:0}
 .paper:last-child{break-after:auto}button{display:none!important}}
+
+.scores-table{border-collapse:collapse;width:100%;font-size:12px;table-layout:fixed}
+.scores-table th,.scores-table td{border:1px solid #b8cbbd;padding:6px;white-space:pre-wrap;overflow-wrap:anywhere;vertical-align:top}
+.scores-table th:nth-child(1){width:37%}.scores-table th:nth-child(2){width:18%}
+@media print{.scores-table tr{break-inside:avoid}}
