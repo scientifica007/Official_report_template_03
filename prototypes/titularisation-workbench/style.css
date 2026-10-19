@@ -58,3 +58,22 @@ footer{padding:24px 20px;text-align:center;color:#496657;font-size:12px}
  .score-controls input[type=number]{width:90px}
 }
 @media(max-width:380px){.score-controls{grid-template-columns:76px minmax(0,1fr);gap:8px}.score-controls input[type=number]{width:76px;padding:7px 5px}}
+
+/* ARCH-01D1.3 — touch scrolling must not activate range scoring by accident.
+   The inspector explicitly unlocks one range; pointer-events:none lets
+   vertical swipes on any locked track scroll the page normally. */
+.score-range-wrap{touch-action:pan-y}
+.score-range[data-touch-locked="true"]{pointer-events:none;cursor:default}
+.score-range[data-touch-locked="true"]::-webkit-slider-thumb{box-shadow:0 0 0 2px #6d9481,0 2px 5px #184d3b30;background:#6d9481}
+.score-range[data-touch-locked="true"]::-moz-range-thumb{box-shadow:0 0 0 2px #6d9481;background:#6d9481}
+.touch-range-guard{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:5px}
+.touch-range-guard small{font-size:11px;color:#516d5e;line-height:1.5}
+button.range-enable{min-height:40px;background:#f1f8f3;border:1px solid #79a78c;color:#12563b;font-size:12px;padding:6px 10px}
+button.range-enable[aria-pressed=true]{background:#12684d;color:white;border-color:#12684d}
+button.range-enable:hover{background:#dceee2}
+button.range-enable[aria-pressed=true]:hover{background:#0d543e}
+button.range-enable:disabled{background:#e5ebe6;color:#738379}
+@media(max-width:680px){
+ .touch-range-guard{align-items:flex-start}
+ .touch-range-guard small{flex:1 1 145px}
+}
