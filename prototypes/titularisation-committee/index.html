@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>مختبر إعداد تقرير ومحضر الترسيم</title>
+<link rel="stylesheet" href="./style.css"><script type="module" src="./app.mjs"></script></head>
+<body><header><small>ARCH-01D2 — تجربة معزولة</small><h1>مختبر إعداد تقرير ومحضر لجنة الترسيم</h1>
+<p>أداة مساعدة للمفتش واللجنة، لا نظام اعتماد أو تصديق. هذه محاكاة محلية بلا حسابات أعضاء أو تخزين سحابي.</p>
+<p class="warning">استخدم بيانات اصطناعية فقط. المعاينة الورقية غير مطابقة بعد للقالب الإداري الرسمي، ولا تمثل إمضاءً أو ختمًا.</p>
+<a href="../titularisation-workbench/">العودة إلى محرر التنقيط المقبول ميدانيًا</a></header>
+<main><section class="panel"><h2>إعداد المهمة التجريبية</h2>
+<label>طريقة العمل<select id="mode"><option value="unified">تقييم موحد — الوضع الافتراضي</option>
+<option value="individual">مساهمات فردية اختيارية</option></select></label>
+<label>شبكة الحصة<select id="rubric"><option value="grouped5">شبكة الخمسة</option>
+<option value="inspector10">شبكة العشرة</option><option value="analytical14">شبكة 14 مؤشرًا</option></select></label>
+<label>المحرر النشط<select id="who"></select></label>
+<p class="small">اختيار العضو هنا محاكاة فنية لا تتحقق من هوية أحد. الدعوات والرموز وQR ستدرس في مرحلة التكامل السحابي.</p>
+<div class="actions"><button id="save" type="button">تصدير مسودة JSON</button>
+<label class="file-label">استيراد JSON<input id="load" type="file" accept=".json,application/json"></label>
+<button id="print" type="button">طباعة معاينة التقرير والمحضر</button></div>
+<p id="message" role="status" aria-live="polite"></p></section>
+<section class="panel"><h2>معطيات المهمة</h2><div id="meta" class="meta-grid"></div></section>
+<section id="weights" class="panel"></section>
+<section id="editor" class="panel"></section>
+<section id="members" class="panel"></section>
+<section class="panel"><h2>معاينة الوثيقتين قبل الطباعة</h2>
+<p class="small">يعاد توليد المعاينة من علامات المفتش وتقديراته النهائية، لا من متوسط تلقائي.</p>
+<div id="paper"></div></section></main>
+<footer>الإقرار المهني الحقيقي يتم بالمداولة والإمضاءات والأختام على الوثائق الورقية المطبوعة.</footer>
+</body></html>
