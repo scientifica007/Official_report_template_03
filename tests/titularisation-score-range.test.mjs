@@ -159,3 +159,49 @@ test("responsive score controls use full-width range tracks, explicit focus and 
  assert.match(source,/data-empty/);
  assert.match(source,/--range-progress/);
 });
+
+test("typing a complete half-point number moves the range immediately without blurring",()=>{
+ reset("grouped5");
+ const number=target("number","lesson","g1","3.5");
+ const range=target("range","lesson","g1","0",12);
+ dynamic.set("range-lesson-g1",range.el);
+ const original=workbench.innerHTML;
+ listeners.input({target:number.el});
+ assert.equal(range.el.value,"3.5");
+ assert.equal(range.el.dataset.empty,"false");
+ assert.equal(range.css["--range-progress"],"29.166666666666668%");
+ assert.equal(range.attrs["aria-valuetext"],"3.5 من 12");
+ assert.equal(workbench.innerHTML,original,"number typing should retain keyboard focus");
+ listeners.change({target:number.el});
+ assert.match(workbench.innerHTML,/id="range-lesson-g1"[^>]*value="3.5"/);
+});
+test("deleting the number returns its slider to an unscored state rather than saving zero",()=>{
+ reset("grouped5");
+ const range=target("range","lesson","g1","4",12,"false");
+ dynamic.set("range-lesson-g1",range.el);
+ const number=target("number","lesson","g1","4");
+ listeners.input({target:number.el});
+ number.el.value="";
+ listeners.input({target:number.el});
+ assert.equal(range.el.value,0);
+ assert.equal(range.el.dataset.empty,"true");
+ assert.equal(range.css["--range-progress"],"0%");
+ assert.match(range.status.textContent,/لم تُسجل علامة بعد/);
+ listeners.change({target:number.el});
+ assert.match(workbench.innerHTML,/id="score-lesson-g1"[^>]*value=""/);
+ assert.match(workbench.innerHTML,/id="range-lesson-g1"[^>]*value="0"[^>]*data-empty="true"/);
+});
+test("an invalid intermediate value does not push an off-step score into the range",()=>{
+ reset("grouped5");
+ const range=target("range","lesson","g1","1.5",12,"false");
+ dynamic.set("range-lesson-g1",range.el);
+ const number=target("number","lesson","g1","1.5");
+ listeners.input({target:number.el});
+ assert.equal(range.el.value,"1.5");
+ number.el.value="1.25";
+ listeners.input({target:number.el});
+ assert.equal(range.el.value,"1.5","invalid quarter-points cannot alter valid state");
+ listeners.change({target:number.el});
+ assert.match(workbench.innerHTML,/id="score-lesson-g1"[^>]*value="1.5"/);
+ assert.match(fixed.feedback.textContent,/خطوة 0.5/);
+});
