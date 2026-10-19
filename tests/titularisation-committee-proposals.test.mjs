@@ -81,9 +81,6 @@ test("authored note is preserved, and intentionally blank note stays blank",()=>
 });
 test("automatically collected general and discussion notes can be edited without repeat typing",()=>{
  let s=membersWithMarks([["member1",2.5]]);
- s=editNote(s,"member1","general","تقدير الأستاذ");
- s=editNote(s,"member1","recommendations","توصية اللجنة");
- s=editNote(s,"member1","discussion","نقاش منهجي","d1");
  // Member is locked: reopen before writing, then submit updated contribution.
  s=reopen(s,"member1");
  s=editNote(s,"member1","general","تقدير الأستاذ");
