@@ -26,7 +26,7 @@ function itemRow(container,state,who,phase,item,commit){
    for(const e of ref.entries)list.append(node("li",e.label+": "+show(e.value)));
    block.append(list);
    if(!Object.hasOwn(state.final.grading.scores[phase],item.id))
-    block.append(node("p","العلامة المعروضة مقترحة من المتوسط ويمكن تعديلها.","hint"));
+    block.append(node("p","العلامة المعروضة مقترح آلي بالتقريب إلى أقرب نصف نقطة؛ يمكن اختيار الأعلى أو الأسفل وتعديلها يدويًا.","hint"));
    if(Math.abs(ref.mean*2-Math.round(ref.mean*2))>1e-9){
     const choices=node("div","","rounding-actions");
     const down=Math.floor(ref.mean*2)/2,up=Math.ceil(ref.mean*2)/2;
