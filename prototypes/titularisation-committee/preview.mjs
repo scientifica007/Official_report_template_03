@@ -1,6 +1,6 @@
 import {node,add,clear} from "./dom.mjs";
 import {SEATS,MODES,documentData} from "./committee-engine.mjs";
-import {RUBRICS} from "../titularisation-workbench/engine.mjs";
+import {RUBRICS,DISCUSSION,lessonItems} from "../titularisation-workbench/engine.mjs";
 const display=x=>x===null?"—":(Number.isFinite(x)?String(Number(x.toFixed(3))):"—");
 function paragraph(parent,label,value){
  const p=node("p");add(p,node("strong",label+" "),node("span",value||"لم يحرر بعد"));parent.append(p);
@@ -28,6 +28,22 @@ export function renderDocuments(container,state){
   paragraph(sheet,"العلامات:",display(r.lesson.total)+"/40 للحصة؛ "+display(r.discussion.total)+
     "/20 للمناقشة؛ المجموع "+display(r.total60)+"/60");
   if(type==="report"){
+   for(const phase of ["lesson","discussion"]){
+    sheet.append(node("h3",phase==="lesson"?"معايير الحصة وعلاماتها":"معايير المناقشة وعلاماتها"));
+    const table=node("table","","scores-table");
+    const head=node("tr");
+    for(const title of ["المعيار أو المؤشر","العلامة","التقدير الكتابي"])head.append(node("th",title));
+    table.append(head);
+    const items=phase==="lesson"?lessonItems(state.final.grading):DISCUSSION;
+    for(const item of items){
+     const tr=node("tr");
+     tr.append(node("td",item.label),node("td",item.cap===0?"غير منقّط":
+      display(d.finalGrades[phase][item.id])+" / "+item.cap),
+      node("td",d.finalNotes[phase][item.id]||"—"));
+     table.append(tr);
+    }
+    sheet.append(table);
+   }
    paragraph(sheet,"تقدير الحصة:",d.finalNotes.lessonSummary);
    paragraph(sheet,"تقدير المناقشة:",d.finalNotes.discussionSummary);
   }else paragraph(sheet,"جلسة المداولة:",m.session);
