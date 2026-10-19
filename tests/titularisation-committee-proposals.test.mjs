@@ -4,7 +4,7 @@ import {
  freshCommittee,changeMode,editScore,editNote,submit,reopen,assistance,
  proposedFinal,selectRounding,rounding,resetFinalNote,documentData,
  restoreCommittee,stringifyCommittee,finalizeWeights,applySuggestedWeights,
- configureWeight,SEATS
+ configureWeight,SEATS,MODES
 } from "../prototypes/titularisation-committee/committee-engine.mjs";
 
 function membersWithMarks(entries,phase="lesson",id="g1"){
@@ -17,7 +17,7 @@ function membersWithMarks(entries,phase="lesson",id="g1"){
  return s;
 }
 test("mode selector label is simply individual contributions",()=>{
- assert.equal((await import("../prototypes/titularisation-committee/committee-engine.mjs")).MODES.individual,"مساهمات فردية");
+ assert.equal(MODES.individual,"مساهمات فردية");
 });
 test("chair result is populated from submitted scores without modifying stored chair draft",()=>{
  const s=membersWithMarks([["member1",2.5,"الشرح واضح"],["member2",3.5,"تفاعل المتكونين"]]);
