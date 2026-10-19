@@ -39,3 +39,15 @@ main>.panel:last-child{border:0;box-shadow:none;padding:0;margin:0}
 .scores-table th,.scores-table td{border:1px solid #b8cbbd;padding:6px;white-space:pre-wrap;overflow-wrap:anywhere;vertical-align:top}
 .scores-table th:nth-child(1){width:37%}.scores-table th:nth-child(2){width:18%}
 @media print{.scores-table tr{break-inside:avoid}}
+
+/* ARCH-01D2-P2: committee figures remain readable and editable on narrow screens. */
+.member-grades{margin:8px 0;padding:11px;background:#eef7f0;border:1px solid #badcc7;border-radius:9px}
+.member-grades>strong{display:block;font-size:13px;color:#14543b}
+.source-marks{list-style:disc;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 15px;padding-inline-start:20px;margin:8px 0}
+.source-marks li{font-size:12px;line-height:1.65}
+.rounding-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}
+.rounding-actions button{font-size:12px;background:#ecf7ef;color:#14533d;border:1px solid #85baa0;min-height:40px}
+.rounding-actions button:hover{background:#dcefe3}
+.member-grades .hint{margin:5px 0}
+.criterion details[open]{border-top:1px dotted #c3dccc;margin-top:10px;padding-top:6px}
+@media(max-width:520px){.source-marks{grid-template-columns:1fr}.rounding-actions button{flex:1;min-width:120px}}

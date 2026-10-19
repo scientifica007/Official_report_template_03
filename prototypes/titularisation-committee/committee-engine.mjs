@@ -14,7 +14,7 @@ export const SEATS=Object.freeze([
  {id:"member2",label:"العضو الثاني"},
  {id:"member3",label:"العضو الثالث"}
 ]);
-export const MODES=Object.freeze({unified:"تقييم موحد من المفتش",individual:"مساهمات فردية اختيارية"});
+export const MODES=Object.freeze({unified:"تقييم موحد من المفتش",individual:"مساهمات فردية"});
 const has=Object.hasOwn;
 const ids=new Set(SEATS.map(x=>x.id));
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -23,6 +23,8 @@ const plain=o=>o!==null&&typeof o==="object"&&!Array.isArray(o)&&Object.getProto
 const fields=new Set(["lessonSummary","discussionSummary","general","recommendations"]);
 const metaKeys=new Set(["candidate","institution","rank","date","location","session"]);
 const maxNote=4000;
+const proseFields=["lessonSummary","discussionSummary","general","recommendations"];
+const editKey=(field,id)=>["lesson","discussion"].includes(field)?field+":"+id:"field:"+field;
 const cleanString=(v,max=maxNote)=>{
  if(typeof v!=="string"||v.length>max)throw Error("نص غير صالح أو طويل جدًا");
  return v;
@@ -38,7 +40,7 @@ export function freshCommittee(mode="unified",rubric="grouped5"){
  for(const {id} of SEATS)members[id]=contributor(key);
  return {schema:COMMITTEE_SCHEMA,revision:1,mode,rubricId:RUBRICS[key].id,
   meta:{candidate:"",institution:"",rank:"",date:"",location:"",session:""},
-  final:contributor(key),members,serial:1};
+  final:contributor(key),members,finalNoteEdits:[],serial:1};
 }
 export function editMeta(state,field,value){
  if(!metaKeys.has(field))throw Error("حقل تعريف غير معروف");
@@ -91,6 +93,10 @@ export function editNote(state,who,field,value,itemId=null){
   c.notes[field][itemId]=text;
  }else if(fields.has(field)){c.notes[field]=text}
  else throw Error("حقل تقدير غير معروف");
+ if(who==="final"){
+  const key=editKey(field,itemId);
+  if(!s.finalNoteEdits.includes(key))s.finalNoteEdits.push(key);
+ }
  s.serial++;return s;
 }
 export function submit(state,who){
@@ -117,7 +123,13 @@ export function assistance(state){
    if(item.cap===0)continue;
    const values=submitted.map(seat=>state.members[seat.id].grading.scores[phase][item.id])
       .filter(x=>typeof x==="number"&&Number.isFinite(x));
-   means[phase][item.id]=values.length?{mean:values.reduce((a,b)=>a+b,0)/values.length,count:values.length}:null;
+   const entries=submitted.flatMap(seat=>{
+    const value=state.members[seat.id].grading.scores[phase][item.id];
+    return typeof value==="number"&&Number.isFinite(value)?
+      [{id:seat.id,label:seat.label,value}]:[];
+   });
+   means[phase][item.id]=values.length?
+    {mean:values.reduce((a,b)=>a+b,0)/values.length,sum:values.reduce((a,b)=>a+b,0),count:values.length,entries}:null;
   }
  }
  const totalsOf=submitted.map(seat=>totals(state.members[seat.id].grading).total60)
@@ -126,10 +138,82 @@ export function assistance(state){
   total60:totalsOf.length?totalsOf.reduce((a,b)=>a+b,0)/totalsOf.length:null,
   fullCommittee:submitted.length===SEATS.length};
 }
+// Input remains in 0.5 increments. Arithmetic means (e.g. 2.375) remain
+// exact in the reference; the editable proposal is rounded to the closest
+// half point, with explicit upward/downward alternatives in the editor.
+export function rounding(mean,cap){
+ if(typeof mean!=="number"||!Number.isFinite(mean))throw Error("متوسط غير صالح");
+ const down=Math.max(0,Math.min(cap,Math.floor(mean*2+1e-9)/2));
+ const up=Math.max(0,Math.min(cap,Math.ceil(mean*2-1e-9)/2));
+ return {down,up,nearest:Math.round(mean*2)/2};
+}
+function aggregateText(state,field,itemId){
+ const entries=SEATS.filter(seat=>state.members[seat.id].submitted)
+  .map(seat=>({seat,text:(["lesson","discussion"].includes(field)?
+   state.members[seat.id].notes[field][itemId]:
+   state.members[seat.id].notes[field])||""}))
+  .filter(x=>x.text.trim());
+ if(!entries.length)return "";
+ return "مسودة من تقديرات الأعضاء — للمراجعة والتحرير:\n"+
+  entries.map(x=>x.seat.label+": "+x.text.trim()).join("\n");
+}
+// Derived suggestions never mutate or overwrite chair-authored grades/prose.
+// A selected upward/downward rounding becomes an explicit chair override.
+export function proposedFinal(state){
+ const grading=clone(state.final.grading),text=clone(state.final.notes);
+ const source={lesson:{},discussion:{},notes:{lesson:{},discussion:{}}};
+ if(state.mode!=="individual")return {grading,notes:text,source};
+ const a=assistance(state);
+ for(const phase of ["lesson","discussion"]){
+  const rows=phase==="lesson"?lessonItems(grading):DISCUSSION;
+  for(const item of rows){
+   if(item.cap===0||item.cap===null)continue;
+   const ref=a.means[phase][item.id];
+   if(ref&&!own(grading.scores[phase],item.id)){
+    grading.scores[phase][item.id]=rounding(ref.mean,item.cap).nearest;
+    source[phase][item.id]="مقترح آلي قابل للتعديل";
+   }
+   if(!state.finalNoteEdits.includes(editKey(phase,item.id))&&!text[phase][item.id]){
+    const suggested=aggregateText(state,phase,item.id);
+    if(suggested){text[phase][item.id]=suggested;source.notes[phase][item.id]="تجميع قابل للتحرير";}
+   }
+  }
+ }
+ for(const field of proseFields){
+  if(!state.finalNoteEdits.includes(editKey(field))&&!text[field]){
+   const suggested=aggregateText(state,field);
+   if(suggested){text[field]=suggested;source.notes[field]="تجميع قابل للتحرير";}
+  }
+ }
+ return {grading,notes:text,source};
+}
+export function selectRounding(state,phase,id,direction){
+ if(state.mode!=="individual"||!["up","down"].includes(direction))
+  throw Error("اختيار تقريب غير صالح");
+ const item=(phase==="lesson"?lessonItems(state.final.grading):phase==="discussion"?DISCUSSION:[])
+  .find(x=>x.id===id);
+ if(!item||item.cap===0||item.cap===null)throw Error("بند غير قابل للتنقيط");
+ const ref=assistance(state).means[phase][id];
+ if(!ref)throw Error("لا توجد مساهمات لهذا البند");
+ return editScore(state,"final",phase,id,rounding(ref.mean,item.cap)[direction]);
+}
+export function resetFinalNote(state,field,itemId=null){
+ const key=editKey(field,itemId);
+ const valid=["lesson","discussion"].includes(field)?
+  (field==="lesson"?lessonItems(state.final.grading):DISCUSSION).some(x=>x.id===itemId):
+  fields.has(field);
+ if(!valid)throw Error("تقدير غير معروف");
+ const s=clone(state);
+ s.finalNoteEdits=s.finalNoteEdits.filter(x=>x!==key);
+ if(["lesson","discussion"].includes(field))delete s.final.notes[field][itemId];
+ else s.final.notes[field]="";
+ s.serial++;return s;
+}
 export function documentData(state){
- const result=totals(state.final.grading);
+ const resolved=proposedFinal(state),result=totals(resolved.grading);
  return {meta:clone(state.meta),mode:state.mode,rubricId:state.rubricId,
-  finalGrades:clone(state.final.grading.scores),finalNotes:clone(state.final.notes),
+  finalGrades:clone(resolved.grading.scores),finalNotes:clone(resolved.notes),
+  proposedSources:resolved.source,
   result,reference:assistance(state),serial:state.serial,
   isDraft:!result.complete};
 }
@@ -170,6 +254,25 @@ export function restoreCommittee(raw){
   blank.members[id]=checkContribution(raw.members[id],blank.rubricId,blank.final.grading.profile,true);
  }
  for(const key of Object.keys(raw.members))if(!ids.has(key))throw Error("مقعد إضافي غير معروف");
+ const edits=raw.finalNoteEdits;
+ if(edits!==undefined){
+  if(!Array.isArray(edits)||edits.some(x=>typeof x!=="string")||new Set(edits).size!==edits.length)
+   throw Error("تعديلات نصوص المفتش غير صالحة");
+  const allowed=new Set([
+   ...proseFields.map(x=>editKey(x)),
+   ...lessonItems(blank.final.grading).map(x=>editKey("lesson",x.id)),
+   ...DISCUSSION.map(x=>editKey("discussion",x.id))
+  ]);
+  if(edits.some(x=>!allowed.has(x)))throw Error("معرف تعديل نصي غير معروف");
+  blank.finalNoteEdits=[...edits];
+ }else{
+  // Legacy ARCH-01D2-P1 files remain importable; their authored text wins.
+  blank.finalNoteEdits=[
+   ...proseFields.filter(x=>blank.final.notes[x]).map(x=>editKey(x)),
+   ...["lesson","discussion"].flatMap(phase=>Object.entries(blank.final.notes[phase])
+    .filter(([,v])=>v).map(([id])=>editKey(phase,id)))
+  ];
+ }
  blank.serial=raw.serial;
  return blank;
 }
