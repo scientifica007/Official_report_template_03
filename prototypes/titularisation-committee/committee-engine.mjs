@@ -129,7 +129,7 @@ export function assistance(state){
       [{id:seat.id,label:seat.label,value}]:[];
    });
    means[phase][item.id]=values.length?
-    {mean:values.reduce((a,b)=>a+b,0)/values.length,count:values.length,entries}:null;
+    {mean:values.reduce((a,b)=>a+b,0)/values.length,sum:values.reduce((a,b)=>a+b,0),count:values.length,entries}:null;
   }
  }
  const totalsOf=submitted.map(seat=>totals(state.members[seat.id].grading).total60)
