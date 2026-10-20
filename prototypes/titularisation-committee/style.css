@@ -51,3 +51,11 @@ main>.panel:last-child{border:0;box-shadow:none;padding:0;margin:0}
 .member-grades .hint{margin:5px 0}
 .criterion details[open]{border-top:1px dotted #c3dccc;margin-top:10px;padding-top:6px}
 @media(max-width:520px){.source-marks{grid-template-columns:1fr}.rounding-actions button{flex:1;min-width:120px}}
+
+/* ARCH-01D2-P3 — fast per-member test data, visually separate from real scoring. */
+.demo-fill-zone{border:1px dashed #c9a860;background:#fff8e9;padding:12px;margin:15px 0;border-radius:10px}
+button.demo-fill-button{background:#fff2ce;border:1px solid #af7e26;color:#6b4610;font-weight:700;min-height:44px}
+button.demo-fill-button:hover{background:#f5dfa6}
+.demo-fill-zone p{margin:7px 0 0;font-size:12px;color:#705525}
+@media(max-width:520px){button.demo-fill-button{width:100%}}
+@media print{.demo-fill-zone{display:none!important}}
