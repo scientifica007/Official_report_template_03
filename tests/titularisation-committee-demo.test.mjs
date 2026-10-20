@@ -18,7 +18,7 @@ function verifyComplete(draft,seat){
   const rows=phase==="lesson"?lessonItems(c.grading):DISCUSSION;
   for(const item of rows){
    assert.match(c.notes[phase][item.id],/بيانات تجريبية/);
-   assert.match(c.notes[phase][item.id],new RegExp(SEATS.find(x=>x.id===seat).label));
+   assert.equal(c.notes[phase][item.id].includes(SEATS.find(x=>x.id===seat).label),true);
    if(item.cap===0){assert.equal(c.grading.scores[phase][item.id],undefined);continue;}
    const value=c.grading.scores[phase][item.id];
    assert.ok(value>=0&&value<=item.cap,phase+" "+item.id+" "+value);
