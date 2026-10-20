@@ -34,8 +34,22 @@ function render(){
 }
 $("who").addEventListener("change",e=>{who=e.target.value;render()});
 $("mode").addEventListener("change",e=>{
- if(!confirm("تغيير وضع التقييم يعيد ترتيب الواجهة دون إنشاء مساهمات مزيفة. موافق؟")){render();return}
- who="final";commit(()=>changeMode(state,e.target.value));
+ // Mode switching is reversible and does not erase either set of inputs.
+ // Do not gate this non-destructive operation behind browser confirm():
+ // blocked/dismissed dialogs previously caused the selector to revert.
+ const chosen=e.target.value;
+ if(chosen===state.mode)return;
+ try{
+  const next=changeMode(state,chosen);
+  state=next;
+  // Make the selected mode evident immediately: start on first seat
+  // when entering individual contributions; return to final in unified.
+  who=chosen==="individual"?SEATS[0].id:"final";
+  render();
+  message(chosen==="individual"?
+   "تم تفعيل «مساهمات فردية». اختر العضو واملأ بياناته التجريبية ثم أرسل مساهمته.":
+   "تم تفعيل «تقييم موحد». مساهمات الأعضاء السابقة محفوظة في المسودة، ويمكن الرجوع إليها.");
+ }catch(err){render();message(err.message)}
 });
 $("rubric").addEventListener("change",e=>{
  if(!confirm("تغيير الشبكة يبدأ مسودة فارغة؛ صدّر JSON أولًا إن أردت حفظها. موافق؟")){render();return}
