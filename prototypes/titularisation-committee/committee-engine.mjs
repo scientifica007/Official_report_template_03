@@ -99,6 +99,78 @@ export function editNote(state,who,field,value,itemId=null){
  }
  s.serial++;return s;
 }
+// Repeatable synthetic examples for UI testing only. Do not fill candidate,
+// institution, final chair results, or another committee seat. Every generated
+// note visibly identifies itself as fictional and identifies its simulated seat.
+const DEMO_OBSERVATIONS=Object.freeze([
+ "أظهر تنظيمًا مناسبًا مع إمكانية تحسين توزيع وقت الحصة",
+ "استخدم أمثلة واضحة، ويُستحسن تنويع طرائق إشراك المتكونين",
+ "وظّف الوسائل المتاحة بفعالية، مع حاجة إلى تدقيق صياغة بعض الأسئلة",
+ "أدار النشاط تدريجيًا، ويُنصح بتوسيع فرص المناقشة والتطبيق"
+]);
+const DEMO_LESSON=Object.freeze([
+ "أظهرت الحصة تنظيمًا مقبولًا، مع توصية بتحسين الربط بين مراحل الدرس.",
+ "لاحظت مشاركة متفاوتة للمتكونين، ويمكن إثراء النشاط بأسئلة متنوعة.",
+ "استُعملت الوسائل البيداغوجية بصورة جيدة، مع مجال لتحسين التقويم المرحلي.",
+ "تحققت معظم الأهداف التجريبية، ويُقترح تخصيص وقت أطول للتطبيق."
+]);
+const DEMO_DISCUSSION=Object.freeze([
+ "كانت الإجابات مفهومة بوجه عام، وتحتاج بعض النقاط إلى أمثلة أدق.",
+ "اتسمت المناقشة بالتفاعل، مع أهمية دعم بعض الاستنتاجات بالشواهد.",
+ "برز تحكم مناسب في المفاهيم الأساسية، مع توصية بتنظيم عرض الحجج.",
+ "أظهرت المناقشة قدرة على التحليل، ويُستحسن مزيد من الاختصار والدقة."
+]);
+const DEMO_GENERAL=Object.freeze([
+ "تقدير تجريبي: أداء قابل للتحسين في التخطيط والتنشيط والمتابعة.",
+ "تقدير تجريبي: أداء مشجع مع حاجة إلى تنويع أساليب التقويم.",
+ "تقدير تجريبي: أداء متوازن، ويُنصح بتعزيز الجانب التطبيقي.",
+ "تقدير تجريبي: أداء مناسب مع فرص لتطوير التواصل البيداغوجي."
+]);
+const DEMO_RECOMMENDATIONS=Object.freeze([
+ "اقتراح تجريبي: إعداد بطاقة متابعة للأنشطة البيداغوجية.",
+ "اقتراح تجريبي: إثراء الحصة بتمارين تطبيقية متدرجة.",
+ "اقتراح تجريبي: اعتماد تقويم تكويني خلال مراحل الدرس.",
+ "اقتراح تجريبي: تحسين توزيع الوقت وإتاحة نقاش ختامي."
+]);
+export function hasMemberContent(state,who){
+ if(state.mode!=="individual"||!ids.has(who))throw Error("اختر عضو لجنة في وضع المساهمات الفردية");
+ const c=state.members[who];
+ return ["lesson","discussion"].some(phase=>Object.keys(c.grading.scores[phase]).length>0)||
+  ["lesson","discussion"].some(phase=>Object.values(c.notes[phase]).some(x=>x.trim()))||
+  proseFields.some(key=>c.notes[key].trim());
+}
+export function fillDemoMember(state,who){
+ if(state.mode!=="individual"||!ids.has(who))
+  throw Error("التعبئة التجريبية متاحة فقط لمقاعد المساهمات الفردية");
+ const source=state.members[who];
+ if(source.submitted)throw Error("المساهمة مرسلة؛ أعد فتحها قبل تعبئتها تجريبيًا");
+ if(state.rubricId===RUBRICS.analytical14.id&&!source.grading.profile.frozen)
+  throw Error("ثبّت أوزان المؤشرات الأربعة عشر قبل ملء البيانات التجريبية");
+ const idx=SEATS.findIndex(seat=>seat.id===who),seat=SEATS[idx];
+ const s=clone(state),c=s.members[who];
+ // Reset only this member's draft, using the frozen rubric profile already
+ // configured for the mission. Submitted members and chair text stay intact.
+ c.grading.scores={lesson:{},discussion:{}};
+ c.notes=notes();
+ for(const [phase,rows] of [["lesson",lessonItems(c.grading)],["discussion",DISCUSSION]]){
+  rows.forEach((item,i)=>{
+   const caption="بيانات تجريبية — "+seat.label+" — "+item.label+": ";
+   c.notes[phase][item.id]=caption+DEMO_OBSERVATIONS[(idx+i+(phase==="discussion"?1:0))%4]+".";
+   if(item.cap===0)return; // Weight zero has a written note but no score.
+   if(item.cap===null)throw Error("وزن مؤشر غير مضبوط");
+   const units=item.cap*2;
+   const base=Math.max(0,Math.min(units-3,Math.floor(units*0.4)+(i%3)-1));
+   const attainable=Math.min(units,Math.max(0,base+idx));
+   c.grading=withScore(c.grading,phase,item.id,attainable/2);
+  });
+ }
+ c.notes.lessonSummary="بيانات تجريبية — "+seat.label+": "+DEMO_LESSON[idx];
+ c.notes.discussionSummary="بيانات تجريبية — "+seat.label+": "+DEMO_DISCUSSION[idx];
+ c.notes.general="بيانات تجريبية — "+seat.label+": "+DEMO_GENERAL[idx];
+ c.notes.recommendations="بيانات تجريبية — "+seat.label+": "+DEMO_RECOMMENDATIONS[idx];
+ s.serial++;
+ return s;
+}
 export function submit(state,who){
  if(!ids.has(who)||state.mode!=="individual")throw Error("ليس هناك عضو لإرسال مساهمته");
  const s=clone(state);s.members[who].submitted=true;s.serial++;return s;
