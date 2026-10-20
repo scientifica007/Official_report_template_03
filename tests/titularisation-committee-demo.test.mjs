@@ -33,11 +33,10 @@ function verifyComplete(draft,seat){
 test("one-click demo fills all scores and written notes for each simulated seat of five groups",()=>{
  let s=start();
  for(const {id} of SEATS){
-  const before=JSON.stringify(s);
   s=fillDemoMember(s,id);
   verifyComplete(s,id);
   assert.equal(s.final.grading.scores.lesson.g1,undefined,"final chair draft untouched");
-  assert.equal(s.members[SEATS.find(x=>x.id!==id&&before.includes('"'+x.id+'"'))?.id]?.submitted??false,false);
+  assert.equal(s.members[id].submitted,false);
  }
  const grades=SEATS.map(x=>s.members[x.id].grading.scores.lesson.g1);
  assert.equal(new Set(grades).size,4,"four unique marks for suitable-cap item");
@@ -55,13 +54,14 @@ test("a single click never fills another member, chair result, or institution me
  s=editScore(s,"final","lesson","g1",8);
  s.meta.candidate="اسم اختبار";
  const previous=structuredClone(s.members.member2);
+ const other=structuredClone(s.members.member3);
  const chair=structuredClone(s.final);
  const meta=structuredClone(s.meta);
  s=fillDemoMember(s,"member1");
  assert.deepEqual(s.members.member2,previous);
  assert.deepEqual(s.final,chair);
  assert.deepEqual(s.meta,meta);
- assert.deepEqual(s.members.member3,previous===s.members.member3?previous:s.members.member3);
+ assert.deepEqual(s.members.member3,other);
 });
 test("all ten items and discussion stages are populated with valid marks",()=>{
  const s=fillDemoMember(start("inspector10"),"member3");
