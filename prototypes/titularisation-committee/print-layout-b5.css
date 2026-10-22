@@ -1,0 +1,79 @@
+/* ARCH-01D2-P4-B5 — isolated print correction based on Chromium A4 pagination.
+ * The previous 273 mm page box plus forced breaks produced blank sheets and
+ * detached footers. A safe 252 mm box fits INSIDE the 273 mm printable area.
+ * This stylesheet applies to print only; editor and field-accepted RTL untouched.
+ */
+@page { size:A4 portrait; margin:12mm 14mm }
+@media print {
+ html,body,main,main>.panel:last-child,#paper,#paper .paper{
+   margin:0!important;padding:0!important;border:0!important;
+   min-height:0!important;height:auto!important;
+ }
+ #paper{width:100%!important}
+ #paper .reference-page{
+   width:182mm!important;max-width:182mm!important;
+   height:252mm!important;min-height:252mm!important;max-height:252mm!important;
+   padding:0 0 13mm!important;margin:0!important;position:relative!important;
+   box-sizing:border-box!important;overflow:visible!important;
+   break-inside:avoid-page!important;page-break-inside:avoid!important;
+   break-after:page!important;page-break-after:always!important;
+   font-family:"Times New Roman","Liberation Serif",serif!important;
+   font-size:14pt!important;line-height:1.18!important;color:#000!important;
+ }
+ #paper .reference-minutes .reference-page{
+   break-after:auto!important;page-break-after:auto!important;padding-bottom:0!important
+ }
+ /* Body: 14pt; 6pt before and after. Tables use a smaller, still readable
+    differentiated type scale to fit evaluation content onto its own A4 sheet. */
+ #paper .reference-page p:not(.caution),#paper .reference-page .paper-line{
+   font-family:"Times New Roman","Liberation Serif",serif!important;
+   font-size:14pt!important;line-height:1.18!important;
+   margin-top:6pt!important;margin-bottom:6pt!important;
+ }
+ #paper .reference-page .official-table{
+   font-family:"Times New Roman","Liberation Serif",serif!important;
+   font-size:12pt!important;margin:5pt 0!important;
+ }
+ #paper .reference-page .official-table td,#paper .reference-page .official-table th{
+   font-size:12pt!important;line-height:1.15!important;padding:1mm 1.4mm!important;
+ }
+ #paper .reference-page .paper-section-heading{
+   font-family:"Times New Roman","Liberation Serif",serif!important;
+   font-size:15pt!important;margin:6pt 0!important;
+ }
+ #paper .reference-page .paper-ministry{font-size:17pt!important;line-height:1.22!important}
+ #paper .reference-page .paper-ministry p{
+   font-size:17pt!important;font-weight:bold!important;margin:2pt 0!important;
+ }
+ #paper .reference-cover .reference-subtitle{font-size:17pt!important;font-weight:700!important}
+ #paper .reference-cover .reference-line{font-size:14pt!important}
+ #paper .reference-cover .reference-main-title{
+   font-size:23pt!important;margin:37mm auto 9mm!important
+ }
+ #paper .reference-cover .reference-cover-exam{bottom:17mm!important}
+ #paper .reference-cover .reference-cover-exam .paper-section-heading{
+   display:table!important;width:auto!important;border:0!important;
+   border-bottom:1px solid #444!important;
+   padding:0 0 2pt!important;margin:0 0 4pt auto!important;
+ }
+ /* Footer belongs to each of the first five logical paper sheets; it must
+    never become a separately-flowed child of the document. */
+ #paper .reference-page .reference-report-footer{
+   position:absolute!important;bottom:0!important;left:0!important;right:0!important;
+   font:8pt/1.12 "Times New Roman","Liberation Serif",serif!important;
+   margin:0!important;padding:0!important;
+ }
+ #paper .reference-page .reference-report-footer p{
+   font-size:8pt!important;line-height:1.12!important;margin:2pt 0!important;
+ }
+ #paper .reference-candidate-exam{margin-top:auto!important}
+ #paper .reference-candidate{display:flex!important;flex-direction:column!important}
+ #paper .reference-minutes .reference-report-footer{display:none!important}
+ #paper .reference-minutes .paper-ministry p{font-size:14pt!important}
+ #paper .reference-minutes .reference-subtitle,
+ #paper .reference-minutes .reference-line{font-size:12.5pt!important}
+ #paper .reference-minutes .reference-three-signers{break-inside:avoid!important}
+ #paper .reference-minutes .reference-member-sign,
+ #paper .reference-minutes .reference-chair-sign{font-size:11pt!important;padding:1mm!important}
+ #paper .reference-page .screen-only{display:none!important}
+}
