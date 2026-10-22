@@ -23,8 +23,8 @@
  #paper .reference-minutes .reference-page{
    break-after:auto!important;page-break-after:auto!important;padding-bottom:0!important
  }
- /* Body: 14pt; 6pt before and after. Tables use a smaller, still readable
-    differentiated type scale to fit evaluation content onto its own A4 sheet. */
+ /* Body and evaluation tables: Times New Roman 14pt; paragraphs 6pt before
+    and after. Margins and cell padding remain compact to retain 6 pages. */
  #paper .reference-page p:not(.caution),#paper .reference-page .paper-line{
    font-family:"Times New Roman","Liberation Serif",serif!important;
    font-size:14pt!important;line-height:1.18!important;
@@ -32,10 +32,10 @@
  }
  #paper .reference-page .official-table{
    font-family:"Times New Roman","Liberation Serif",serif!important;
-   font-size:12pt!important;margin:5pt 0!important;
+   font-size:14pt!important;margin:5pt 0!important;
  }
  #paper .reference-page .official-table td,#paper .reference-page .official-table th{
-   font-size:12pt!important;line-height:1.15!important;padding:1mm 1.4mm!important;
+   font-size:14pt!important;line-height:1.15!important;padding:1mm 1.4mm!important;
  }
  #paper .reference-page .paper-section-heading{
    font-family:"Times New Roman","Liberation Serif",serif!important;
