@@ -259,6 +259,34 @@ export function proposedFinal(state){
  }
  return {grading,notes:text,source};
 }
+// ARCH-01D2-P4-A: an advisory review inventory, never a professional verdict.
+export function finalReviewOverview(state){
+ const derived=proposedFinal(state);
+ const scoreSuggestions=Object.values(derived.source.lesson).length+
+  Object.values(derived.source.discussion).length;
+ const notes=derived.source.notes;
+ const textSuggestions=Object.values(notes.lesson).length+
+  Object.values(notes.discussion).length+
+  proseFields.filter(key=>notes[key]).length;
+ return {scoreSuggestions,textSuggestions,
+  submittedMembers:state.mode==="individual"?assistance(state).count:0};
+}
+// Explicitly copy only currently displayed *score* proposals to the inspector's
+// draft. Authored marks (including zero), notes and member submissions never
+// change. Notes still require the inspector's independent wording and review.
+export function adoptSuggestedScores(state){
+ if(state.mode!=="individual")throw Error("هذه المقترحات متاحة في وضع المساهمات الفردية فقط");
+ const derived=proposedFinal(state),next=clone(state);
+ let changed=false;
+ for(const phase of ["lesson","discussion"]){
+  for(const id of Object.keys(derived.source[phase])){
+   next.final.grading=withScore(next.final.grading,phase,id,derived.grading.scores[phase][id]);
+   changed=true;
+  }
+ }
+ if(changed)next.serial++;
+ return next;
+}
 export function selectRounding(state,phase,id,direction){
  if(state.mode!=="individual"||!["up","down"].includes(direction))
   throw Error("اختيار تقريب غير صالح");
