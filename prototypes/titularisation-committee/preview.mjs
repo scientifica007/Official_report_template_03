@@ -12,6 +12,15 @@ function heading(parent,label){parent.append(node("h3",label,"paper-section-head
 function makePage(parent,id){
  const page=node("section","","reference-page "+id);parent.append(page);return page;
 }
+function addReportFooters(article,d){
+ const pages=article.children.filter(el=>el.className?.includes("reference-page"));
+ pages.forEach((page,index)=>{
+  const footer=node("div","","reference-report-footer");
+  footer.append(node("div","","reference-footer-rule"));
+  footer.append(node("p",d.reportFooter(index+1)));
+  page.append(footer);
+ });
+}
 function table(parent,titles,rows,className=""){
  const t=node("table","","official-table "+className);
  const head=node("thead"),tr=node("tr");
@@ -33,7 +42,11 @@ function ministry(page){
 function choices(parent,d){
  const wrap=node("div","","reference-decisions");
  [["success","ناجح(ة)"],["first","التأجيل الأول"],["second","التأجيل الثاني"]]
- .forEach(([code,text])=>wrap.append(node("span",(d.decisionCode===code?"☑ ":"☐ ")+text)));
+ .forEach(([code,text])=>{
+  const opt=d.decisionChoices.find(x=>x.key===code);
+  wrap.append(node("span",(opt?.chosen?"☑ ":"☐ ")+text,
+   opt?.struck?"reference-decision-struck":""));
+ });
  parent.append(wrap);
 }
 function signatures(page,d){
@@ -65,9 +78,11 @@ function cover(article,d){
   "للأساتذة المتخصصين في التكوين والتعليم المهنيين","reference-subtitle"));
  pg.append(node("p","المراجع: مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
  pg.append(node("p","معاينة تجريبية غير مطابقة بعد للقالب الرسمي؛ "+d.sourceWarning,"caution"));
- heading(pg,"إجراء امتحان التثبيت");
- textLine(pg,"المكان:",d.metaValue("location"));
- textLine(pg,"التاريخ:",d.metaValue("date"));
+ const bottom=node("div","","reference-cover-exam");
+ heading(bottom,"إجراء امتحان التثبيت");
+ textLine(bottom,"المكان:",d.metaValue("location"));
+ textLine(bottom,"التاريخ:",d.metaValue("date"));
+ pg.append(bottom);
  if(d.scoreWarning)pg.append(node("p",d.scoreWarning,"paper-warning screen-only"));
  if(d.textWarning)pg.append(node("p",d.textWarning,"paper-warning screen-only"));
 }
@@ -113,7 +128,9 @@ function results(article,d,state){
   ["المجموع","60",mark(d.marks.total60)],
   ["العلامة النهائية","20",mark(d.marks.total20)]
  ],"reference-results-table");
- textLine(pg,"التقدير العام:",d.prose.general||empty+"\n"+empty);
+ textLine(pg,"التقدير العام:",d.displayedAppreciation?
+  d.displayedAppreciation+(d.appreciationIsSuggestion?" (تقدير مقترح قابل للتغيير)":""):
+  empty+"\n"+empty);
  heading(pg,"قرار أعضاء اللجنة:");
  choices(pg,d);
  signatures(pg,d);
@@ -139,18 +156,21 @@ function minutes(article,d){
  pg.append(node("p","مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
  pg.append(node("p","مسودة للطباعة والإمضاء الورقي، وليست إقرارًا إلكترونيًا.","caution"));
  textLine(pg,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم نصرح بأننا شاركنا يوم:",
-  d.metaValue("date"));
+  d.dateInWords+" بــ: "+(d.examVenue||empty));
  textLine(pg,"في سير امتحان التثبيت للسيد(ة):",d.candidate);
  textLine(pg,"المعين(ة) في رتبة:",d.metaValue("rank"));
  textLine(pg,"بمؤسسة:",d.metaValue("institution"));
  textLine(pg,"لولاية:",d.metaValue("wilaya"));
  heading(pg,"بعد مداولة لجنة الامتحان، النتائج هي:");
  textLine(pg,"العلامة النهائية:",mark(d.marks.total20)+" /20");
- textLine(pg,"التقدير العام:",d.prose.general);
+ textLine(pg,"التقدير العام:",d.displayedAppreciation+
+  (d.appreciationIsSuggestion?" (مقترح)":""));
  heading(pg,"قرار اللجنة:");
  choices(pg,d);
  textLine(pg,"حُرّر في:",d.metaValue("decisionPlace"));
- textLine(pg,"التاريخ:",d.meta.decisionDate||d.meta.date);
+ const dateBox=node("div","","reference-minutes-date-left");
+ textLine(dateBox,"التاريخ:",d.meta.decisionDate||d.meta.date);
+ pg.append(dateBox);
  signatures(pg,d);
 }
 export function renderDocuments(container,state){
@@ -158,7 +178,7 @@ export function renderDocuments(container,state){
  const d=buildReferenceDocuments(state);
  const report=node("article","","paper official-report");
  cover(report,d);candidate(report,d);lesson(report,d);discussion(report,d);
- results(report,d,state);container.append(report);
+ results(report,d,state);addReportFooters(report,d);container.append(report);
  const record=node("article","","paper official-minutes");minutes(record,d);
  container.append(record);
 }
