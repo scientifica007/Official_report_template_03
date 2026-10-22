@@ -95,7 +95,7 @@ function cover(d){
   {center:true,bold:true,size:21});
  b+=p("المراجع: "+basis,{center:true,size:18,before:170});
  b+=p(d.sourceWarning,{center:true,size:17});
- b+=p("إجراء امتحان التثبيت:",{bold:true,before:1300});
+ b+=p("إجراء امتحان التثبيت:",{bold:true,before:6900});
  b+=p("المكان: "+d.metaValue("location"),{before:120});
  b+=p("التاريخ: "+d.metaValue("date"),{before:100});
  return b;
@@ -134,7 +134,7 @@ function lessonPage(d){
   lessonHeights[i]=i===0?420:i===records.length-1?390:
    (d.lessonRows.length===5&&i%2===0?300:(d.lessonRows.length===5?890:460));
  });
- b+=table(records,{widths:[650,6350,1400,1600],headerFill:"F5E5AB",bandFill:fills,rowHeights:lessonHeights,size:23});
+ b+=table(records,{widths:[1000,6000,1400,1600],headerFill:"F5E5AB",bandFill:fills,rowHeights:lessonHeights,size:23});
  b+=p("التقدير:",{bold:true,before:90});
  b+=p(d.prose.lesson||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
   {size:23});
