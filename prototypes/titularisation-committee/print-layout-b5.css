@@ -32,10 +32,10 @@
  }
  #paper .reference-page .official-table{
    font-family:"Times New Roman","Liberation Serif",serif!important;
-   font-size:12pt!important;margin:5pt 0!important;
+   font-size:14pt!important;margin:5pt 0!important;
  }
  #paper .reference-page .official-table td,#paper .reference-page .official-table th{
-   font-size:12pt!important;line-height:1.15!important;padding:1mm 1.4mm!important;
+   font-size:14pt!important;line-height:1.15!important;padding:1mm 1.4mm!important;
  }
  #paper .reference-page .paper-section-heading{
    font-family:"Times New Roman","Liberation Serif",serif!important;
