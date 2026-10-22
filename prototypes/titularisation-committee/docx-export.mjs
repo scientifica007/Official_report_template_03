@@ -24,9 +24,9 @@ function run(s,bold=false,size=24){
 }
 // Keep the field-accepted direction and mixed-script runs; only tune spacing
 // and add source-derived table geometry. Report remains editable throughout.
-function p(s,{bold=false,center=false,page=false,size=0,before=35,after=35}={}){
+function p(s,{bold=false,center=false,end=false,page=false,size=0,before=35,after=35}={}){
  return '<w:p><w:pPr><w:bidi w:val="1"/>'+(page?'<w:pageBreakBefore/>':'')+
- '<w:jc w:val="'+(center?'center':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
+ '<w:jc w:val="'+(center?'center':end?'end':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
  '</w:pPr>'+run(s,bold,size||22)+'</w:p>';
 }
 function cell(s,width,fill="",size=20){
@@ -57,23 +57,29 @@ function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},size=20
 const placeholder="................................................";
 const basis="مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.";
 function decisionChoices(d){
- return ["success","first","second"].map((code,i)=>{
-  const name=["ناجح(ة)","التأجيل الأول","التأجيل الثاني"][i];
-  return (d.decisionCode===code?"☑":"☐")+" "+name;
- }).join("      ");
+ const choices=d.decisionChoices.map(opt=>{
+  let markup=run((opt.chosen?"☑ ":"☐ ")+opt.label+"       ",false,21);
+  if(opt.struck)markup=markup.replaceAll('<w:rtl w:val=','<w:strike/><w:rtl w:val=');
+  return markup;
+ }).join("");
+ return '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="center"/></w:pPr>'+choices+'</w:p>';
 }
 function signatures(d){
- const three=d.signers.slice(0,3);
- const columns=three.map(seat=>
-  seat.label+"\nاللقب والاسم: "+seat.name+"\nالوظيفة: "+seat.role+"\nالتوقيع: ........................");
- const chair=d.signers[3];
- let out=p("مصادقة أعضاء اللجنة:",{bold:true,before:100});
- out+=table([["العضو الأول","العضو الثاني","العضو الثالث"],columns],
-  {widths:[3334,3333,3333],headerFill:"C6C6C6",rowHeights:{0:380,1:1450},size:17});
- out+=table([[chair.label],[ "اللقب والاسم: "+chair.name+" — "+chair.role+
-  "\nالتوقيع: ................................................" ]],
-  {widths:[10000],headerFill:"C6C6C6",rowHeights:{0:320,1:880},size:18});
- return out;
+ const cols=[3334,3333,3333],group=d.signers.slice(0,3),chair=d.signers[3];
+ const grid=cols.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
+ const tc=(txt,w,span=1,fill=false)=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+
+ (span>1?'<w:gridSpan w:val="'+span+'"/>':"")+(fill?'<w:shd w:fill="DADADA"/>':"")+
+ '</w:tcPr>'+p(txt,{size:18,before:45,after:45})+'</w:tc>';
+ const tr=(cells,h)=>'<w:tr><w:trPr><w:trHeight w:val="'+h+'" w:hRule="atLeast"/></w:trPr>'+cells.join("")+'</w:tr>';
+ const body=m=>"اللقب والاسم: "+m.name+"\nالوظيفة: "+m.role+"\nالتوقيع: ................................";
+ return p("مصادقة أعضاء اللجنة:",{bold:true,before:105})+
+ '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/><w:tblLayout w:type="fixed"/>'+
+ '<w:tblBorders>'+["top","bottom","left","right","insideH","insideV"].map(k=>'<w:'+k+' w:val="single" w:sz="6"/>').join("")+
+ '</w:tblBorders></w:tblPr><w:tblGrid>'+grid+'</w:tblGrid>'+
+ tr(group.map((m,i)=>tc(m.label,cols[i],1,true)),320)+
+ tr(group.map((m,i)=>tc(body(m),cols[i])),1350)+
+ tr([tc(chair.label,10000,3,true)],300)+
+ tr([tc(body(chair),10000,3)],600)+'</w:tbl>';
 }
 function cover(d){
  let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:23});
@@ -89,7 +95,7 @@ function cover(d){
   {center:true,bold:true,size:21});
  b+=p("المراجع: "+basis,{center:true,size:18,before:170});
  b+=p(d.sourceWarning,{center:true,size:17});
- b+=p("إجراء امتحان التثبيت:",{bold:true,before:650});
+ b+=p("إجراء امتحان التثبيت:",{bold:true,before:1300});
  b+=p("المكان: "+d.metaValue("location"),{before:120});
  b+=p("التاريخ: "+d.metaValue("date"),{before:100});
  return b;
@@ -155,16 +161,17 @@ function resultsPage(d){
   ["العلامة النهائية","20",mark(d.marks.total20)]],
   {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:450,1:620,2:620,3:620,4:620},size:21});
  b+=p("التقدير العام:",{bold:true,before:150});
- b+=p(d.prose.general||placeholder+"\n"+placeholder+"\n"+placeholder,
-  {size:21,after:120});
+ b+=p(d.displayedAppreciation?
+  d.displayedAppreciation+(d.appreciationIsSuggestion?" (تقدير مقترح قابل للتغيير)":""):
+  placeholder+"\n"+placeholder+"\n"+placeholder,{size:21,after:120});
  b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
- b+=p(decisionChoices(d),{center:true,size:21,before:80,after:170});
+ b+=decisionChoices(d);
  b+=signatures(d);
  return b;
 }
 function minutes(d){
  let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",
-  {page:true,center:true,bold:true,size:22});
+  {center:true,bold:true,size:22});
  b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:22});
  b+=p("المفتشية العامة",{center:true,bold:true,size:22});
  b+=p("محضر التفتيش قصد الترسيم",{center:true,bold:true,size:28,before:190});
@@ -172,25 +179,32 @@ function minutes(d){
   {center:true,size:18});
  b+=p("المراجع: "+basis,{center:true,size:17});
  b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
-  d.metaValue("date")+" في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
+  d.dateInWords+" بــ: "+(d.examVenue||placeholder)+
+  " في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
   {before:170});
  b+=p("المعين(ة) في رتبة: "+d.metaValue("rank"));
  b+=p("بمؤسسة: "+d.metaValue("institution")+"، لولاية: "+d.metaValue("wilaya"));
  b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{before:120});
  b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
-  "      التقدير العام: "+(d.prose.general||placeholder));
- b+=p("قرار اللجنة: "+decisionChoices(d));
- b+=p("حُرّر في: "+d.metaValue("decisionPlace")+" بتاريخ: "+
-  (d.meta.decisionDate||d.meta.date||placeholder),{before:100});
+  "      التقدير العام: "+(d.displayedAppreciation||placeholder)+
+  (d.appreciationIsSuggestion?" (مقترح)":""));
+ b+=p("قرار اللجنة:",{bold:true})+decisionChoices(d);
+ b+=p("حُرّر في: "+d.metaValue("decisionPlace"),{before:100});
+ b+=p("التاريخ: "+(d.meta.decisionDate||d.meta.date||placeholder),{end:true});
  b+=signatures(d);
  return b;
 }
 export function committeeDocumentXml(state){
  const d=buildReferenceDocuments(state);
  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
- '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
- '<w:body>'+cover(d)+candidatePage(d)+lessonPage(d)+discussionPage(d)+resultsPage(d)+minutes(d)+
- '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'+
+ '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+ '<w:body>'+cover(d)+candidatePage(d)+lessonPage(d)+discussionPage(d)+resultsPage(d)+
+ '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/><w:footerReference w:type="default" r:id="rIdReportFooter"/>'+
+ '<w:pgSz w:w="11906" w:h="16838"/>'+
+ '<w:pgMar w:top="850" w:right="900" w:bottom="1010" w:left="900" w:header="350" w:footer="340"/>'+
+ '</w:sectPr></w:pPr></w:p>'+minutes(d)+
+ '<w:sectPr><w:footerReference w:type="default" r:id="rIdEmptyFooter"/>'+
+ '<w:pgSz w:w="11906" w:h="16838"/>'+
  '<w:pgMar w:top="850" w:right="900" w:bottom="850" w:left="900" w:header="350" w:footer="350"/>'+
  '</w:sectPr></w:body></w:document>';
 }
@@ -222,7 +236,21 @@ function zipFiles(files){
  let at=0;for(const part of blocks){buf.set(part,at);at+=part.length}
  return buf;
 }
+function reportFooterXml(d){
+ const label=d.reportFooter(1).replace(/الصفحة 1 من 5$/,"الصفحة ");
+ const field='<w:r><w:fldChar w:fldCharType="begin"/></w:r>'+
+ '<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'+
+ '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'+
+ '<w:r><w:t>1</w:t></w:r>'+
+ '<w:r><w:fldChar w:fldCharType="end"/></w:r>';
+ return '<?xml version="1.0" encoding="UTF-8"?>'+
+ '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+ '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/>'+
+ '<w:pBdr><w:top w:val="single" w:sz="5"/></w:pBdr></w:pPr>'+
+ run(label,false,14)+field+run(" من 5",false,14)+'</w:p></w:ftr>';
+}
 export function createCommitteeDocx(state){
+ const d=buildReferenceDocuments(state);
  const files={
   "[Content_Types].xml":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
@@ -230,12 +258,21 @@ export function createCommitteeDocx(state){
    '<Default Extension="xml" ContentType="application/xml"/>'+
    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'+
    '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'+
+   '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'+
+   '<Override PartName="/word/footer2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'+
    '</Types>',
   "_rels/.rels":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'+
    '</Relationships>',
   "word/document.xml":committeeDocumentXml(state),
+  "word/footer1.xml":reportFooterXml(d),
+  "word/footer2.xml":'<?xml version="1.0" encoding="UTF-8"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p/></w:ftr>',
+  "word/_rels/document.xml.rels":'<?xml version="1.0" encoding="UTF-8"?>'+
+   '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+   '<Relationship Id="rIdReportFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'+
+   '<Relationship Id="rIdEmptyFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer2.xml"/>'+
+   '</Relationships>',
   "word/styles.xml":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
    '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Traditional Arabic"/>'+
