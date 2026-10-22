@@ -22,93 +22,168 @@ function run(s,bold=false,size=24){
    parts.map((part,i)=>part?textRun(part,bold,i%2===1,size):'').join('');
  }).join('');
 }
-function p(s,{bold=false,center=false,page=false,size=0}={}){
+// Keep the field-accepted direction and mixed-script runs; only tune spacing
+// and add source-derived table geometry. Report remains editable throughout.
+function p(s,{bold=false,center=false,page=false,size=0,before=35,after=35}={}){
  return '<w:p><w:pPr><w:bidi w:val="1"/>'+(page?'<w:pageBreakBefore/>':'')+
- '<w:jc w:val="'+(center?'center':'start')+'"/><w:spacing w:before="100" w:after="100"/>'+
- '</w:pPr>'+run(s,bold,size||24)+'</w:p>';
+ '<w:jc w:val="'+(center?'center':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
+ '</w:pPr>'+run(s,bold,size||22)+'</w:p>';
 }
-function cell(s){
- return '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/><w:vAlign w:val="center"/></w:tcPr>'+
- p(s)+'</w:tc>';
+function cell(s,width,fill="",size=20){
+ const bg=fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':"";
+ return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
+ p(s,{size,before:18,after:18})+'</w:tc>';
 }
-function table(rows){
- return '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:bidiVisual w:val="1"/>'+
+function table(rows,{widths=null,headerFill="",bandFill={},size=20}={}){
+ const cols=rows[0]?.length||1;
+ const widthsUsed=widths||Array(cols).fill(Math.floor(10000/cols));
+ if(widthsUsed.length!==cols||rows.some(row=>row.length!==cols))
+  throw Error("جدول الوثيقة يحتوي أعمدة غير متطابقة");
+ return '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/>'+
+ '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="35" w:type="dxa"/>'+
+ '<w:bottom w:w="35" w:type="dxa"/><w:start w:w="65" w:type="dxa"/>'+
+ '<w:end w:w="65" w:type="dxa"/></w:tblCellMar>'+
  '<w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/>'+
  '<w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/>'+
  '<w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders>'+
- '</w:tblPr>'+rows.map(row=>'<w:tr>'+row.map(cell).join("")+'</w:tr>').join("")+'</w:tbl>';
+ '</w:tblPr><w:tblGrid>'+widthsUsed.map(w=>'<w:gridCol w:w="'+w+'"/>').join("")+
+ '</w:tblGrid>'+rows.map((row,i)=>{
+  const fill=bandFill[i]||(i===0?headerFill:"");
+  return '<w:tr>'+row.map((v,j)=>cell(v,widthsUsed[j],fill,size)).join("")+'</w:tr>';
+ }).join("")+'</w:tbl>';
 }
-function signatureTable(d){
- const rows=[["العضو","اللقب والاسم","الوظيفة","الإمضاء"]];
- for(const x of d.signers)rows.push([x.label,x.name,x.role,".................................."]);
- return p("مصادقة أعضاء اللجنة — الإمضاءات على النسخة الورقية",{bold:true})+table(rows);
+
+const placeholder="................................................";
+const basis="مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.";
+function decisionChoices(d){
+ return ["success","first","second"].map((code,i)=>{
+  const name=["ناجح(ة)","التأجيل الأول","التأجيل الثاني"][i];
+  return (d.decisionCode===code?"☑":"☐")+" "+name;
+ }).join("      ");
 }
-function header(d,title,page=false){
- let s=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,page});
- s+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true});
- s+=p("المفتشية العامة",{center:true,bold:true});
- s+=p(title,{center:true,bold:true,size:32});
- s+=p("المرسوم التنفيذي رقم 09-93، والقرار رقم 03 المؤرخ في 06 جانفي 2015",{center:true});
- s+=p(d.sourceWarning,{center:true});
- if(d.referenceScopeWarning)s+=p(d.referenceScopeWarning,{bold:true});
- return s;
+function signatures(d){
+ const three=d.signers.slice(0,3);
+ const columns=three.map(seat=>
+  seat.label+"\nاللقب والاسم: "+seat.name+"\nالوظيفة: "+seat.role+"\nالتوقيع: ........................");
+ const chair=d.signers[3];
+ let out=p("مصادقة أعضاء اللجنة:",{bold:true,before:100});
+ out+=table([["العضو الأول","العضو الثاني","العضو الثالث"],columns],
+  {widths:[3334,3333,3333],headerFill:"C6C6C6",size:17});
+ out+=table([[chair.label],[ "اللقب والاسم: "+chair.name+" — "+chair.role+
+  "\nالتوقيع: ................................................" ]],
+  {widths:[10000],headerFill:"C6C6C6",size:18});
+ return out;
 }
-function report(d){
- let b=header(d,d.reportTitle);
- b+=p("مفتش المقاطعة: "+d.metaValue("chairName"));
+function cover(d){
+ let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:23});
+ b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:23});
+ b+=p("المفتشية العامة",{center:true,bold:true,size:23});
+ b+=p("مفتش المقاطعة: "+d.metaValue("chairName"),{before:260});
  b+=p("المقاطعة التقنية والبيداغوجية: "+d.metaValue("inspectorDistrict"));
  b+=p("المقر: "+d.metaValue("inspectorSeat"));
- b+=p("الهاتف: "+d.metaValue("inspectorPhone")+" — البريد الإلكتروني: "+d.metaValue("inspectorEmail"));
- b+=p("إجراء امتحان التثبيت: المكان "+d.metaValue("location")+" — التاريخ "+d.metaValue("date"));
- b+=p("معلومات تتعلق بالأستاذ(ة) المترشح(ة)",{bold:true});
- b+=table(d.candidateFields.map(x=>x));
- b+=p("ظروف إجراء امتحان التثبيت",{bold:true});
- b+=table(d.examFields.map(x=>x));
- b+=p("الامتحان الأول: حصة تدريسية /40",{bold:true});
- b+=p("شبكة التنقيط المختارة: "+d.rubricLabel+" — شبكة عمل لا يُثبت اعتمادها الرسمي");
- b+=table([["معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"],
-  ...d.lessonRows.map(x=>[x.label+
-    (x.indicators.length?"\n"+x.indicators.map(z=>"• "+z).join("\n"):""),mark(x.cap),mark(x.score)]),
-  ["العلامة المحصلة للحصة","40",mark(d.marks.lesson)]]);
- b+=p("تقدير الحصة: "+(d.prose.lesson||"................................................"));
- b+=p("الامتحان الثاني: المناقشة /20",{bold:true});
- b+=p("موضوع المناقشة: "+(d.discussionTopic||"................................................"));
+ b+=p("الهاتف: "+d.metaValue("inspectorPhone"));
+ b+=p("البريد الإلكتروني: "+d.metaValue("inspectorEmail"));
+ b+=p("تقرير التفتيش قصد الترسيم",{center:true,bold:true,size:39,before:540,after:120});
+ b+=p(d.referenceScopeWarning||"للأساتذة المتخصصين في التكوين والتعليم المهنيين",
+  {center:true,bold:true,size:21});
+ b+=p("المراجع: "+basis,{center:true,size:18,before:170});
+ b+=p(d.sourceWarning,{center:true,size:17});
+ b+=p("إجراء امتحان التثبيت:",{bold:true,before:650});
+ b+=p("المكان: "+d.metaValue("location"),{before:120});
+ b+=p("التاريخ: "+d.metaValue("date"),{before:100});
+ return b;
+}
+function candidatePage(d){
+ let b=p("معلومات تتعلق بالأستاذ(ة) المترشح(ة)",{page:true,center:true,bold:true,size:24});
+ // Candidate fields in the original reference are ordinary labelled lines,
+ // not a two-column table; keep the exam circumstances in their own table.
+ for(const [label,value] of d.candidateFields)
+  b+=p(label+": "+value,{size:20,before:22,after:22});
+ b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:135});
+ b+=table(d.examFields,{widths:[3700,6300],size:19});
+ return b;
+}
+function lessonPage(d){
+ let b=p("إجراء الامتحان",{center:true,bold:true,page:true,size:23});
+ b+=p("الامتحان الأول: حصة تدريسية",{bold:true,size:23});
+ if(d.rubricId!=="lesson_grouped_5_v1")
+  b+=p("الشبكة المستخدمة: "+d.rubricLabel+" (شبكة عمل غير مثبت اعتمادها رسميًا)",
+    {size:16});
+ const records=[];
+ const fills={};
+ records.push(["الرقم","معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"]);
+ d.lessonRows.forEach((item,i)=>{
+  records.push([String(i+1),item.label+
+   (item.indicators?.length?"\n"+item.indicators.map(x=>"• "+x).join("\n"):""),
+    mark(item.cap),mark(item.score)]);
+  if(d.lessonRows.length===5){
+   fills[records.length]="D9E9D2";
+   records.push(["","النقطة الجزئية -"+(i+1)+"-","",""]);
+  }
+ });
+ records.push(["","العلامة المحصلة","40",mark(d.marks.lesson)]);
+ b+=table(records,{widths:[650,6350,1400,1600],headerFill:"F5E5AB",bandFill:fills,size:19});
+ b+=p("التقدير:",{bold:true,before:90});
+ b+=p(d.prose.lesson||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
+  {size:21});
+ return b;
+}
+function discussionPage(d){
+ let b=p("الامتحان الثاني: المناقشة",{page:true,center:true,bold:true,size:24});
+ b+=p("موضوع المناقشة: "+(d.discussionTopic||placeholder),{before:170,after:140});
  b+=table([["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],
   ...d.discussionRows.map(x=>[x.label,mark(x.cap),mark(x.score)]),
-  ["العلامة المحصلة للمناقشة","20",mark(d.marks.discussion)]]);
- b+=p("تقدير المناقشة: "+(d.prose.discussion||"................................................"));
- b+=p("خلاصة النتائج",{center:true,bold:true});
+  ["العلامة المحصلة","20",mark(d.marks.discussion)]],
+  {widths:[6500,1600,1900],headerFill:"DCEBD5",size:20});
+ b+=p("التقدير:",{bold:true,before:130});
+ b+=p(d.prose.discussion||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
+  {size:21});
+ return b;
+}
+function resultsPage(d){
+ let b=p("خلاصة النتائج",{page:true,center:true,bold:true,size:25});
  b+=table([["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],
-  ["إلقاء الدرس","40",mark(d.marks.lesson)],
-  ["المحادثة","20",mark(d.marks.discussion)],
+  ["1 - إلقاء الدرس","40",mark(d.marks.lesson)],
+  ["2 - المحادثة","20",mark(d.marks.discussion)],
   ["المجموع","60",mark(d.marks.total60)],
-  ["العلامة النهائية","20",mark(d.marks.total20)]]);
- b+=p("التقدير العام: "+(d.prose.general||"................................................"));
- b+=p("قرار أعضاء اللجنة: "+d.decision,{bold:true});
- if(d.prose.recommendations)b+=p("توصيات إضافية (لا يقابلها حقل مستقل في النموذج المرجعي): "+d.prose.recommendations);
- b+=signatureTable(d);
+  ["العلامة النهائية","20",mark(d.marks.total20)]],
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",size:21});
+ b+=p("التقدير العام:",{bold:true,before:150});
+ b+=p(d.prose.general||placeholder+"\n"+placeholder+"\n"+placeholder,
+  {size:21,after:120});
+ b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
+ b+=p(decisionChoices(d),{center:true,size:21,before:80,after:170});
+ b+=signatures(d);
  return b;
 }
 function minutes(d){
- let b=header(d,"محضر التفتيش قصد الترسيم",true);
- b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرّح بأننا شاركنا يوم "+
-  d.metaValue("date")+" في سير امتحان التثبيت للسيد(ة): "+(d.candidate||"..........................."));
- b+=p("المعين(ة) في رتبة: "+d.metaValue("rank")+
- " بمؤسسة: "+d.metaValue("institution")+" لولاية: "+d.metaValue("wilaya"));
- b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{bold:true});
- b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20");
- b+=p("التقدير العام: "+(d.prose.general||"................................................"));
- b+=p("قرار اللجنة: "+d.decision,{bold:true});
- b+=p("حُرّر في: "+d.metaValue("decisionPlace")+
-  " بتاريخ: "+(d.meta.decisionDate||d.meta.date||"........................................"));
- b+=signatureTable(d);
+ let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",
+  {page:true,center:true,bold:true,size:22});
+ b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:22});
+ b+=p("المفتشية العامة",{center:true,bold:true,size:22});
+ b+=p("محضر التفتيش قصد الترسيم",{center:true,bold:true,size:28,before:190});
+ b+=p("للأساتذة المتخصصين في التكوين والتعليم المهنيين، وللأساتذة المتخصصين لإعادة التكييف",
+  {center:true,size:18});
+ b+=p("المراجع: "+basis,{center:true,size:17});
+ b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
+  d.metaValue("date")+" في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
+  {before:170});
+ b+=p("المعين(ة) في رتبة: "+d.metaValue("rank"));
+ b+=p("بمؤسسة: "+d.metaValue("institution")+"، لولاية: "+d.metaValue("wilaya"));
+ b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{before:120});
+ b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
+  "      التقدير العام: "+(d.prose.general||placeholder));
+ b+=p("قرار اللجنة: "+decisionChoices(d));
+ b+=p("حُرّر في: "+d.metaValue("decisionPlace")+" بتاريخ: "+
+  (d.meta.decisionDate||d.meta.date||placeholder),{before:100});
+ b+=signatures(d);
  return b;
 }
 export function committeeDocumentXml(state){
  const d=buildReferenceDocuments(state);
  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
- '<w:body>'+report(d)+minutes(d)+
+ '<w:body>'+cover(d)+candidatePage(d)+lessonPage(d)+discussionPage(d)+resultsPage(d)+minutes(d)+
  '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'+
  '<w:pgMar w:top="850" w:right="900" w:bottom="850" w:left="900" w:header="350" w:footer="350"/>'+
  '</w:sectPr></w:body></w:document>';
