@@ -92,7 +92,7 @@ test("portable JSON is self-describing and old v1 restoration remains intact",()
  assert.equal(exported.schema,s.schema);
  assert.equal(exported.documentContract.version,PORTABLE_CONTRACT_VERSION);
  assert.equal(exported.documentContract.template.reportPages,5);
- assert.equal(exported.documentContract.template.minutesHasFooter,false);
+ assert.equal(exported.documentContract.template.print.minutesHasFooter,false);
  assert.equal(exported.documentContract.outputData.candidate,"اسم اصطناعي");
  assert.equal(exported.documentContract.outputData.minutesDateInWords,
   "الرابع عشر من شهر نوفمبر سنة ألفية وستة وعشرين");
