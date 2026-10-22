@@ -9,7 +9,7 @@ class FakeElement {
  setAttribute(name,val){this.attributes[name]=val}
 }
 const ids=new Map();
-for(const id of ["mode","rubric","who","meta","weights","editor","members","paper","message","save","load","print"])
+for(const id of ["mode","rubric","who","meta","weights","editor","members","paper","message","save","load","print","docx"])
  ids.set(id,new FakeElement(id==="mode"||id==="rubric"||id==="who"?"select":"div"));
 globalThis.document={
  getElementById:id=>ids.get(id),
