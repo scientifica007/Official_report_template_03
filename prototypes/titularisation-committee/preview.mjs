@@ -1,133 +1,164 @@
-/* ARCH-01D2-P4-B — readable paper-oriented *drafts*.
- * Word and print consume the same read-only data model; no changes to grades.
- * Source remarks remain available in the accepted inspector editor, not
- * automatically attributed to the committee in the paper document. */
+/* ARCH-01D2-P4-B3 — six reference sections (five report + minutes).
+ * Browser print and DOCX consume buildReferenceDocuments; never mutate the
+ * chair's editable data or present signatures as electronic approvals. */
 import {node,add,clear} from "./dom.mjs";
 import {buildReferenceDocuments,mark} from "./document-model.mjs";
-
-function line(parent,label,value){
- const el=node("p","","paper-line");
- add(el,node("strong",label+" "),node("span",value||"................................................"));
- parent.append(el);
+const empty="................................................";
+function textLine(parent,label,value){
+ const p=node("p","","paper-line");
+ add(p,node("strong",label+" "),node("span",value||empty));parent.append(p);
 }
 function heading(parent,label){parent.append(node("h3",label,"paper-section-heading"))}
-function rowsTable(parent,titles,rows,className=""){
- const t=node("table","","official-table "+className),thead=node("thead"),tr=node("tr");
- for(const x of titles)tr.append(node("th",x));
- thead.append(tr);t.append(thead);
- const tbody=node("tbody");
- for(const row of rows){
+function makePage(parent,id){
+ const page=node("section","","reference-page "+id);parent.append(page);return page;
+}
+function table(parent,titles,rows,className=""){
+ const t=node("table","","official-table "+className);
+ const head=node("thead"),tr=node("tr");
+ titles.forEach(x=>tr.append(node("th",x)));head.append(tr);t.append(head);
+ const body=node("tbody");
+ rows.forEach(row=>{
   const tr=node("tr");
-  for(const v of row)tr.append(node("td",v??""));
-  tbody.append(tr);
- }
- t.append(tbody);parent.append(t);
+  row.forEach(x=>tr.append(node("td",x??"")));
+  body.append(tr);
+ });
+ t.append(body);parent.append(t);return t;
 }
-function header(parent,title,d){
- const banner=node("div","","paper-ministry");
- for(const text of ["الجمهورية الجزائرية الديمقراطية الشعبية",
-  "وزارة التكوين والتعليم المهنيين","المفتشية العامة"])
-  banner.append(node("p",text));
- parent.append(banner,node("h2",title),node("p",
-  "المراجع: المرسوم التنفيذي رقم 09-93، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
- parent.append(node("p","معاينة تجريبية غير مطابقة بعد للقالب الرسمي؛ لا تُعد إمضاءً أو ختمًا.","caution"));
- if(d.referenceScopeWarning)parent.append(node("p",d.referenceScopeWarning,"warning"));
- if(d.scoreWarning)parent.append(node("p",d.scoreWarning,"paper-warning"));
- if(d.textWarning)parent.append(node("p",d.textWarning,"paper-warning"));
+function ministry(page){
+ const block=node("div","","paper-ministry");
+ ["الجمهورية الجزائرية الديمقراطية الشعبية",
+ "وزارة التكوين والتعليم المهنيين","المفتشية العامة"].forEach(x=>block.append(node("p",x)));
+ page.append(block);
 }
-function signatures(parent,d){
- heading(parent,"مصادقة أعضاء اللجنة — إمضاءات أعضاء اللجنة على النسخة الورقية");
- const wrap=node("div","","official-signatures");
- for(const seat of d.signers){
-  const card=node("div","","official-signature");
-  add(card,node("strong",seat.label),
-   node("p","الاسم واللقب: "+seat.name),
-   node("p","الوظيفة: "+seat.role),
-   node("p","الإمضاء: .............................."));
-  wrap.append(card);
- }
+function choices(parent,d){
+ const wrap=node("div","","reference-decisions");
+ [["success","ناجح(ة)"],["first","التأجيل الأول"],["second","التأجيل الثاني"]]
+ .forEach(([code,text])=>wrap.append(node("span",(d.decisionCode===code?"☑ ":"☐ ")+text)));
  parent.append(wrap);
 }
-function report(container,d,state){
- const paper=node("article","","paper official-report");
- header(paper,d.reportTitle,d);
- line(paper,"مفتش المقاطعة:",d.metaValue("chairName"));
- line(paper,"المقاطعة التقنية والبيداغوجية:",d.metaValue("inspectorDistrict"));
- line(paper,"المقر:",d.metaValue("inspectorSeat"));
- line(paper,"الهاتف:",d.metaValue("inspectorPhone"));
- line(paper,"البريد الإلكتروني:",d.metaValue("inspectorEmail"));
- heading(paper,"إجراء امتحان التثبيت");
- line(paper,"المكان:",d.metaValue("location"));
- line(paper,"التاريخ:",d.metaValue("date"));
- heading(paper,"معلومات تتعلق بالأستاذ(ة) المترشح(ة)");
- rowsTable(paper,["البيان","المعلومة"],d.candidateFields,"paper-info-table");
- heading(paper,"ظروف إجراء امتحان التثبيت");
- rowsTable(paper,["البيان","المعلومة"],d.examFields,"paper-info-table");
- heading(paper,"الامتحان الأول: حصة تدريسية /40");
- paper.append(node("p","شبكة التنقيط المختارة: "+d.rubricLabel+
+function signatures(page,d){
+ heading(page,"مصادقة أعضاء اللجنة — إمضاءات أعضاء اللجنة على النسخة الورقية");
+ const wrap=node("div","","reference-three-signers");
+ d.signers.slice(0,3).forEach(x=>{
+  const card=node("div","","reference-member-sign");
+  add(card,node("strong",x.label),node("p","اللقب والاسم: "+x.name),
+   node("p","الوظيفة: "+x.role),node("p","التوقيع: ........................"));
+  wrap.append(card);
+ });
+ page.append(wrap);
+ const chair=d.signers[3];
+ const full=node("div","","reference-chair-sign");
+ add(full,node("strong",chair.label),node("p","اللقب والاسم: "+chair.name),
+  node("p","الوظيفة: "+chair.role),node("p","التوقيع: ........................"));
+ page.append(full);
+}
+function cover(article,d){
+ const pg=makePage(article,"reference-cover");
+ ministry(pg);
+ textLine(pg,"مفتش المقاطعة:",d.metaValue("chairName"));
+ textLine(pg,"المقاطعة التقنية والبيداغوجية:",d.metaValue("inspectorDistrict"));
+ textLine(pg,"المقر:",d.metaValue("inspectorSeat"));
+ textLine(pg,"الهاتف:",d.metaValue("inspectorPhone"));
+ textLine(pg,"البريد الإلكتروني:",d.metaValue("inspectorEmail"));
+ pg.append(node("h2","تقرير التفتيش قصد الترسيم","reference-main-title"));
+ pg.append(node("p",d.referenceScopeWarning||
+  "للأساتذة المتخصصين في التكوين والتعليم المهنيين","reference-subtitle"));
+ pg.append(node("p","المراجع: مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
+ pg.append(node("p","معاينة تجريبية غير مطابقة بعد للقالب الرسمي؛ "+d.sourceWarning,"caution"));
+ heading(pg,"إجراء امتحان التثبيت");
+ textLine(pg,"المكان:",d.metaValue("location"));
+ textLine(pg,"التاريخ:",d.metaValue("date"));
+ if(d.scoreWarning)pg.append(node("p",d.scoreWarning,"paper-warning screen-only"));
+ if(d.textWarning)pg.append(node("p",d.textWarning,"paper-warning screen-only"));
+}
+function candidate(article,d){
+ const pg=makePage(article,"reference-candidate");
+ heading(pg,"معلومات تتعلق بالأستاذ(ة) المترشح(ة)");
+ d.candidateFields.forEach(([label,value])=>textLine(pg,label+":",value));
+ heading(pg,"ظروف إجراء امتحان التثبيت");
+ table(pg,["البيان","المعلومة"],d.examFields,"reference-exam-info");
+}
+function lesson(article,d){
+ const pg=makePage(article,"reference-lesson");
+ heading(pg,"إجراء الامتحان");
+ heading(pg,"الامتحان الأول: حصة تدريسية");
+ pg.append(node("p","شبكة التنقيط المختارة: "+d.rubricLabel+
   " — شبكة عمل غير مثبت اعتمادها الرسمي.","paper-small"));
- rowsTable(paper,["معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"],[
-  ...d.lessonRows.map(x=>[
-   x.label+(x.indicators.length?"\n"+x.indicators.map(y=>"• "+y).join("\n"):""),
-   mark(x.cap),mark(x.score)+" / "+mark(x.cap)]),
-  ["العلامة المحصلة","40",mark(d.marks.lesson)]
- ],"paper-score-table");
- line(paper,"التقدير:",d.prose.lesson);
- heading(paper,"الامتحان الثاني: المناقشة /20");
- line(paper,"موضوع المناقشة:",d.discussionTopic);
- rowsTable(paper,["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],[
-  ...d.discussionRows.map(x=>[x.label,mark(x.cap),mark(x.score)]),
+ const rows=d.lessonRows.map((x,i)=>[
+  String(i+1),x.label+(x.indicators.length?
+   "\n"+x.indicators.map(y=>"• "+y).join("\n"):""),mark(x.cap),
+  mark(x.score)+" / "+mark(x.cap)
+ ]);
+ rows.push(["","العلامة المحصلة","40",mark(d.marks.lesson)]);
+ table(pg,["الرقم","معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"],
+  rows,"reference-lesson-table");
+ textLine(pg,"التقدير:",d.prose.lesson||empty+"\n"+empty+"\n"+empty);
+}
+function discussion(article,d){
+ const pg=makePage(article,"reference-discussion");
+ heading(pg,"الامتحان الثاني: المناقشة");
+ textLine(pg,"موضوع المناقشة:",d.discussionTopic);
+ table(pg,["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],[
+  ...d.discussionRows.map((x,i)=>[String(i+1)+" - "+x.label,mark(x.cap),mark(x.score)]),
   ["العلامة المحصلة","20",mark(d.marks.discussion)]
- ],"paper-score-table");
- line(paper,"التقدير:",d.prose.discussion);
- heading(paper,"خلاصة النتائج");
- rowsTable(paper,["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],[
-  ["إلقاء الدرس","40",mark(d.marks.lesson)],
-  ["المحادثة","20",mark(d.marks.discussion)],
+ ],"reference-discussion-table");
+ textLine(pg,"التقدير:",d.prose.discussion||empty+"\n"+empty+"\n"+empty);
+}
+function results(article,d,state){
+ const pg=makePage(article,"reference-results");
+ heading(pg,"خلاصة النتائج");
+ table(pg,["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],[
+  ["1 - إلقاء الدرس","40",mark(d.marks.lesson)],
+  ["2 - المحادثة","20",mark(d.marks.discussion)],
   ["المجموع","60",mark(d.marks.total60)],
   ["العلامة النهائية","20",mark(d.marks.total20)]
- ],"paper-score-table");
- line(paper,"التقدير العام:",d.prose.general);
- line(paper,"قرار أعضاء اللجنة:",d.decision);
- // Existing optional item-level inspector writing remains inspectable, but
- // the reference print contract has *group-level* assessments only.
- const authoredItems=[
-  ...Object.entries(state.final.notes.lesson).filter(([,value])=>value?.trim()).map(([key,value])=>key+": "+value),
-  ...Object.entries(state.final.notes.discussion).filter(([,value])=>value?.trim()).map(([key,value])=>key+": "+value)
+ ],"reference-results-table");
+ textLine(pg,"التقدير العام:",d.prose.general||empty+"\n"+empty);
+ heading(pg,"قرار أعضاء اللجنة:");
+ choices(pg,d);
+ signatures(pg,d);
+ if(d.prose.recommendations)textLine(pg,"توصيات إضافية (خارج حقول القالب المرجعي):",d.prose.recommendations);
+ // Preserve previously accepted inspector per-item source notes for review.
+ // This screen-only reference does not appear in paper or DOCX.
+ const detailed=[
+  ...Object.entries(state.final.notes.lesson).filter(([,v])=>v?.trim()),
+  ...Object.entries(state.final.notes.discussion).filter(([,v])=>v?.trim())
  ];
- if(authoredItems.length){
-  const internal=node("details","","internal-editor-notes");
-  internal.append(node("summary","ملاحظات تفصيلية للمراجعة داخل المحرر — لا تُطبع"));
-  for(const item of authoredItems)internal.append(node("p",item));
-  paper.append(internal);
+ if(detailed.length){
+  const details=node("details","","internal-editor-notes screen-only");
+  details.append(node("summary","ملاحظات تفصيلية للمراجعة داخل المحرر — لا تُطبع"));
+  detailed.forEach(([k,v])=>details.append(node("p",k+": "+v)));
+  pg.append(details);
  }
- if(d.prose.recommendations)line(paper,
-  "توصيات إضافية (خارج الحقول الأصلية للنموذج المرجعي):",d.prose.recommendations);
- signatures(paper,d);
- container.append(paper);
 }
-function minutes(container,d){
- const paper=node("article","","paper official-minutes");
- header(paper,"محضر التفتيش قصد الترسيم",d);
- line(paper,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرّح بأننا شاركنا يوم:",
+function minutes(article,d){
+ const pg=makePage(article,"reference-minutes");
+ ministry(pg);
+ pg.append(node("h2","محضر التفتيش قصد الترسيم"));
+ pg.append(node("p","للأساتذة المتخصصين في التكوين والتعليم المهنيين وإعادة التكييف","reference-subtitle"));
+ pg.append(node("p","مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
+ pg.append(node("p","مسودة للطباعة والإمضاء الورقي، وليست إقرارًا إلكترونيًا.","caution"));
+ textLine(pg,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم نصرح بأننا شاركنا يوم:",
   d.metaValue("date"));
- line(paper,"في سير امتحان التثبيت للسيد(ة):",
-  d.candidate||"................................................");
- line(paper,"المعين(ة) في رتبة:",d.metaValue("rank"));
- line(paper,"بمؤسسة:",d.metaValue("institution"));
- line(paper,"لولاية:",d.metaValue("wilaya"));
- heading(paper,"بعد مداولة لجنة الامتحان، النتائج هي:");
- line(paper,"العلامة النهائية:",mark(d.marks.total20)+" /20");
- line(paper,"التقدير العام:",d.prose.general);
- line(paper,"قرار اللجنة:",d.decision);
- line(paper,"حُرّر في:",d.metaValue("decisionPlace"));
- line(paper,"التاريخ:",d.meta.decisionDate||d.meta.date);
- signatures(paper,d);
- container.append(paper);
+ textLine(pg,"في سير امتحان التثبيت للسيد(ة):",d.candidate);
+ textLine(pg,"المعين(ة) في رتبة:",d.metaValue("rank"));
+ textLine(pg,"بمؤسسة:",d.metaValue("institution"));
+ textLine(pg,"لولاية:",d.metaValue("wilaya"));
+ heading(pg,"بعد مداولة لجنة الامتحان، النتائج هي:");
+ textLine(pg,"العلامة النهائية:",mark(d.marks.total20)+" /20");
+ textLine(pg,"التقدير العام:",d.prose.general);
+ heading(pg,"قرار اللجنة:");
+ choices(pg,d);
+ textLine(pg,"حُرّر في:",d.metaValue("decisionPlace"));
+ textLine(pg,"التاريخ:",d.meta.decisionDate||d.meta.date);
+ signatures(pg,d);
 }
 export function renderDocuments(container,state){
  clear(container);
  const d=buildReferenceDocuments(state);
- report(container,d,state);
- minutes(container,d);
+ const report=node("article","","paper official-report");
+ cover(report,d);candidate(report,d);lesson(report,d);discussion(report,d);
+ results(report,d,state);container.append(report);
+ const record=node("article","","paper official-minutes");minutes(record,d);
+ container.append(record);
 }
