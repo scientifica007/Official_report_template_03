@@ -8,7 +8,7 @@ const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
 // dates, numeric grades, addresses, phone numbers and URLs inside Arabic.
 const latinToken=/([A-Za-z0-9][A-Za-z0-9._@/+:%-]*[A-Za-z0-9]|[A-Za-z0-9])/g;
 function textRun(value,bold,ltr,size=24){
- return '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Traditional Arabic"/>'+
+ return '<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'+
   (bold?'<w:b/>':'')+
   '<w:rtl w:val="'+(ltr?'0':'1')+'"/>'+
   (ltr?'<w:lang w:val="en-US"/>':'<w:lang w:val="ar-DZ" w:bidi="ar-DZ"/>')+
@@ -24,15 +24,15 @@ function run(s,bold=false,size=24){
 }
 // Keep the field-accepted direction and mixed-script runs; only tune spacing
 // and add source-derived table geometry. Report remains editable throughout.
-function p(s,{bold=false,center=false,end=false,page=false,size=0,before=35,after=35}={}){
+function p(s,{bold=false,center=false,end=false,page=false,size=0,before=120,after=120}={}){
  return '<w:p><w:pPr><w:bidi w:val="1"/>'+(page?'<w:pageBreakBefore/>':'')+
  '<w:jc w:val="'+(center?'center':end?'end':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
- '</w:pPr>'+run(s,bold,size||24)+'</w:p>';
+ '</w:pPr>'+run(s,bold,size||28)+'</w:p>';
 }
 function cell(s,width,fill="",size=20){
  const bg=fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':"";
  return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
- p(s,{size:Math.max(size,22),before:18,after:18})+'</w:tc>';
+ p(s,{size:Math.max(size,28),before:18,after:18})+'</w:tc>';
 }
 function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},size=20}={}){
  const cols=rows[0]?.length||1;
@@ -69,7 +69,7 @@ function signatures(d){
  const grid=cols.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
  const tc=(txt,w,span=1,fill=false)=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+
  (span>1?'<w:gridSpan w:val="'+span+'"/>':"")+(fill?'<w:shd w:fill="DADADA"/>':"")+
- '</w:tcPr>'+p(txt,{size:21,before:45,after:45})+'</w:tc>';
+ '</w:tcPr>'+p(txt,{size:28,before:45,after:45})+'</w:tc>';
  const tr=(cells,h)=>'<w:tr><w:trPr><w:trHeight w:val="'+h+'" w:hRule="atLeast"/></w:trPr>'+cells.join("")+'</w:tr>';
  const body=m=>"اللقب والاسم: "+m.name+"\nالوظيفة: "+m.role+"\nالتوقيع: ................................";
  return p("مصادقة أعضاء اللجنة:",{bold:true,before:105})+
@@ -82,20 +82,20 @@ function signatures(d){
  tr([tc(body(chair),10000,3)],600)+'</w:tbl>';
 }
 function cover(d){
- let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:23});
- b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:23});
- b+=p("المفتشية العامة",{center:true,bold:true,size:23});
+ let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:36});
+ b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:36});
+ b+=p("المفتشية العامة",{center:true,bold:true,size:36});
  b+=p("مفتش المقاطعة: "+d.metaValue("chairName"),{before:260});
  b+=p("المقاطعة التقنية والبيداغوجية: "+d.metaValue("inspectorDistrict"));
  b+=p("المقر: "+d.metaValue("inspectorSeat"));
  b+=p("الهاتف: "+d.metaValue("inspectorPhone"));
  b+=p("البريد الإلكتروني: "+d.metaValue("inspectorEmail"));
- b+=p("تقرير التفتيش قصد الترسيم",{center:true,bold:true,size:39,before:540,after:120});
+ b+=p("تقرير التفتيش قصد الترسيم",{center:true,bold:true,size:60,before:540,after:120});
  b+=p(d.referenceScopeWarning||"للأساتذة المتخصصين في التكوين والتعليم المهنيين",
-  {center:true,bold:true,size:21});
- b+=p("المراجع: "+basis,{center:true,size:18,before:170});
+  {center:true,bold:true,size:33});
+ b+=p("المراجع: "+basis,{center:true,size:26,before:170});
  b+=p(d.sourceWarning,{center:true,size:17});
- b+=p("إجراء امتحان التثبيت:",{bold:true,before:6900});
+ b+=p("إجراء امتحان التثبيت:",{bold:true,before:4400});
  b+=p("المكان: "+d.metaValue("location"),{before:120});
  b+=p("التاريخ: "+d.metaValue("date"),{before:100});
  return b;
@@ -105,13 +105,13 @@ function candidatePage(d){
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
-  b+=p(label+": "+value,{size:22,before:65,after:65});
+  b+=p(label+": "+value,{size:28,before:120,after:120});
  b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:135});
  b+=table(d.examFields,{widths:[3700,6300],size:22});
  return b;
 }
 function lessonPage(d){
- let b=p("إجراء الامتحان",{center:true,bold:true,page:true,size:23});
+ let b=p("إجراء الامتحان",{center:true,bold:true,page:true,size:32});
  b+=p("الامتحان الأول: حصة تدريسية",{bold:true,size:23});
  if(d.rubricId!=="lesson_grouped_5_v1")
   b+=p("الشبكة المستخدمة: "+d.rubricLabel+" (شبكة عمل غير مثبت اعتمادها رسميًا)",
@@ -275,9 +275,9 @@ export function createCommitteeDocx(state){
    '</Relationships>',
   "word/styles.xml":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
-   '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Traditional Arabic"/>'+
+   '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'+
    '<w:rtl w:val="1"/><w:lang w:val="ar-DZ" w:bidi="ar-DZ"/>'+
-   '<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults>'+
+   '<w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:rPrDefault></w:docDefaults>'+
    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/>'+
    '<w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/></w:pPr>'+
    '<w:rPr><w:rtl w:val="1"/><w:lang w:val="ar-DZ" w:bidi="ar-DZ"/></w:rPr></w:style></w:styles>'
