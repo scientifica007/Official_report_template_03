@@ -90,8 +90,10 @@ function candidate(article,d){
  const pg=makePage(article,"reference-candidate");
  heading(pg,"معلومات تتعلق بالأستاذ(ة) المترشح(ة)");
  d.candidateFields.forEach(([label,value])=>textLine(pg,label+":",value));
- heading(pg,"ظروف إجراء امتحان التثبيت");
- table(pg,["البيان","المعلومة"],d.examFields,"reference-exam-info");
+ const exam=node("div","","reference-candidate-exam");
+ heading(exam,"ظروف إجراء امتحان التثبيت");
+ table(exam,["البيان","المعلومة"],d.examFields,"reference-exam-info");
+ pg.append(exam);
 }
 function lesson(article,d){
  const pg=makePage(article,"reference-lesson");
