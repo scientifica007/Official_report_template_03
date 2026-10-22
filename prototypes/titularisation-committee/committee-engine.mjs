@@ -21,7 +21,38 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const own=(o,k)=>has(o,k);
 const plain=o=>o!==null&&typeof o==="object"&&!Array.isArray(o)&&Object.getPrototypeOf(o)===Object.prototype;
 const fields=new Set(["lessonSummary","discussionSummary","general","recommendations"]);
-const metaKeys=new Set(["candidate","institution","rank","date","location","session"]);
+// Supplementary *report fields*, grounded in the supplied six-page
+// titularisation template. The original six fields and v1 JSON remain valid.
+export const METADATA_GROUPS=Object.freeze([
+ {label:"بيانات المفتش والمقاطعة",fields:[
+  ["inspectorDistrict","المقاطعة التقنية والبيداغوجية"],
+  ["inspectorSeat","مقر المفتش"],["inspectorPhone","هاتف المفتش"],
+  ["inspectorEmail","البريد الإلكتروني للمفتش"],["chairName","اسم ولقب رئيس اللجنة"]]},
+ {label:"بيانات الأستاذ المترشح",fields:[
+  ["familyName","اللقب"],["givenName","الاسم"],["birth","تاريخ ومكان الميلاد"],
+  ["installationDate","تاريخ التنصيب"],["assignmentDate","تاريخ التعيين"],
+  ["assignmentInstitution","مؤسسة التعيين"],["examCenter","مركز الامتحان"],
+  ["certificate","الشهادة"],["specialty","الاختصاص"],
+  ["subjects","المواد المُدرّسة"],["workplace","مكان العمل"],
+  ["internshipInstitution","مؤسسة التربص البيداغوجي"],
+  ["internshipFrom","بداية التربص البيداغوجي"],["internshipTo","نهاية التربص البيداغوجي"],
+  ["priorDeferral","هل وقع التأجيل من قبل؟"],["priorDeferralDate","تاريخ التأجيل السابق إن وجد"]]},
+ {label:"ظروف إجراء امتحان الترسيم",fields:[
+  ["occupationalBranch","الشعبة المهنية"],["examSpecialty","اختصاص الامتحان"],
+  ["qualificationLevel","مستوى التأهيل"],["module","المقياس"],
+  ["lessonTopic","موضوع الحصة التدريسية"],["discussionTopic","موضوع المناقشة"],
+  ["wilaya","الولاية"]]},
+ {label:"المداولة والوثيقة الورقية",fields:[
+  ["member1Name","اسم ولقب العضو الأول"],["member1Role","وظيفة العضو الأول"],
+  ["member2Name","اسم ولقب العضو الثاني"],["member2Role","وظيفة العضو الثاني"],
+  ["member3Name","اسم ولقب العضو الثالث"],["member3Role","وظيفة العضو الثالث"],
+  ["decision","قرار اللجنة"],["decisionPlace","مكان تحرير المحضر"],
+  ["decisionDate","تاريخ تحرير المحضر"]]}
+]);
+const baseMetaKeys=["candidate","institution","rank","date","location","session"];
+const metaKeys=new Set([...baseMetaKeys,...METADATA_GROUPS.flatMap(g=>g.fields.map(f=>f[0]))]);
+const emptyMeta=()=>Object.fromEntries([...metaKeys].map(k=>[k,""]));
+const validDecisions=new Set(["","success","first","second"]);
 const maxNote=4000;
 const proseFields=["lessonSummary","discussionSummary","general","recommendations"];
 const editKey=(field,id)=>["lesson","discussion"].includes(field)?field+":"+id:"field:"+field;
@@ -39,11 +70,12 @@ export function freshCommittee(mode="unified",rubric="grouped5"){
  const members={};
  for(const {id} of SEATS)members[id]=contributor(key);
  return {schema:COMMITTEE_SCHEMA,revision:1,mode,rubricId:RUBRICS[key].id,
-  meta:{candidate:"",institution:"",rank:"",date:"",location:"",session:""},
+  meta:emptyMeta(),
   final:contributor(key),members,finalNoteEdits:[],serial:1};
 }
 export function editMeta(state,field,value){
  if(!metaKeys.has(field))throw Error("حقل تعريف غير معروف");
+ if(field==="decision"&&!validDecisions.has(value))throw Error("قرار لجنة غير معروف");
  const s=clone(state);s.meta[field]=cleanString(value,300);s.serial++;return s;
 }
 export function changeMode(state,mode){
@@ -318,7 +350,8 @@ export function restoreCommittee(raw){
  const blank=freshCommittee(raw.mode,raw.rubricId);
  if(!plain(raw.meta)||!plain(raw.members)||!Number.isSafeInteger(raw.serial)||raw.serial<1)
    throw Error("بيانات مسودة غير صالحة");
- for(const key of metaKeys)blank.meta[key]=cleanString(raw.meta[key],300);
+ for(const key of metaKeys)blank.meta[key]=cleanString(raw.meta[key]??"",300);
+ if(!validDecisions.has(blank.meta.decision))throw Error("قرار لجنة غير معروف");
  for(const key of Object.keys(raw.meta))if(!metaKeys.has(key))throw Error("حقل تعريف غير معروف");
  blank.final=checkContribution(raw.final,blank.rubricId,null,false);
  for(const {id} of SEATS){
