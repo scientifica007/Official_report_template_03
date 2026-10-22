@@ -100,7 +100,7 @@ $("load").addEventListener("change",async e=>{
   state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
-window.addEventListener?.("beforeprint",()=>fitPrintPages($("paper")));
+if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>fitPrintPages($("paper")));
 $("print").addEventListener("click",()=>{fitPrintPages($("paper"));window.print()});
 $("docx").addEventListener("click",()=>{
  try{
