@@ -7,6 +7,8 @@ import {renderMembers} from "./members-ui.mjs";
 import {renderDocuments} from "./preview.mjs";
 import {node,clear,labelValue} from "./dom.mjs";
 import {createCommitteeDocx} from "./docx-export.mjs";
+import {fitPrintPages} from "./print-fit.mjs";
+import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 let state=freshCommittee(),who="final";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
@@ -54,6 +56,7 @@ function render(){
  renderForm($("editor"),state,who,commit);
  renderMembers($("members"),state);
  renderDocuments($("paper"),state);
+ fitPrintPages($("paper"));
  message("");
 }
 $("who").addEventListener("change",e=>{who=e.target.value;render()});
@@ -81,11 +84,11 @@ $("rubric").addEventListener("change",e=>{
 });
 $("save").addEventListener("click",()=>{
  try{
-  const data=stringifyCommittee(state);
+  const data=stringifyPortableCommittee(state);
   const url=URL.createObjectURL(new Blob([data],{type:"application/json;charset=utf-8"}));
-  const a=node("a");a.href=url;a.download="committee-lab-draft.json";
+  const a=node("a");a.href=url;a.download="titularisation-portable-report-draft.json";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
-  message("حُفظ ملف المسودة JSON محليًا.");
+  message("حُفظ JSON منظم مع بيانات النموذج وتعليمات الإخراج، دون إرسال أي معلومات إلى خادم.");
  }catch(e){message(e.message)}
 });
 $("load").addEventListener("change",async e=>{
@@ -97,7 +100,8 @@ $("load").addEventListener("change",async e=>{
   state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
-$("print").addEventListener("click",()=>window.print());
+if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>fitPrintPages($("paper")));
+$("print").addEventListener("click",()=>{fitPrintPages($("paper"));window.print()});
 $("docx").addEventListener("click",()=>{
  try{
   const bytes=createCommitteeDocx(state);

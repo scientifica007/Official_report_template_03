@@ -1,6 +1,7 @@
 import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-workbench/engine.mjs";
 import {SEATS,assistance,proposedFinal,selectRounding,resetFinalNote,editScore,editNote,submit,reopen,fillDemoMember,hasMemberContent} from "./committee-engine.mjs";
 import {node,clear,action,textValue} from "./dom.mjs";
+import {suggestedAppreciation} from "./document-rules.mjs";
 const labels={lessonSummary:"تقدير الحصة",discussionSummary:"تقدير المناقشة",general:"التقدير العام",recommendations:"التوصيات"};
 const show=x=>x==null?"—":String(Number(x.toFixed(3)));
 function itemRow(container,state,who,phase,item,commit){
@@ -92,6 +93,11 @@ export function renderForm(container,state,who,commit){
  for(const [key,title] of Object.entries(labels)){
   const textarea=textValue(container,title,person.notes[key],v=>commit(()=>editNote(state,who,key,v)));
   textarea.disabled=person.submitted&&!isFinal;
+  if(isFinal&&key==="general"){
+   const score=totals(person.grading).total60;
+   const proposal=score===null?"":suggestedAppreciation(score/3);
+   if(proposal)container.append(node("p","التقدير المقترح حسب العلامة على 20: "+proposal+". يمكن للمفتش تغيير التقدير مباشرة في الحقل أعلاه.","hint"));
+  }
   if(isFinal&&state.mode==="individual"&&person.source.notes[key]){
    container.append(node("p","نص تجميعي مقترح من الأعضاء؛ عدله مباشرة لصياغة خلاصة اللجنة.","hint"));
   }

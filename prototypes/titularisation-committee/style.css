@@ -174,3 +174,52 @@ button.demo-fill-button:hover{background:#f5dfa6}
  #paper .reference-page .caution{font-size:8pt;background:transparent!important;border:0!important}
  #paper .reference-page .reference-decisions{font-size:11pt}
 }
+
+/* ARCH-01D2-P4-B4 — five identifiable report pages; minutes have NO footer.
+   Font is fitted against each logical A4 page; manual inspector drafting stays intact. */
+#paper .reference-page{position:relative;--reference-print-font:12pt}
+#paper .reference-cover .reference-cover-exam{margin-top:80px}
+#paper .reference-report-footer{font-size:9px;line-height:1.25;margin-top:20px;text-align:center;direction:rtl;color:#222}
+#paper .reference-footer-rule{border-top:1px solid #555;margin-bottom:5px}
+#paper .reference-report-footer p{white-space:normal;margin:2px 0}
+#paper .reference-decision-struck{text-decoration:line-through;text-decoration-thickness:1.5px}
+#paper .reference-member-sign:not(:last-child){border-inline-end:1px solid #8e9f91}
+#paper .reference-member-sign:first-child{border-inline-end:1px solid #8e9f91}
+#paper .reference-member-sign:last-child{border-inline-end:0}
+#paper .reference-minutes-date-left{text-align:left;direction:rtl;margin:7px 0}
+#paper .reference-minutes-date-left .paper-line{text-align:left}
+@media print{
+ @page{size:A4 portrait;margin:12mm 14mm}
+ #paper .reference-page{
+  width:182mm;max-width:182mm;height:273mm;max-height:273mm;
+  box-sizing:border-box;position:relative;padding:0 0 16mm!important;margin:0!important;
+  font-size:var(--reference-print-font,12pt)!important;
+  break-after:page;page-break-after:always;
+ }
+ #paper .reference-page .paper-line,
+ #paper .reference-page .reference-subtitle{
+  font-size:var(--reference-print-font,12pt)!important;line-height:1.26!important;
+ }
+ #paper .reference-page .paper-section-heading{font-size:calc(var(--reference-print-font,12pt) * 1.06)!important}
+ #paper .reference-page .official-table{font-size:calc(var(--reference-print-font,12pt) * .83)!important}
+ #paper .reference-page .official-table th,#paper .reference-page .official-table td{
+  padding:1mm 1.5mm!important;line-height:1.17!important
+ }
+ #paper .reference-report-footer{
+  position:absolute;bottom:0;right:0;left:0;margin:0;
+  font:8pt/1.22 "Traditional Arabic","Amiri",Arial,sans-serif!important;
+  text-align:center;color:#000
+ }
+ #paper .reference-cover .reference-cover-exam{
+  position:absolute;right:0;left:0;bottom:20mm;margin:0
+ }
+ #paper .reference-cover .reference-main-title{margin-top:45mm!important}
+ #paper .reference-cover .paper-section-heading{margin:0 0 3mm!important}
+ #paper .reference-cover .reference-cover-exam .paper-line{margin:2mm 0!important}
+ #paper .reference-decisions .reference-decision-struck{text-decoration:line-through!important}
+ #paper .reference-three-signers .reference-member-sign:not(:last-child){border-inline-end:1px solid #444!important}
+ #paper .reference-minutes-date-left{margin-inline-start:auto;text-align:left!important}
+ #paper .reference-minutes-date-left .paper-line{text-align:left!important}
+ #paper .reference-minutes{padding-bottom:0!important}
+ #paper .reference-minutes .reference-report-footer{display:none!important}
+}

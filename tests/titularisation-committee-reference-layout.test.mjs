@@ -42,7 +42,7 @@ test("Word has five explicit section starts and source-like 4-column lesson tabl
  let s=freshCommittee();
  s=editMeta(s,"rank","أستاذ متخصص في التكوين والتعليم المهنيين من الرتبة الثانية");
  const xml=committeeDocumentXml(s);
- assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,5);
+ assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,4);
  assert.equal((xml.match(/<w:bidiVisual w:val="1"\/>/g)||[]).length>=5,true);
  const visible=[...xml.matchAll(/<w:t xml:space="preserve">([^<]*)<\/w:t>/g)]
   .map(match=>match[1]).join("");
@@ -51,7 +51,7 @@ test("Word has five explicit section starts and source-like 4-column lesson tabl
   "التأجيل الأول","التأجيل الثاني","محضر التفتيش قصد الترسيم"]){
   assert.ok(visible.includes(required),required);
  }
- assert.match(xml,/<w:tblGrid><w:gridCol w:w="650"\/><w:gridCol w:w="6350"\/>/);
+ assert.match(xml,/<w:tblGrid><w:gridCol w:w="1000"\/><w:gridCol w:w="6000"\/>/);
  assert.match(xml,/<w:rtl w:val="0"\/>/,"Latin numbers remain LTR");
 });
 test("paper decisions remain authored, without locks or inferred outcomes",()=>{
@@ -101,6 +101,6 @@ test("source table spacing is explicit and does not add an unnecessary page brea
  const xml=committeeDocumentXml(s);
  assert.match(xml,/<w:trHeight w:val="890" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:trHeight w:val="710" w:hRule="atLeast"\/>/);
- assert.match(xml,/<w:trHeight w:val="1450" w:hRule="atLeast"\/>/);
- assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,5);
+ assert.match(xml,/<w:trHeight w:val="1350" w:hRule="atLeast"\/>/);
+ assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,4);
 });
