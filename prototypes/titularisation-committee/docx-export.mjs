@@ -4,21 +4,35 @@
 import {buildReferenceDocuments,mark} from "./document-model.mjs";
 const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-const run=(s,bold=false)=>'<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Traditional Arabic"/>'+
- (bold?"<w:b/>":"")+'<w:rtl/><w:sz w:val="24"/><w:szCs w:val="26"/></w:rPr>'+
- String(s??"").split("\n").map((line,i)=>(i?"<w:br/>":"")+'<w:t xml:space="preserve">'+esc(line)+'</w:t>').join("")+'</w:r>';
+// Each Word paragraph has RTL reading order; isolated ASCII runs preserve
+// dates, numeric grades, addresses, phone numbers and URLs inside Arabic.
+const latinToken=/([A-Za-z0-9][A-Za-z0-9._@/+:%-]*[A-Za-z0-9]|[A-Za-z0-9])/g;
+function textRun(value,bold,ltr,size=24){
+ return '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Traditional Arabic"/>'+
+  (bold?'<w:b/>':'')+
+  '<w:rtl w:val="'+(ltr?'0':'1')+'"/>'+
+  (ltr?'<w:lang w:val="en-US"/>':'<w:lang w:val="ar-DZ" w:bidi="ar-DZ"/>')+
+  '<w:sz w:val="'+size+'"/><w:szCs w:val="'+size+'"/></w:rPr>'+
+  '<w:t xml:space="preserve">'+esc(value)+'</w:t></w:r>';
+}
+function run(s,bold=false,size=24){
+ return String(s??"").split("\n").map((line,lineIndex)=>{
+  const parts=line.split(latinToken);
+  return (lineIndex?'<w:r><w:br/></w:r>':'')+
+   parts.map((part,i)=>part?textRun(part,bold,i%2===1,size):'').join('');
+ }).join('');
+}
 function p(s,{bold=false,center=false,page=false,size=0}={}){
- return '<w:p><w:pPr><w:bidi/>'+(page?'<w:pageBreakBefore/>':'')+
- '<w:jc w:val="'+(center?'center':'right')+'"/><w:spacing w:before="100" w:after="100"/>'+
- (size?'<w:rPr><w:sz w:val="'+size+'"/><w:szCs w:val="'+size+'"/></w:rPr>':'')+
- '</w:pPr>'+run(s,bold)+'</w:p>';
+ return '<w:p><w:pPr><w:bidi w:val="1"/>'+(page?'<w:pageBreakBefore/>':'')+
+ '<w:jc w:val="'+(center?'center':'start')+'"/><w:spacing w:before="100" w:after="100"/>'+
+ '</w:pPr>'+run(s,bold,size||24)+'</w:p>';
 }
 function cell(s){
  return '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/><w:vAlign w:val="center"/></w:tcPr>'+
  p(s)+'</w:tc>';
 }
 function table(rows){
- return '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:bidiVisual/>'+
+ return '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:bidiVisual w:val="1"/>'+
  '<w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/>'+
  '<w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/>'+
  '<w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders>'+
@@ -144,9 +158,11 @@ export function createCommitteeDocx(state){
   "word/styles.xml":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
    '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Traditional Arabic"/>'+
-   '<w:sz w:val="24"/><w:szCs w:val="26"/></w:rPr></w:rPrDefault></w:docDefaults>'+
+   '<w:rtl w:val="1"/><w:lang w:val="ar-DZ" w:bidi="ar-DZ"/>'+
+   '<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults>'+
    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/>'+
-   '<w:pPr><w:bidi/></w:pPr></w:style></w:styles>'
+   '<w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/></w:pPr>'+
+   '<w:rPr><w:rtl w:val="1"/><w:lang w:val="ar-DZ" w:bidi="ar-DZ"/></w:rPr></w:style></w:styles>'
  };
  return zipFiles(files);
 }

@@ -108,7 +108,8 @@ test("two editable Word documents are contained in one offline OOXML file",()=>{
  assert.ok(files["[Content_Types].xml"]);
  assert.match(files["word/document.xml"],/محضر التفتيش قصد الترسيم/);
  assert.match(files["word/document.xml"],/الامتحان الأول: حصة تدريسية/);
- assert.match(files["word/document.xml"],/تقدير متاح للتعديل في Word/);
+ assert.match(files["word/document.xml"],/تقدير متاح للتعديل في /);
+ assert.match(files["word/document.xml"],/<w:t xml:space="preserve">Word<\/w:t>/);
  assert.match(files["word/document.xml"],/مترشح افتراضي/);
  assert.match(files["word/document.xml"],/w:pageBreakBefore/);
  assert.match(files["word/document.xml"],/w:bidiVisual/);
@@ -126,4 +127,28 @@ test("DOCX rendering cannot change state, and blank remains distinct from zero",
  assert.equal(mark(d.lessonRows[0].score),"—");
  createCommitteeDocx(s);
  assert.equal(JSON.stringify(s),before);
+});
+
+test("DOCX is truly right-to-left, including paragraphs, Word style and table cells",()=>{
+ let s=freshCommittee();
+ s=editMeta(s,"inspectorEmail","review.2026@example.org");
+ s=editMeta(s,"inspectorPhone","034556654");
+ s=editMeta(s,"familyName","اختبار");
+ s=editMeta(s,"date","14 نوفمبر 2026");
+ const files=storedFiles(createCommitteeDocx(s));
+ const doc=files["word/document.xml"],styles=files["word/styles.xml"];
+ assert.match(doc,/<w:p><w:pPr><w:bidi w:val="1"\/><w:jc w:val="start"\/>/);
+ assert.match(doc,/<w:bidiVisual w:val="1"\/>/);
+ assert.match(doc,/<w:jc w:val="center"\/>/);
+ assert.doesNotMatch(doc,/<w:jc w:val="right"\/>/);
+ const count=(doc.match(/<w:p><w:pPr>/g)||[]).length;
+ assert.ok(count>40,"every report and minutes paragraph must be RTL");
+ assert.equal((doc.match(/<w:p><w:pPr><w:bidi w:val="1"\/>/g)||[]).length,count);
+ assert.match(styles,/<w:pPr><w:bidi w:val="1"\/><w:jc w:val="start"\/><\/w:pPr>/);
+ assert.match(styles,/<w:rtl w:val="1"\/><w:lang w:val="ar-DZ" w:bidi="ar-DZ"\/>/);
+ // Latin/numeric fragments remain LTR, not reversed by Word's Arabic defaults.
+ assert.match(doc,/<w:rtl w:val="0"\/><w:lang w:val="en-US"\/>/);
+ assert.match(doc,/<w:t xml:space="preserve">review.2026@example.org<\/w:t>/);
+ assert.match(doc,/<w:t xml:space="preserve">034556654<\/w:t>/);
+ assert.match(doc,/<w:t xml:space="preserve">2026<\/w:t>/);
 });
