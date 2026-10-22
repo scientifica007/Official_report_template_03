@@ -199,7 +199,7 @@ export function committeeDocumentXml(state){
  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
  '<w:body>'+cover(d)+candidatePage(d)+lessonPage(d)+discussionPage(d)+resultsPage(d)+
- '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/><w:footerReference w:type="default" r:id="rIdReportFooter"/>'+
+ '<w:p><w:pPr><w:bidi w:val="1"/><w:sectPr><w:type w:val="nextPage"/><w:footerReference w:type="default" r:id="rIdReportFooter"/>'+
  '<w:pgSz w:w="11906" w:h="16838"/>'+
  '<w:pgMar w:top="850" w:right="900" w:bottom="1010" w:left="900" w:header="350" w:footer="340"/>'+
  '</w:sectPr></w:pPr></w:p>'+minutes(d)+
