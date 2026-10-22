@@ -51,7 +51,7 @@ test("Word has five explicit section starts and source-like 4-column lesson tabl
   "التأجيل الأول","التأجيل الثاني","محضر التفتيش قصد الترسيم"]){
   assert.ok(visible.includes(required),required);
  }
- assert.match(xml,/<w:tblGrid><w:gridCol w:w="650"\/><w:gridCol w:w="6350"\/>/);
+ assert.match(xml,/<w:tblGrid><w:gridCol w:w="1000"\/><w:gridCol w:w="6000"\/>/);
  assert.match(xml,/<w:rtl w:val="0"\/>/,"Latin numbers remain LTR");
 });
 test("paper decisions remain authored, without locks or inferred outcomes",()=>{
