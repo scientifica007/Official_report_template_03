@@ -44,10 +44,12 @@ test("Word has five explicit section starts and source-like 4-column lesson tabl
  const xml=committeeDocumentXml(s);
  assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,5);
  assert.equal((xml.match(/<w:bidiVisual w:val="1"\/>/g)||[]).length>=5,true);
+ const visible=[...xml.matchAll(/<w:t xml:space="preserve">([^<]*)<\/w:t>/g)]
+  .map(match=>match[1]).join("");
  for(const required of ["تقرير التفتيش قصد الترسيم","معايير ومؤشرات التقدير",
   "النقطة الجزئية -1-","العلامة النهائية","قرار أعضاء اللجنة",
   "التأجيل الأول","التأجيل الثاني","محضر التفتيش قصد الترسيم"]){
-  assert.ok(xml.includes(required),required);
+  assert.ok(visible.includes(required),required);
  }
  assert.match(xml,/<w:tblGrid><w:gridCol w:w="650"\/><w:gridCol w:w="6350"\/>/);
  assert.match(xml,/<w:rtl w:val="0"\/>/,"Latin numbers remain LTR");
