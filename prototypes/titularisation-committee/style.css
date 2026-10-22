@@ -60,10 +60,3 @@ button.demo-fill-button:hover{background:#f5dfa6}
 @media(max-width:520px){button.demo-fill-button{width:100%}}
 @media print{.demo-fill-zone{display:none!important}}
 
-/* ARCH-01D2-P4-A: a small review cue; keep the existing per-item editor. */
-.final-review-zone{padding:12px;margin:12px 0;border:1px solid #b8d7c4;border-radius:10px;background:#f2f8f4}
-.final-review-zone h3{margin:0 0 6px}
-.final-review-zone p{margin:6px 0}
-.final-review-zone button{min-height:44px;margin:6px 0;background:#e7f3eb;color:#15533c;border:1px solid #6aab88;font-weight:700}
-@media(max-width:520px){.final-review-zone button{width:100%}}
-@media print{.final-review-zone{display:none!important}}
