@@ -113,3 +113,64 @@ button.demo-fill-button:hover{background:#f5dfa6}
  .paper-warning{font-size:9pt;background:#fff!important;border-color:#aaa}
  .meta-details{display:none!important}
 }
+
+/* ARCH-01D2-P4-B3 — six source-reference print sections.
+ * All styles are scoped to the paper preview, not the accepted grading UI. */
+#paper .reference-page{max-width:850px;margin:14px auto;padding:23px 25px;border:1px solid #c5d6cb;background:#fff;min-height:580px;direction:rtl;text-align:right}
+#paper .reference-page .paper-ministry{text-align:center}
+#paper .reference-page .reference-main-title{border:2px solid #34483c;font-size:24px;max-width:530px;padding:11px;margin:45px auto 14px}
+#paper .reference-page .reference-subtitle{text-align:center;font-size:12px}
+#paper .reference-page .reference-line{text-align:center;font-size:11px;margin:10px 0}
+#paper .reference-cover> .paper-line{margin:5px 0}
+#paper .reference-cover .paper-section-heading{margin-top:75px}
+#paper .reference-candidate .paper-line{margin:5px 0;font-size:13px}
+#paper .reference-candidate .paper-section-heading{text-align:center}
+#paper .reference-lesson .paper-section-heading:first-child{text-align:center}
+#paper .reference-lesson-table th{background:#fff0b0}
+#paper .reference-lesson-table td:nth-child(1),#paper .reference-lesson-table th:nth-child(1){width:7%;text-align:center}
+#paper .reference-lesson-table td:nth-child(2),#paper .reference-lesson-table th:nth-child(2){width:57%}
+#paper .reference-lesson-table td:nth-child(3),#paper .reference-lesson-table th:nth-child(3){width:18%;text-align:center}
+#paper .reference-lesson-table td:nth-child(4),#paper .reference-lesson-table th:nth-child(4){width:18%;text-align:center}
+#paper .reference-discussion-table th{background:#dfecd6}
+#paper .reference-results-table th{background:#d4d4d4}
+#paper .reference-decisions{display:flex;justify-content:space-between;gap:15px;font-weight:700;padding:10px 5px}
+#paper .reference-three-signers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid #8e9f91}
+#paper .reference-member-sign{padding:10px;border-inline-end:1px solid #8e9f91;font-size:12px;white-space:pre-wrap}
+#paper .reference-member-sign:first-child{border-inline-end:0}
+#paper .reference-member-sign p,#paper .reference-chair-sign p{margin:7px 0}
+#paper .reference-chair-sign{padding:10px;text-align:center;border:1px solid #8e9f91;border-top:0;font-size:12px}
+#paper .reference-three-signers strong,#paper .reference-chair-sign strong{display:block;background:#e0e0e0;text-align:center;padding:4px}
+#paper .reference-minutes .paper-section-heading{text-align:center}
+#paper .reference-minutes .paper-ministry{margin-bottom:20px}
+@media(max-width:700px){
+ #paper .reference-page{padding:13px 9px}
+ #paper .reference-member-sign{font-size:10px;padding:5px}
+ #paper .reference-three-signers{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #paper .reference-lesson-table{font-size:10px}
+ #paper .reference-decisions{gap:6px;font-size:11px}
+}
+@page{size:A4 portrait;margin:12mm 14mm}
+@media print{
+ #paper .paper{break-after:auto!important;page-break-after:auto!important;break-before:auto!important}
+ #paper .reference-page{max-width:none;min-height:0;height:auto;border:0;margin:0!important;padding:0!important;break-after:page;page-break-after:always}
+ #paper .reference-minutes .reference-page{break-after:auto;page-break-after:auto}
+ #paper .reference-page .paper-line{margin:5px 0;line-height:1.25}
+ #paper .reference-page .paper-section-heading{margin:10px 0 5px;font-size:13pt}
+ #paper .reference-page .official-table{font-size:10pt;margin:5px 0 8px}
+ #paper .reference-page .official-table th,#paper .reference-page .official-table td{padding:1.5mm 2mm}
+ #paper .reference-candidate .paper-line{font-size:10.5pt;margin:3px 0}
+ #paper .reference-lesson-table th{background:#fff0b0!important}
+ #paper .reference-discussion-table th{background:#dfecd6!important}
+ #paper .reference-results-table th{background:#d4d4d4!important}
+ #paper .reference-page .official-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ #paper .reference-cover .reference-main-title{margin-top:75px}
+ #paper .reference-cover .paper-section-heading{margin-top:125px}
+ #paper .reference-minutes .paper-ministry{margin-top:5px}
+ #paper .reference-minutes .reference-line{font-size:9pt}
+ #paper .reference-three-signers{break-inside:avoid}
+ #paper .reference-member-sign{font-size:9pt;padding:2mm}
+ #paper .reference-chair-sign{font-size:9pt;padding:2mm}
+ #paper .reference-page .screen-only{display:none!important}
+ #paper .reference-page .caution{font-size:8pt;background:transparent!important;border:0!important}
+ #paper .reference-page .reference-decisions{font-size:11pt}
+}
