@@ -1,5 +1,5 @@
 import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-workbench/engine.mjs";
-import {SEATS,assistance,proposedFinal,selectRounding,resetFinalNote,editScore,editNote,submit,reopen,fillDemoMember,hasMemberContent} from "./committee-engine.mjs";
+import {SEATS,assistance,proposedFinal,selectRounding,resetFinalNote,editScore,editNote,submit,reopen,fillDemoMember,hasMemberContent,finalReviewOverview,adoptSuggestedScores} from "./committee-engine.mjs";
 import {node,clear,action,textValue} from "./dom.mjs";
 const labels={lessonSummary:"تقدير الحصة",discussionSummary:"تقدير المناقشة",general:"التقدير العام",recommendations:"التوصيات"};
 const show=x=>x==null?"—":String(Number(x.toFixed(3)));
@@ -67,6 +67,19 @@ export function renderForm(container,state,who,commit){
   "تظهر مقترحات العلامات والنصوص مباشرة من مساهمات الأعضاء المرسلة. يمكنك تعديل أي درجة أو صياغة؛ ولا تستبدل التحديثاتُ تعديلاتك السابقة.":
   "العلامة النهائية والنصوص قابلة للتعديل ولا يلزم تطابقها مع المتوسط."):
   "هذه محاكاة محلية للمقعد وليست مصادقة أو توقيعًا."));
+ if(isFinal&&state.mode==="individual"){
+  const review=finalReviewOverview(state);
+  const panel=node("div","","final-review-zone");
+  panel.append(node("h3","مراجعة الصيغة النهائية للمفتش"));
+  panel.append(node("p","المساهمات المرسلة: "+review.submittedMembers+"/4. علامات مقترحة لم تُثبت في مسودتك: "+
+   review.scoreSuggestions+"؛ تقديرات نصية مجمعة لم تُحرَّر منك بعد: "+review.textSuggestions+"."));
+  if(review.scoreSuggestions){
+   action(panel,"اعتماد العلامات المقترحة غير المثبتة ("+review.scoreSuggestions+")",
+    ()=>commit(()=>adoptSuggestedScores(state)));
+  }
+  panel.append(node("p","العلامات التي أدخلتها بنفسك، بما فيها الصفر، محفوظة ولا تُستبدل. النصوص المجمعة تبقى مواد أولية؛ حررها في الحقول الموجودة أدناه. لا يمثل هذا الإجراء اعتمادًا قانونيًا أو موافقة إلكترونية للجنة.","hint"));
+  container.append(panel);
+ }
  if(!isFinal&&!person.submitted){
   const tools=node("div","","demo-fill-zone");
   const fill=action(tools,"ملء بيانات تجريبية لهذا العضو",()=>{
