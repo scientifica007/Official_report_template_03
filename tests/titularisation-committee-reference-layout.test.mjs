@@ -95,3 +95,12 @@ test("reference sections can reflect the accepted 14-indicator and 10-item schem
  const out=committeeDocumentXml(b);
  assert.match(out,/شبكة عمل غير مثبت اعتمادها رسميًا/);
 });
+
+test("source table spacing is explicit and does not add an unnecessary page break",()=>{
+ const s=freshCommittee();
+ const xml=committeeDocumentXml(s);
+ assert.match(xml,/<w:trHeight w:val="890" w:hRule="atLeast"\/>/);
+ assert.match(xml,/<w:trHeight w:val="710" w:hRule="atLeast"\/>/);
+ assert.match(xml,/<w:trHeight w:val="1450" w:hRule="atLeast"\/>/);
+ assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,5);
+});

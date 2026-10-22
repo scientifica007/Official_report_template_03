@@ -34,7 +34,7 @@ function cell(s,width,fill="",size=20){
  return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
  p(s,{size,before:18,after:18})+'</w:tc>';
 }
-function table(rows,{widths=null,headerFill="",bandFill={},size=20}={}){
+function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},size=20}={}){
  const cols=rows[0]?.length||1;
  const widthsUsed=widths||Array(cols).fill(Math.floor(10000/cols));
  if(widthsUsed.length!==cols||rows.some(row=>row.length!==cols))
@@ -49,7 +49,8 @@ function table(rows,{widths=null,headerFill="",bandFill={},size=20}={}){
  '</w:tblPr><w:tblGrid>'+widthsUsed.map(w=>'<w:gridCol w:w="'+w+'"/>').join("")+
  '</w:tblGrid>'+rows.map((row,i)=>{
   const fill=bandFill[i]||(i===0?headerFill:"");
-  return '<w:tr>'+row.map((v,j)=>cell(v,widthsUsed[j],fill,size)).join("")+'</w:tr>';
+  const minHeight=rowHeights[i]?'<w:trPr><w:trHeight w:val="'+rowHeights[i]+'" w:hRule="atLeast"/></w:trPr>':'';
+  return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,size)).join("")+'</w:tr>';
  }).join("")+'</w:tbl>';
 }
 
@@ -68,10 +69,10 @@ function signatures(d){
  const chair=d.signers[3];
  let out=p("مصادقة أعضاء اللجنة:",{bold:true,before:100});
  out+=table([["العضو الأول","العضو الثاني","العضو الثالث"],columns],
-  {widths:[3334,3333,3333],headerFill:"C6C6C6",size:17});
+  {widths:[3334,3333,3333],headerFill:"C6C6C6",rowHeights:{0:380,1:1450},size:17});
  out+=table([[chair.label],[ "اللقب والاسم: "+chair.name+" — "+chair.role+
   "\nالتوقيع: ................................................" ]],
-  {widths:[10000],headerFill:"C6C6C6",size:18});
+  {widths:[10000],headerFill:"C6C6C6",rowHeights:{0:320,1:880},size:18});
  return out;
 }
 function cover(d){
@@ -98,7 +99,7 @@ function candidatePage(d){
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
-  b+=p(label+": "+value,{size:20,before:22,after:22});
+  b+=p(label+": "+value,{size:20,before:65,after:65});
  b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:135});
  b+=table(d.examFields,{widths:[3700,6300],size:19});
  return b;
@@ -122,7 +123,12 @@ function lessonPage(d){
   }
  });
  records.push(["","العلامة المحصلة","40",mark(d.marks.lesson)]);
- b+=table(records,{widths:[650,6350,1400,1600],headerFill:"F5E5AB",bandFill:fills,size:19});
+ const lessonHeights={};
+ records.forEach((_,i)=>{
+  lessonHeights[i]=i===0?420:i===records.length-1?390:
+   (d.lessonRows.length===5&&i%2===0?300:(d.lessonRows.length===5?890:460));
+ });
+ b+=table(records,{widths:[650,6350,1400,1600],headerFill:"F5E5AB",bandFill:fills,rowHeights:lessonHeights,size:19});
  b+=p("التقدير:",{bold:true,before:90});
  b+=p(d.prose.lesson||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
   {size:21});
@@ -134,7 +140,7 @@ function discussionPage(d){
  b+=table([["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],
   ...d.discussionRows.map(x=>[x.label,mark(x.cap),mark(x.score)]),
   ["العلامة المحصلة","20",mark(d.marks.discussion)]],
-  {widths:[6500,1600,1900],headerFill:"DCEBD5",size:20});
+  {widths:[6500,1600,1900],headerFill:"DCEBD5",rowHeights:{0:480,1:710,2:710,3:710,4:710,5:710,6:710,7:710,8:380},size:20});
  b+=p("التقدير:",{bold:true,before:130});
  b+=p(d.prose.discussion||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
   {size:21});
@@ -147,7 +153,7 @@ function resultsPage(d){
   ["2 - المحادثة","20",mark(d.marks.discussion)],
   ["المجموع","60",mark(d.marks.total60)],
   ["العلامة النهائية","20",mark(d.marks.total20)]],
-  {widths:[5500,2000,2500],headerFill:"C8C8C8",size:21});
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:450,1:620,2:620,3:620,4:620},size:21});
  b+=p("التقدير العام:",{bold:true,before:150});
  b+=p(d.prose.general||placeholder+"\n"+placeholder+"\n"+placeholder,
   {size:21,after:120});
