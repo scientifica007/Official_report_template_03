@@ -13,7 +13,7 @@ function makePage(parent,id){
  const page=node("section","","reference-page "+id);parent.append(page);return page;
 }
 function addReportFooters(article,d){
- const pages=article.children.filter(el=>el.className?.includes("reference-page"));
+ const pages=[...article.children].filter(el=>el.className?.includes("reference-page"));
  pages.forEach((page,index)=>{
   const footer=node("div","","reference-report-footer");
   footer.append(node("div","","reference-footer-rule"));
