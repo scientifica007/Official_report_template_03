@@ -30,13 +30,13 @@ function header(parent,title,d){
   banner.append(node("p",text));
  parent.append(banner,node("h2",title),node("p",
   "المراجع: المرسوم التنفيذي رقم 09-93، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
- parent.append(node("p","نسخة عمل لم يُثبت تطابقها البصري النهائي مع النموذج المرجعي؛ لا تُعد إمضاءً أو ختمًا.","caution"));
+ parent.append(node("p","معاينة تجريبية غير مطابقة بعد للقالب الرسمي؛ لا تُعد إمضاءً أو ختمًا.","caution"));
  if(d.referenceScopeWarning)parent.append(node("p",d.referenceScopeWarning,"warning"));
  if(d.scoreWarning)parent.append(node("p",d.scoreWarning,"paper-warning"));
  if(d.textWarning)parent.append(node("p",d.textWarning,"paper-warning"));
 }
 function signatures(parent,d){
- heading(parent,"مصادقة أعضاء اللجنة — الإمضاءات الورقية");
+ heading(parent,"مصادقة أعضاء اللجنة — إمضاءات أعضاء اللجنة على النسخة الورقية");
  const wrap=node("div","","official-signatures");
  for(const seat of d.signers){
   const card=node("div","","official-signature");
@@ -48,7 +48,7 @@ function signatures(parent,d){
  }
  parent.append(wrap);
 }
-function report(container,d){
+function report(container,d,state){
  const paper=node("article","","paper official-report");
  header(paper,d.reportTitle,d);
  line(paper,"مفتش المقاطعة:",d.metaValue("chairName"));
@@ -69,7 +69,7 @@ function report(container,d){
  rowsTable(paper,["معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"],[
   ...d.lessonRows.map(x=>[
    x.label+(x.indicators.length?"\n"+x.indicators.map(y=>"• "+y).join("\n"):""),
-   mark(x.cap),mark(x.score)]),
+   mark(x.cap),mark(x.score)+" / "+mark(x.cap)]),
   ["العلامة المحصلة","40",mark(d.marks.lesson)]
  ],"paper-score-table");
  line(paper,"التقدير:",d.prose.lesson);
@@ -89,6 +89,18 @@ function report(container,d){
  ],"paper-score-table");
  line(paper,"التقدير العام:",d.prose.general);
  line(paper,"قرار أعضاء اللجنة:",d.decision);
+ // Existing optional item-level inspector writing remains inspectable, but
+ // the reference print contract has *group-level* assessments only.
+ const authoredItems=[
+  ...Object.entries(state.final.notes.lesson).filter(([,value])=>value?.trim()).map(([key,value])=>key+": "+value),
+  ...Object.entries(state.final.notes.discussion).filter(([,value])=>value?.trim()).map(([key,value])=>key+": "+value)
+ ];
+ if(authoredItems.length){
+  const internal=node("details","","internal-editor-notes");
+  internal.append(node("summary","ملاحظات تفصيلية للمراجعة داخل المحرر — لا تُطبع"));
+  for(const item of authoredItems)internal.append(node("p",item));
+  paper.append(internal);
+ }
  if(d.prose.recommendations)line(paper,
   "توصيات إضافية (خارج الحقول الأصلية للنموذج المرجعي):",d.prose.recommendations);
  signatures(paper,d);
@@ -116,6 +128,6 @@ function minutes(container,d){
 export function renderDocuments(container,state){
  clear(container);
  const d=buildReferenceDocuments(state);
- report(container,d);
+ report(container,d,state);
  minutes(container,d);
 }
