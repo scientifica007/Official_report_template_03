@@ -95,7 +95,7 @@ test("PDF print scoping does not change accepted report footer or page numbering
  assert.match(css,/body\[data-print-target="report"\] #paper \.official-minutes/);
  assert.match(css,/body\[data-print-target="minutes"\] #paper \.official-report/);
  assert.match(css,/bottom:-23mm!important/);
- assert.match(css,/reference-minutes> \.reference-minutes-opening|reference-minutes>\.reference-minutes-opening/);
+ assert.match(css,/\.reference-minutes-body\{\s*padding-top:22mm!important/);
  assert.match(preview,/reference-minutes-opening/);
 });
 test("contribution stress still estimates only report pages, with separate minutes export",()=>{
