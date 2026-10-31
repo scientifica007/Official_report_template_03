@@ -18,7 +18,7 @@ export {mark};
 /** Remove only automatically generated test-attribution prefixes in print. */
 export function printableAssessmentText(value){
  return String(value??"").replace(
-  /^بيانات تجريبية\s*—\s*(?:رئيس اللجنة|العضو الأول|العضو الثاني|العضو الثالث)(?:\s*—\s*[^:]{1,120})?:\s*/u,""
+  /^بيانات تجريبية\s*—\s*(?:رئيس اللجنة(?:\s*\(المفتش\))?|العضو الأول|العضو الثاني|العضو الثالث)(?:\s*—\s*[^:]{1,120})?:\s*/u,""
  );
 }
 const val=x=>typeof x==="string"?x.trim():"";
