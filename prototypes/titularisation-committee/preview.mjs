@@ -188,7 +188,7 @@ function minutes(article,d){
  add(opening,node("strong",MINUTES_OPENING_LEAD),
   node("span",full.slice(MINUTES_OPENING_LEAD.length)));
  body.append(opening);
- textLine(body,"الرتبة:",d.metaValue("rank"));
+ textLine(body,"المعيَّن(ة) في رتبة:",d.metaValue("rank"));
  textLine(body,"المؤسسة:",d.metaValue("institution"));
  textLine(body,"الولاية:",d.metaValue("wilaya"));
  pg.append(body);
