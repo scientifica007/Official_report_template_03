@@ -263,7 +263,12 @@ function reportFooterXml(d,reportPageCount){
  '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
  '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/>'+
  '<w:pBdr><w:top w:val="single" w:sz="5"/></w:pBdr></w:pPr>'+
- run(label,false,14)+field+run(" من "+reportPageCount,false,14)+'</w:p></w:ftr>';
+ run(label,false,14)+field+run(" من ",false,14)+
+ // The report has its own Word section; SECTIONPAGES excludes the minutes.
+ // Keep an editable cached value for importers that do not evaluate the field.
+ '<w:fldSimple w:instr=" SECTIONPAGES " w:dirty="true">'+
+ textRun(String(reportPageCount),false,true,14)+'</w:fldSimple>'+
+ '</w:p></w:ftr>';
 }
 export function createCommitteeDocx(state,{reportPageCount=5}={}){
  if(!Number.isInteger(reportPageCount)||reportPageCount<5||reportPageCount>500)
