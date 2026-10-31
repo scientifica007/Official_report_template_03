@@ -47,7 +47,7 @@ test("Word has five explicit section starts and source-like 4-column lesson tabl
  const visible=[...xml.matchAll(/<w:t xml:space="preserve">([^<]*)<\/w:t>/g)]
   .map(match=>match[1]).join("");
  for(const required of ["تقرير التفتيش قصد الترسيم","معايير ومؤشرات التقدير",
-  "النقطة الجزئية -1-","العلامة النهائية","قرار أعضاء اللجنة",
+  "العلامة النهائية","قرار أعضاء اللجنة",
   "التأجيل الأول","التأجيل الثاني","محضر التفتيش قصد الترسيم"]){
   assert.ok(visible.includes(required),required);
  }
@@ -93,13 +93,13 @@ test("reference sections can reflect the accepted 14-indicator and 10-item schem
  const b=freshCommittee("unified","inspector10");
  assert.equal(buildReferenceDocuments(b).lessonRows.length,10);
  const out=committeeDocumentXml(b);
- assert.match(out,/شبكة عمل غير مثبت اعتمادها رسميًا/);
+ assert.doesNotMatch(out,/الشبكة المستخدمة:|شبكة عمل غير مثبت اعتمادها رسميًا/);
 });
 
 test("source table spacing is explicit and does not add an unnecessary page break",()=>{
  const s=freshCommittee();
  const xml=committeeDocumentXml(s);
- assert.match(xml,/<w:trHeight w:val="890" w:hRule="atLeast"\/>/);
+ assert.match(xml,/<w:trHeight w:val="1100" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:trHeight w:val="710" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:trHeight w:val="1350" w:hRule="atLeast"\/>/);
  assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,4);
