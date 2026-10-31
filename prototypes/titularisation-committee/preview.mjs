@@ -188,6 +188,15 @@ function minutes(article,d){
 export function renderDocuments(container,state){
  clear(container);
  const d=buildReferenceDocuments(state);
+ const rawProse=["lesson","discussion"].flatMap(k=>d.memberObservations[k]);
+ const sourceLength=rawProse.reduce((n,item)=>n+item.text.length+item.author.length+item.criterion.length,0);
+ if(sourceLength>1800){
+  container.append(node("p",
+   "تنبيه للإخراج: التقديرات الأصلية المطولة ("+rawProse.length+
+   " فقرة) قد تتجاوز صفحات PDF الخمس وتؤثر في التذييل. تبقى النصوص كاملة في JSON وDOCX؛ "+
+   "راجع عدد صفحات الطباعة أو اختصر صياغة التقرير بعد المداولة.",
+   "paper-warning screen-only"));
+ }
  const report=node("article","","paper official-report");
  cover(report,d);candidate(report,d);lesson(report,d);discussion(report,d);
  results(report,d,state);addReportFooters(report,d);container.append(report);
