@@ -49,20 +49,32 @@ function choices(parent,d){
  });
  parent.append(wrap);
 }
+function assessment(page,finalText,observations){
+ textLine(page,"التقدير:",finalText||(!observations.length?empty:""));
+ if(!observations.length)return;
+ const section=node("div","","reference-original-contributions");
+ section.append(node("strong","تقديرات الأعضاء الأصلية — مصنفة بحسب المعيار وصاحب المساهمة:"));
+ for(const item of observations){
+  const line=node("p","","reference-original-contribution");
+  add(line,node("strong",item.author+" — "+item.criterion+": "),node("span",item.text));
+  section.append(line);
+ }
+ page.append(section);
+}
 function signatures(page,d){
  heading(page,"مصادقة أعضاء اللجنة — إمضاءات أعضاء اللجنة على النسخة الورقية");
  const wrap=node("div","","reference-three-signers");
  d.signers.slice(0,3).forEach(x=>{
   const card=node("div","","reference-member-sign");
   add(card,node("strong",x.label),node("p","اللقب والاسم: "+x.name),
-   node("p","الوظيفة: "+x.role),node("p","التوقيع: ........................"));
+   node("p","الوظيفة: "+x.role),node("p",(x.label==="العضو الثالث"?"التوقيع: ":"الختم والتوقيع: ")+"........................"));
   wrap.append(card);
  });
  page.append(wrap);
  const chair=d.signers[3];
  const full=node("div","","reference-chair-sign");
  add(full,node("strong",chair.label),node("p","اللقب والاسم: "+chair.name),
-  node("p","الوظيفة: "+chair.role),node("p","التوقيع: ........................"));
+  node("p","الوظيفة: "+chair.role),node("p","الختم والتوقيع: ........................"));
  page.append(full);
 }
 function cover(article,d){
@@ -99,17 +111,16 @@ function lesson(article,d){
  const pg=makePage(article,"reference-lesson");
  heading(pg,"إجراء الامتحان");
  heading(pg,"الامتحان الأول: حصة تدريسية");
- pg.append(node("p","شبكة التنقيط المختارة: "+d.rubricLabel+
-  " — شبكة عمل غير مثبت اعتمادها الرسمي.","paper-small"));
+
  const rows=d.lessonRows.map((x,i)=>[
   String(i+1),x.label+(x.indicators.length?
    "\n"+x.indicators.map(y=>"• "+y).join("\n"):""),mark(x.cap),
-  mark(x.score)+" / "+mark(x.cap)
+  mark(x.score)
  ]);
- rows.push(["","العلامة المحصلة","40",mark(d.marks.lesson)]);
+ rows.push(["","العلامة المحصلة",mark(40),mark(d.marks.lesson)]);
  table(pg,["الرقم","معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"],
   rows,"reference-lesson-table");
- textLine(pg,"التقدير:",d.prose.lesson||empty+"\n"+empty+"\n"+empty);
+ assessment(pg,d.prose.lesson,d.memberObservations.lesson);
 }
 function discussion(article,d){
  const pg=makePage(article,"reference-discussion");
@@ -117,21 +128,21 @@ function discussion(article,d){
  textLine(pg,"موضوع المناقشة:",d.discussionTopic);
  table(pg,["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],[
   ...d.discussionRows.map((x,i)=>[String(i+1)+" - "+x.label,mark(x.cap),mark(x.score)]),
-  ["العلامة المحصلة","20",mark(d.marks.discussion)]
+  ["العلامة المحصلة",mark(20),mark(d.marks.discussion)]
  ],"reference-discussion-table");
- textLine(pg,"التقدير:",d.prose.discussion||empty+"\n"+empty+"\n"+empty);
+ assessment(pg,d.prose.discussion,d.memberObservations.discussion);
 }
 function results(article,d,state){
  const pg=makePage(article,"reference-results");
  heading(pg,"خلاصة النتائج");
  table(pg,["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],[
-  ["1 - إلقاء الدرس","40",mark(d.marks.lesson)],
-  ["2 - المحادثة","20",mark(d.marks.discussion)],
-  ["المجموع","60",mark(d.marks.total60)],
-  ["العلامة النهائية","20",mark(d.marks.total20)]
+  ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
+  ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
+  ["المجموع",mark(60),mark(d.marks.total60)],
+  ["العلامة النهائية",mark(20),mark(d.marks.total20)]
  ],"reference-results-table");
  textLine(pg,"التقدير العام:",d.displayedAppreciation?
-  d.displayedAppreciation+(d.appreciationIsSuggestion?" (تقدير مقترح قابل للتغيير)":""):
+  d.displayedAppreciation:
   empty+"\n"+empty);
  heading(pg,"قرار أعضاء اللجنة:");
  choices(pg,d);
@@ -154,7 +165,7 @@ function minutes(article,d){
  const pg=makePage(article,"reference-minutes");
  ministry(pg);
  pg.append(node("h2","محضر التفتيش قصد الترسيم"));
- pg.append(node("p","للأساتذة المتخصصين في التكوين والتعليم المهنيين وإعادة التكييف","reference-subtitle"));
+ pg.append(node("p","للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف","reference-subtitle"));
  pg.append(node("p","مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
  pg.append(node("p","مسودة للطباعة والإمضاء الورقي، وليست إقرارًا إلكترونيًا.","caution"));
  textLine(pg,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم نصرح بأننا شاركنا يوم:",
@@ -165,8 +176,7 @@ function minutes(article,d){
  textLine(pg,"لولاية:",d.metaValue("wilaya"));
  heading(pg,"بعد مداولة لجنة الامتحان، النتائج هي:");
  textLine(pg,"العلامة النهائية:",mark(d.marks.total20)+" /20");
- textLine(pg,"التقدير العام:",d.displayedAppreciation+
-  (d.appreciationIsSuggestion?" (مقترح)":""));
+ textLine(pg,"التقدير العام:",d.displayedAppreciation);
  heading(pg,"قرار اللجنة:");
  choices(pg,d);
  textLine(pg,"حُرّر في:",d.metaValue("decisionPlace"));
