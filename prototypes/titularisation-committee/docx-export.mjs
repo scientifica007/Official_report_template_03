@@ -186,13 +186,13 @@ function resultsPage(d){
 }
 function minutes(d){
  let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",
-  {center:true,bold:true,size:22});
- b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:22});
- b+=p("المفتشية العامة",{center:true,bold:true,size:22});
- b+=p("محضر التفتيش قصد الترسيم",{center:true,bold:true,size:28,before:190});
+  {center:true,bold:true,size:32});
+ b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:32});
+ b+=p("المفتشية العامة",{center:true,bold:true,size:32});
+ b+=p("محضر التفتيش قصد الترسيم",{center:true,bold:true,size:32,before:120});
  b+=p("للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف",
-  {center:true,size:18});
- b+=p("المراجع: "+basis,{center:true,size:17});
+  {center:true,size:28,before:60,after:60});
+ b+=p("المراجع: "+basis,{center:true,size:28,before:60,after:60});
  b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
   d.dateInWords+" بــ: "+(d.examVenue||placeholder)+
   " في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
@@ -204,7 +204,7 @@ function minutes(d){
   "      التقدير العام: "+(d.displayedAppreciation||placeholder)+
   "");
  b+=p("قرار اللجنة:",{bold:true})+decisionChoices(d);
- b+=p("حُرّر في: "+d.metaValue("decisionPlace"),{before:100});
+ b+=p("حُرّر في: "+d.metaValue("decisionPlace"),{end:true,before:100});
  b+=p("التاريخ: "+(d.meta.decisionDate||d.meta.date||placeholder),{end:true});
  b+=signatures(d);
  return b;
@@ -251,8 +251,8 @@ function zipFiles(files){
  let at=0;for(const part of blocks){buf.set(part,at);at+=part.length}
  return buf;
 }
-function reportFooterXml(d){
- const label=d.reportFooter(1).replace(/الصفحة 1 من 5$/,"الصفحة ");
+function reportFooterXml(d,reportPageCount){
+ const label=d.reportFooter(1,reportPageCount).replace(/الصفحة 1 من \d+$/,"الصفحة ");
  const field='<w:r><w:fldChar w:fldCharType="begin"/></w:r>'+
  '<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'+
  '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'+
@@ -262,14 +262,11 @@ function reportFooterXml(d){
  '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
  '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/>'+
  '<w:pBdr><w:top w:val="single" w:sz="5"/></w:pBdr></w:pPr>'+
- run(label,false,14)+field+run(" من ",false,14)+
- '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'+
- '<w:r><w:instrText xml:space="preserve"> PAGEREF ReportLastPage </w:instrText></w:r>'+
- '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'+
- '<w:r><w:t>5</w:t></w:r>'+
- '<w:r><w:fldChar w:fldCharType="end"/></w:r>'+'</w:p></w:ftr>';
+ run(label,false,14)+field+run(" من "+reportPageCount,false,14)+'</w:p></w:ftr>';
 }
-export function createCommitteeDocx(state){
+export function createCommitteeDocx(state,{reportPageCount=5}={}){
+ if(!Number.isInteger(reportPageCount)||reportPageCount<5||reportPageCount>500)
+  throw Error("عدد صفحات التقرير غير صالح");
  const d=buildReferenceDocuments(state);
  const files={
   "[Content_Types].xml":'<?xml version="1.0" encoding="UTF-8"?>'+
@@ -288,7 +285,7 @@ export function createCommitteeDocx(state){
    '</Relationships>',
   "word/document.xml":committeeDocumentXml(state),
   "word/settings.xml":'<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/></w:settings>',
-  "word/footer1.xml":reportFooterXml(d),
+  "word/footer1.xml":reportFooterXml(d,reportPageCount),
   "word/footer2.xml":'<?xml version="1.0" encoding="UTF-8"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p/></w:ftr>',
   "word/_rels/document.xml.rels":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
