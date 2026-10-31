@@ -5,7 +5,7 @@ import {node,add,clear} from "./dom.mjs";
 import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
 const empty="................................................";
 function textLine(parent,label,value,extraClass=""){
- const p=node("p","","paper-line "+extraClass);
+ const p=node("p","","paper-line"+(extraClass?" "+extraClass:""));
  add(p,node("strong",label+" "),node("span",value||empty));parent.append(p);
 }
 function heading(parent,label){parent.append(node("h3",label,"paper-section-heading"))}
