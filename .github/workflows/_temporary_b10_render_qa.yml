@@ -1,0 +1,47 @@
+name: Temporary B10 independent documents render QA
+on:
+  push:
+    branches: [feat/p4b10-separate-report-minutes-export]
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Produce anonymous separate report and minutes
+        run: |
+          mkdir -p b10-qa
+          node --input-type=module <<'NODE'
+          import {writeFileSync} from 'node:fs';
+          import {freshCommittee,editMeta,editScore,editNote,changeMode,fillDemoMember,submit,stringifyCommittee}
+            from './prototypes/titularisation-committee/committee-engine.mjs';
+          import {createCommitteeDocx} from './prototypes/titularisation-committee/docx-export.mjs';
+          import {estimateDocxReportPages} from './prototypes/titularisation-committee/docx-pagination.mjs';
+          let s=freshCommittee();
+          for(const [k,v] of Object.entries({
+            candidate:'مترشح تجريبي',familyName:'تجريبي',givenName:'مترشح',
+            institution:'معهد مهني تجريبي',location:'معهد بئر العاتر',
+            occupationalBranch:'الصيانة الصناعية',examSpecialty:'الميكانيك',
+            qualificationLevel:'تقني سام',module:'الصيانة',lessonTopic:'المحرك',
+            date:'18 نوفمبر 2026',decisionDate:'18 نوفمبر 2026',decisionPlace:'تبسة',
+            rank:'أستاذ متخصص في التكوين والتعليم المهنيين',chairName:'مفتش تجريبي'
+          }))s=editMeta(s,k,v);
+          s=editNote(s,'final','general','تقدير مناسب قابل للتحرير');
+          writeFileSync('b10-qa/report-short.docx',createCommitteeDocx(s,{kind:'report',reportPageCount:estimateDocxReportPages(s)}));
+          writeFileSync('b10-qa/minutes.docx',createCommitteeDocx(s,{kind:'minutes'}));
+          writeFileSync('b10-qa/short.json',stringifyCommittee(s));
+          let long=changeMode(s,'individual');
+          for(const seat of ['chair','member1','member2','member3']){
+             long=fillDemoMember(long,seat);
+             long=submit(long,seat);
+          }
+          writeFileSync('b10-qa/report-long.docx',createCommitteeDocx(long,{kind:'report',reportPageCount:estimateDocxReportPages(long)}));
+          writeFileSync('b10-qa/long.json',stringifyCommittee(long));
+          NODE
+          tar -czf b10-qa/site.tar.gz prototypes/titularisation-committee prototypes/titularisation-workbench
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b10-anonymized-render-qa
+          path: b10-qa/
