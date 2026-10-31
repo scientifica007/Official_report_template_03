@@ -210,19 +210,29 @@ function minutes(d){
  b+=signatures(d);
  return b;
 }
-export function committeeDocumentXml(state){
+// Default combined output retained for regression tests and older integrations.
+// User downloads select independent report or minutes documents.
+export function committeeDocumentXml(state,{kind="both"}={}){
+ if(!["both","report","minutes"].includes(kind))throw Error("نوع الوثيقة غير صالح");
  const d=buildReferenceDocuments(state);
+ const report=cover(d)+candidatePage(d)+lessonPage(d)+discussionPage(d)+resultsPage(d);
+ const pg='<w:pgSz w:w="11906" w:h="16838"/>';
+ const reportMargins='<w:pgMar w:top="850" w:right="900" w:bottom="1010" w:left="900" w:header="350" w:footer="340"/>';
+ const minutesMargins='<w:pgMar w:top="850" w:right="900" w:bottom="850" w:left="900" w:header="350" w:footer="350"/>';
+ const reportSection='<w:sectPr><w:footerReference w:type="default" r:id="rIdReportFooter"/>'+
+  pg+reportMargins+'</w:sectPr>';
+ const minutesSection='<w:sectPr>'+pg+minutesMargins+'</w:sectPr>';
+ const combinedBreak='<w:p><w:pPr><w:bidi w:val="1"/><w:sectPr>'+
+  '<w:type w:val="nextPage"/><w:footerReference w:type="default" r:id="rIdReportFooter"/>'+
+  pg+reportMargins+'</w:sectPr></w:pPr></w:p>';
+ const combinedEnd='<w:sectPr><w:footerReference w:type="default" r:id="rIdEmptyFooter"/>'+
+  pg+minutesMargins+'</w:sectPr>';
+ const body=kind==="report"?report+reportSection:
+  kind==="minutes"?minutes(d)+minutesSection:
+  report+combinedBreak+minutes(d)+combinedEnd;
  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
- '<w:body>'+cover(d)+candidatePage(d)+lessonPage(d)+discussionPage(d)+resultsPage(d)+
- '<w:p><w:pPr><w:bidi w:val="1"/><w:sectPr><w:type w:val="nextPage"/><w:footerReference w:type="default" r:id="rIdReportFooter"/>'+
- '<w:pgSz w:w="11906" w:h="16838"/>'+
- '<w:pgMar w:top="850" w:right="900" w:bottom="1010" w:left="900" w:header="350" w:footer="340"/>'+
- '</w:sectPr></w:pPr></w:p>'+minutes(d)+
- '<w:sectPr><w:footerReference w:type="default" r:id="rIdEmptyFooter"/>'+
- '<w:pgSz w:w="11906" w:h="16838"/>'+
- '<w:pgMar w:top="850" w:right="900" w:bottom="850" w:left="900" w:header="350" w:footer="350"/>'+
- '</w:sectPr></w:body></w:document>';
+ '<w:body>'+body+'</w:body></w:document>';
 }
 function crc32(arr){
  let crc=-1;
@@ -252,7 +262,7 @@ function zipFiles(files){
  let at=0;for(const part of blocks){buf.set(part,at);at+=part.length}
  return buf;
 }
-function reportFooterXml(d,reportPageCount){
+function reportFooterXml(d,reportPageCount,standalone=false){
  const label=d.reportFooter(1,reportPageCount).replace(/الصفحة 1 من \d+$/,"الصفحة ");
  const field='<w:r><w:fldChar w:fldCharType="begin"/></w:r>'+
  '<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'+
@@ -266,11 +276,12 @@ function reportFooterXml(d,reportPageCount){
  run(label,false,14)+field+run(" من ",false,14)+
  // The report has its own Word section; SECTIONPAGES excludes the minutes.
  // Keep an editable cached value for importers that do not evaluate the field.
- '<w:fldSimple w:instr=" SECTIONPAGES " w:dirty="true">'+
+ '<w:fldSimple w:instr="'+(standalone?' NUMPAGES ':' SECTIONPAGES ')+'" w:dirty="true">'+
  textRun(String(reportPageCount),false,true,14)+'</w:fldSimple>'+
  '</w:p></w:ftr>';
 }
-export function createCommitteeDocx(state,{reportPageCount=5}={}){
+export function createCommitteeDocx(state,{reportPageCount=5,kind="both"}={}){
+ if(!["both","report","minutes"].includes(kind))throw Error("نوع الوثيقة غير صالح");
  if(!Number.isInteger(reportPageCount)||reportPageCount<5||reportPageCount>500)
   throw Error("عدد صفحات التقرير غير صالح");
  const d=buildReferenceDocuments(state);
@@ -289,9 +300,9 @@ export function createCommitteeDocx(state,{reportPageCount=5}={}){
    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'+
    '</Relationships>',
-  "word/document.xml":committeeDocumentXml(state),
+  "word/document.xml":committeeDocumentXml(state,{kind}),
   "word/settings.xml":'<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/></w:settings>',
-  "word/footer1.xml":reportFooterXml(d,reportPageCount),
+  "word/footer1.xml":reportFooterXml(d,reportPageCount,kind==="report"),
   "word/footer2.xml":'<?xml version="1.0" encoding="UTF-8"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p/></w:ftr>',
   "word/_rels/document.xml.rels":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
@@ -308,5 +319,19 @@ export function createCommitteeDocx(state,{reportPageCount=5}={}){
    '<w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/></w:pPr>'+
    '<w:rPr><w:rtl w:val="1"/><w:lang w:val="ar-DZ" w:bidi="ar-DZ"/></w:rPr></w:style></w:styles>'
  };
+ if(kind==="minutes"){
+  delete files["word/footer1.xml"];delete files["word/footer2.xml"];
+  files["word/_rels/document.xml.rels"]=
+   files["word/_rels/document.xml.rels"].replace(/<Relationship Id="rId(?:ReportFooter|EmptyFooter)"[^>]*\/>/g,"");
+ }else if(kind==="report"){
+  delete files["word/footer2.xml"];
+  files["word/_rels/document.xml.rels"]=
+   files["word/_rels/document.xml.rels"].replace(/<Relationship Id="rIdEmptyFooter"[^>]*\/>/g,"");
+ }
+ if(kind!=="both"){
+  files["[Content_Types].xml"]=files["[Content_Types].xml"]
+   .replace(kind==="minutes"?/<Override PartName="\/word\/footer[12]\.xml"[^>]*\/>/g:
+    /<Override PartName="\/word\/footer2\.xml"[^>]*\/>/g,"");
+ }
  return zipFiles(files);
 }
