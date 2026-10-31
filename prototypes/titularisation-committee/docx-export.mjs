@@ -258,7 +258,12 @@ function reportFooterXml(d){
  '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
  '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/>'+
  '<w:pBdr><w:top w:val="single" w:sz="5"/></w:pBdr></w:pPr>'+
- run(label,false,14)+field+run(" من 5",false,14)+'</w:p></w:ftr>';
+ run(label,false,14)+field+run(" من ",false,14)+
+ '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'+
+ '<w:r><w:instrText xml:space="preserve"> SECTIONPAGES </w:instrText></w:r>'+
+ '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'+
+ '<w:r><w:t>5</w:t></w:r>'+
+ '<w:r><w:fldChar w:fldCharType="end"/></w:r>'+'</w:p></w:ftr>';
 }
 export function createCommitteeDocx(state){
  const d=buildReferenceDocuments(state);
