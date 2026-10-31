@@ -15,8 +15,12 @@
 <p class="small">اختيار العضو هنا محاكاة فنية لا تتحقق من هوية أحد. الدعوات والرموز وQR ستدرس في مرحلة التكامل السحابي.</p>
 <div class="actions"><button id="save" type="button">تصدير مسودة JSON</button>
 <label class="file-label">استيراد JSON<input id="load" type="file" accept=".json,application/json"></label>
-<button id="print" type="button">طباعة مسودتي التقرير والمحضر / PDF</button>
-<button id="docx" type="button">تنزيل تقرير ومحضر DOCX قابلين للتحرير</button></div>
+<span class="export-label">التقرير:</span>
+<button id="print" type="button">طباعة التقرير / حفظ PDF</button>
+<button id="docx" type="button">تنزيل التقرير DOCX</button>
+<span class="export-label">المحضر:</span>
+<button id="print-minutes" type="button">طباعة المحضر / حفظ PDF</button>
+<button id="docx-minutes" type="button">تنزيل المحضر DOCX</button></div>
 <p id="message" role="status" aria-live="polite"></p></section>
 <section class="panel"><h2>معطيات المهمة</h2><div id="meta" class="meta-grid"></div></section>
 <section id="weights" class="panel"></section>
