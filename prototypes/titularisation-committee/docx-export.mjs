@@ -29,10 +29,10 @@ function p(s,{bold=false,center=false,end=false,page=false,size=0,before=120,aft
  '<w:jc w:val="'+(center?'center':end?'end':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
  '</w:pPr>'+run(s,bold,size||28)+'</w:p>';
 }
-function cell(s,width,fill="",size=20,center=false){
+function cell(s,width,fill="",size=20,center=false,bold=false,end=false){
  const bg=fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':"";
  return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
- p(s,{size:Math.max(size,28),center,before:18,after:18})+'</w:tc>';
+ p(s,{size:Math.max(size,28),center,bold,end,before:18,after:18})+'</w:tc>';
 }
 function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerColumns=[],size=20}={}){
  const cols=rows[0]?.length||1;
@@ -48,9 +48,13 @@ function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerC
  '<w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders>'+
  '</w:tblPr><w:tblGrid>'+widthsUsed.map(w=>'<w:gridCol w:w="'+w+'"/>').join("")+
  '</w:tblGrid>'+rows.map((row,i)=>{
-  const fill=bandFill[i]||(i===0?headerFill:"");
+  const total=row.some(v=>typeof v==="string"&&
+   ["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v));
+  const fill=total?"E4E7E3":(bandFill[i]||(i===0?headerFill:""));
   const minHeight=rowHeights[i]?'<w:trPr><w:trHeight w:val="'+rowHeights[i]+'" w:hRule="atLeast"/></w:trPr>':'';
-  return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,size,centerColumns.includes(j+1))).join("")+'</w:tr>';
+  return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,Math.max(size,28),
+   i===0||(total&&typeof v==="string"&&/^\d/.test(v))||(!total&&centerColumns.includes(j+1)),
+   i===0||total,total&&["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v))).join("")+'</w:tr>';
  }).join("")+'</w:tbl>';
 }
 
@@ -78,7 +82,7 @@ function memberNotes(d,phase){
  if(!entries.length)return "";
  let out="";
  for(const item of entries)
-  out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:20,before:35,after:35});
+  out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
  return out;
 }
 function signatures(d){
@@ -111,14 +115,14 @@ function cover(d){
  b+=p(d.referenceScopeWarning||"للأساتذة المتخصصين في التكوين والتعليم المهنيين",
   {center:true,bold:true,size:33});
  b+=p("المراجع: "+basis,{center:true,size:26,before:170});
- b+=p(d.sourceWarning,{center:true,size:17});
+
  b+=p("إجراء امتحان التثبيت:",{bold:true,before:4400});
  b+=p("المكان: "+d.metaValue("location"),{before:120});
  b+=p("التاريخ: "+d.metaValue("date"),{before:100});
  return b;
 }
 function candidatePage(d){
- let b=p("معلومات تتعلق بالأستاذ(ة) المترشح(ة)",{page:true,center:true,bold:true,size:24});
+ let b=p("معلومات تتعلق بالأستاذ(ة) المترشح(ة)",{page:true,center:true,bold:true,size:32});
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
@@ -129,7 +133,7 @@ function candidatePage(d){
 }
 function lessonPage(d){
  let b=p("إجراء الامتحان",{center:true,bold:true,page:true,size:32});
- b+=p("الامتحان الأول: حصة تدريسية",{bold:true,size:23});
+ b+=p("الامتحان الأول: حصة تدريسية",{bold:true,size:28});
 
  const records=[];
 
@@ -147,24 +151,24 @@ function lessonPage(d){
  });
  b+=table(records,{widths:[1000,6000,1400,1600],headerFill:"F5E5AB",rowHeights:lessonHeights,centerColumns:[1,3,4],size:23});
  b+=p("التقدير:",{bold:true,before:90});
- b+=p(d.prose.lesson||(!d.memberObservations.lesson.length?placeholder+"\n"+placeholder:""),{size:23});
+ b+=p(d.prose.lesson||(!d.memberObservations.lesson.length?placeholder+"\n"+placeholder:""),{size:28});
  b+=memberNotes(d,"lesson");
  return b;
 }
 function discussionPage(d){
- let b=p("الامتحان الثاني: المناقشة",{page:true,center:true,bold:true,size:24});
+ let b=p("الامتحان الثاني: المناقشة",{page:true,center:true,bold:true,size:32});
  b+=p("موضوع المناقشة: "+(d.discussionTopic||placeholder),{before:170,after:140});
  b+=table([["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],
   ...d.discussionRows.map(x=>[x.label,mark(x.cap),mark(x.score)]),
   ["العلامة المحصلة",mark(20),mark(d.marks.discussion)]],
   {widths:[6500,1600,1900],headerFill:"DCEBD5",rowHeights:{0:480,1:710,2:710,3:710,4:710,5:710,6:710,7:710,8:380},centerColumns:[2,3],size:23});
  b+=p("التقدير:",{bold:true,before:130});
- b+=p(d.prose.discussion||(!d.memberObservations.discussion.length?placeholder+"\n"+placeholder:""),{size:21});
+ b+=p(d.prose.discussion||(!d.memberObservations.discussion.length?placeholder+"\n"+placeholder:""),{size:28});
  b+=memberNotes(d,"discussion");
  return b;
 }
 function resultsPage(d){
- let b=p("خلاصة النتائج",{page:true,center:true,bold:true,size:25});
+ let b=p("خلاصة النتائج",{page:true,center:true,bold:true,size:32});
  b+=table([["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],
   ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
   ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
@@ -174,13 +178,10 @@ function resultsPage(d){
  b+=p("التقدير العام:",{bold:true,before:150});
  b+=p(d.displayedAppreciation?
   d.displayedAppreciation:
-  placeholder+"\n"+placeholder+"\n"+placeholder,{size:21,after:120});
+  placeholder+"\n"+placeholder+"\n"+placeholder,{size:28,center:true,after:120});
  b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
  b+=decisionChoices(d);
- let signed=signatures(d);
- const pos=signed.lastIndexOf("</w:p>");
- signed=signed.slice(0,pos)+'<w:bookmarkStart w:id="31" w:name="ReportLastPage"/><w:bookmarkEnd w:id="31"/>'+signed.slice(pos);
- b+=signed;
+ b+=signatures(d);
  return b;
 }
 function minutes(d){
