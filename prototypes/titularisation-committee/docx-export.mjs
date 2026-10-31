@@ -2,6 +2,9 @@
  * Uncompressed OOXML ZIP (no third-party runtime or network requests).
  * Print and DOCX share the same reference projection, not separate calculations. */
 import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
+import {COMMITTEE_APPROVAL_HEADING,MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
+ MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,minutesOpeningText}
+ from "./document-language.mjs";
 const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 // Each Word paragraph has RTL reading order; isolated ASCII runs preserve
@@ -59,7 +62,7 @@ function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerC
 }
 
 const placeholder="................................................";
-const basis="مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.";
+const basis=LEGAL_REFERENCES;
 // Separate Word table cells keep a distinct strike through EACH choice.
 function decisionChoices(d){
  const widths=[3334,3333,3333],grid=widths.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
@@ -93,7 +96,7 @@ function signatures(d,spacious=false){
  '</w:tcPr>'+p(txt,{size:28,before:45,after:45})+'</w:tc>';
  const tr=(cells,h)=>'<w:tr><w:trPr><w:trHeight w:val="'+h+'" w:hRule="atLeast"/></w:trPr>'+cells.join("")+'</w:tr>';
  const body=(m,i)=>"اللقب والاسم: "+m.name+"\nالوظيفة: "+m.role+"\n"+(i===2?"التوقيع: ":"الختم والتوقيع: ")+"................................";
- return p("مصادقة أعضاء اللجنة:",{bold:true,before:105})+
+ return p(COMMITTEE_APPROVAL_HEADING,{bold:true,before:105})+
  '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/><w:tblLayout w:type="fixed"/>'+
  '<w:tblBorders>'+["top","bottom","left","right","insideH","insideV"].map(k=>'<w:'+k+' w:val="single" w:sz="6"/>').join("")+
  '</w:tblBorders></w:tblPr><w:tblGrid>'+grid+'</w:tblGrid>'+
@@ -172,7 +175,7 @@ function resultsPage(d){
  let b=p("خلاصة النتائج",{page:true,center:true,bold:true,size:32});
  b+=table([["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],
   ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
-  ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
+  [DISCUSSION_RESULT_TITLE,mark(20),mark(d.marks.discussion)],
   ["المجموع",mark(60),mark(d.marks.total60)],
   ["العلامة النهائية",mark(20),mark(d.marks.total20)]],
   {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:1400,2:1400,3:1400,4:1400},centerColumns:[2,3],size:23});
@@ -190,20 +193,18 @@ function minutes(d){
   {center:true,bold:true,size:32});
  b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:32});
  b+=p("المفتشية العامة",{center:true,bold:true,size:32});
- b+=p("محضر التفتيش قصد الترسيم",{center:true,bold:true,size:32,before:120});
- b+=p("للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف",
-  {center:true,size:28,before:60,after:60});
- b+=p("المراجع: "+basis,{center:true,size:28,before:60,after:60});
- b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
-  d.dateInWords+" بــ: "+(d.examVenue||placeholder)+
-  " في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
-  {before:550});
- b+=p("المعين(ة) في رتبة: "+d.metaValue("rank"));
- b+=p("بمؤسسة: "+d.metaValue("institution")+"، لولاية: "+d.metaValue("wilaya"));
- b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{before:120});
+ // Title, eligible ranks and legal references stay together visually.
+ b+=p(MINUTES_TITLE,{center:true,bold:true,size:32,before:120,after:50});
+ b+=p(MINUTES_SCOPE,{center:true,size:28,before:35,after:35});
+ b+=p("المراجع: "+basis,{center:true,size:28,before:35,after:35});
+ // Explicit gap above the first operative statement, not between headings.
+ b+=p(minutesOpeningText(d,placeholder),{before:950,after:130,size:28});
+ b+=p("الرتبة: "+d.metaValue("rank"));
+ b+=p("المؤسسة: "+d.metaValue("institution"));
+ b+=p("الولاية: "+d.metaValue("wilaya"));
+ b+=p(MINUTES_RESULTS_INTRO,{before:120});
  b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
-  "      التقدير العام: "+(d.displayedAppreciation||placeholder)+
-  "");
+  "      التقدير العام: "+(d.displayedAppreciation||placeholder));
  b+=p("قرار اللجنة:",{bold:true})+decisionChoices(d);
  b+=p("حُرّر في: "+d.metaValue("decisionPlace"),{end:true,before:100});
  b+=p("التاريخ: "+(d.meta.decisionDate||d.meta.date||placeholder),{end:true});
