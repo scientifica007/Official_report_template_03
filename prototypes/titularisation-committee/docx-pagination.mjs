@@ -8,7 +8,7 @@ const CONTENT_PT=740;
 function paragraphPt(value){
  const text=String(value??"").trim();
  if(!text)return 0;
- const lines=text.split("\n").reduce((n,line)=>n+Math.max(1,Math.ceil(line.length/110)),0);
+ const lines=text.split("\n").reduce((n,line)=>n+Math.max(1,Math.ceil(line.length/160)),0);
  return lines*17+11;
 }
 function phasePages(items,summary,baselinePt){
