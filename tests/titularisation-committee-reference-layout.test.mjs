@@ -34,7 +34,7 @@ test("P4-B3 print has six logical source sections: five report, one minutes",()=
  const snapshot=words(view);
  for(const h of ["تقرير التفتيش قصد الترسيم","معلومات تتعلق بالأستاذ(ة) المترشح(ة)",
   "الامتحان الأول: حصة تدريسية","الامتحان الثاني: المناقشة",
-  "خلاصة النتائج","محضر التفتيش قصد الترسيم","إمضاءات أعضاء اللجنة"]){
+  "خلاصة النتائج","محضر التفتيش قصد الترسيم","مصادقة أعضاء اللجنة"]){
   assert.ok(snapshot.includes(h),"missing section "+h);
  }
 });

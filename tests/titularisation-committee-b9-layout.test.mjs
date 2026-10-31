@@ -76,7 +76,7 @@ test("Word candidate/results line spacing is expanded conservatively and minutes
  const xml=committeeDocumentXml(freshCommittee());
  assert.match(xml,/<w:trHeight w:val="620" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:trHeight w:val="1400" w:hRule="atLeast"\/>/);
- assert.match(xml,/<w:spacing w:before="550" w:after="120"\/>/);
+ assert.match(xml,/<w:spacing w:before="950" w:after="130"\/>/);
 });
 
 test("Word estimate uses its own report structure and excludes the independent minutes",()=>{

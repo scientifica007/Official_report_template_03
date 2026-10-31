@@ -27,7 +27,7 @@ test("previews contain two unapproved paper documents with physical signature sp
  assert.match(text,/تقدير مفتش اصطناعي/);
  assert.match(text,/رأي في التنشيط/);
  assert.match(text,/3.5/);
- assert.match(text,/إمضاءات أعضاء اللجنة/);
+ assert.match(text,/مصادقة أعضاء اللجنة/);
  assert.doesNotMatch(text,/معاينة تجريبية غير مطابقة بعد للقالب الرسمي/);
 });
 test("chair editor remains separate from member contributions",()=>{
