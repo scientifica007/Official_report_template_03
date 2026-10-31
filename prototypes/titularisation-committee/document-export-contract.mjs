@@ -15,16 +15,16 @@ export function portableCommitteeObject(state){
    template:{
     id:d.referenceId,sourceModel:"تقرير التفتيش قصد ترسيم الأساتذة",
     supportedSourceScope:"الرتب المتخصصة وفق المرجع، ويُراجع باقي الرتب منفردة",
-    reportPages:5,minutesPages:1,layoutUnit:"millimeter",
+    reportPages:5,reportPagesAreDynamic:true,minutesPages:1,layoutUnit:"millimeter",
     sections:["غلاف التقرير","بيانات المترشح والامتحان","تقويم الحصة /40",
      "تقويم المناقشة /20","النتائج والمداولة والإمضاءات","المحضر المستقل"],
     print:{format:"A4",rtl:true,footerPages:[1,2,3,4,5],minutesHasFooter:false,
-     footerPattern:"تقرير عملية التفتيش قصد الترسيم للأستاذ المتربص: {candidate} المؤسسة: {institution}، {monthYear}، الصفحة {page} من 5",
+     footerPattern:"تقرير عملية التفتيش قصد الترسيم للأستاذ المتربص: {candidate} المؤسسة: {institution}، {monthYear}، الصفحة {page} من {totalReportPages}",\n     totalReportPagesCalculatedAfterPagination:true,
      lineAboveFooter:true},
     editableSource:templateRoot+"docx-export.mjs",
     printableSource:templateRoot+"preview.mjs",
     sharedModelSource:templateRoot+"document-model.mjs",
-    metadata:"Formatting fidelity requires the indicated renderer or an equivalent implementation; JSON alone does not carry Word or CSS executable rendering code."
+    metadata:"Report has five baseline sections, but additional printed pages are created as needed for long prose. Number report physical pages after pagination; never include the minutes page in the denominator. Formatting fidelity requires the referenced renderer."
    },
    policy:{
     printableDocumentsAreDraftsUntilPaperSignatures:true,
@@ -55,7 +55,7 @@ export function portableCommitteeObject(state){
     originalSubmittedMemberObservations:d.memberObservations,
     printNumberFormat:"00.00 (display only; stored scores remain numeric)",
     committeeDecisionCode:d.decisionCode,committeeDecisionLabel:d.decision,
-    reportFooters:[1,2,3,4,5].map(i=>d.reportFooter(i)),
+    reportFooters:[1,2,3,4,5].map(i=>d.reportFooter(i)),\n    reportFooterPreviewIsBaselineOnly:true,
     minutesDateInWords:d.dateInWords,
     minutesExamVenue:d.examVenue,
     paperSignatures:d.signers
