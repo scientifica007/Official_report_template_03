@@ -77,3 +77,31 @@
  #paper .reference-minutes .reference-chair-sign{font-size:11pt!important;padding:1mm!important}
  #paper .reference-page .screen-only{display:none!important}
 }
+
+/* ARCH-01D2-P4-B6: footer is now in the lower physical margin area,
+   but remains within the 273mm printable A4 region (252+10=262mm).
+   Keep five report footers and no footer on the separate minutes sheet. */
+@media print {
+ #paper .reference-page .reference-report-footer{
+   bottom:-10mm!important;
+ }
+ #paper .reference-lesson-table th:nth-child(1),
+ #paper .reference-lesson-table td:nth-child(1),
+ #paper .reference-lesson-table th:nth-child(3),
+ #paper .reference-lesson-table td:nth-child(3),
+ #paper .reference-lesson-table th:nth-child(4),
+ #paper .reference-lesson-table td:nth-child(4),
+ #paper .reference-discussion-table th:nth-child(n+2),
+ #paper .reference-discussion-table td:nth-child(n+2),
+ #paper .reference-results-table th:nth-child(n+2),
+ #paper .reference-results-table td:nth-child(n+2){
+   text-align:center!important;
+   vertical-align:middle!important;
+ }
+ #paper .reference-original-contributions{
+   break-inside:auto;
+ }
+ #paper .reference-original-contribution{
+   overflow-wrap:anywhere;
+ }
+}
