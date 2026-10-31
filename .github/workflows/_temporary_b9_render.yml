@@ -17,6 +17,7 @@ jobs:
           import {freshCommittee,editMeta,editNote,editScore,changeMode,fillDemoMember,submit}
             from './prototypes/titularisation-committee/committee-engine.mjs';
           import {createCommitteeDocx} from './prototypes/titularisation-committee/docx-export.mjs';
+          import {estimateDocxReportPages} from './prototypes/titularisation-committee/docx-pagination.mjs';
           let s=freshCommittee();
           for(const [k,v] of Object.entries({
             rank:'أستاذ متخصص في التكوين والتعليم المهنيين',
@@ -47,7 +48,7 @@ jobs:
             long=fillDemoMember(long,who);
             long=submit(long,who);
           }
-          writeFileSync('b9-long.docx',createCommitteeDocx(long,{reportPageCount:8}));
+          writeFileSync('b9-long.docx',createCommitteeDocx(long,{reportPageCount:estimateDocxReportPages(long)}));
           NODE
       - uses: actions/upload-artifact@v4
         with:
