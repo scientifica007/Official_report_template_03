@@ -38,7 +38,7 @@ test("chair editing is prefilled from individual marks and text, with visible au
  assert.equal(state.final.grading.scores.lesson.g1,2);
  const preview=new El("section");
  renderDocuments(preview,state);
- assert.match(text(preview),/2 \/ 12/);
+ assert.match(text(preview),/12\.00 02\.00/);
 });
 test("subsequent member submissions do not overwrite authored chair fields",()=>{
  let state=changeMode(freshCommittee(),"individual");
