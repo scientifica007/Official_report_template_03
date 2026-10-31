@@ -221,9 +221,37 @@
   break-before:auto!important;page-break-before:auto!important;
   break-after:auto!important;page-break-after:auto!important;
  }
- /* Leave a clearly visible separation above the introductory minutes
-    paragraph; apply to printed PDF only, not the already accepted report. */
- #paper .reference-minutes>.reference-minutes-opening{
-  margin-top:20mm!important;
+ /* P4-B12: treat title, ranks and references as ONE compact header,
+    then start the operative minutes text in a clearly separate body. */
+ #paper .reference-minutes{
+  justify-content:flex-start!important;
+ }
+ #paper .reference-minutes-header{
+  display:flex!important;flex-direction:column!important;
+  gap:0!important;
+ }
+ #paper .reference-minutes-header h2{
+  font-size:17pt!important;line-height:1.18!important;
+  text-align:center!important;margin:0 0 2mm!important;
+ }
+ #paper .reference-minutes-header .reference-subtitle,
+ #paper .reference-minutes-header .reference-line{
+  font-size:14pt!important;line-height:1.18!important;
+  text-align:center!important;margin:1mm 0!important;
+ }
+ #paper .reference-minutes-body{
+  padding-top:22mm!important;
+  margin:0!important;
+ }
+ #paper .reference-minutes-body .reference-minutes-opening{
+  margin:0 0 4mm!important;line-height:1.25!important;
+  text-align:right!important;
+ }
+ #paper .reference-minutes-signatures{
+  margin-top:auto!important;
+  break-inside:avoid!important;
+ }
+ #paper .reference-minutes-signatures .paper-section-heading{
+  margin:0 0 2mm!important;
  }
 }
