@@ -221,7 +221,9 @@
   break-before:auto!important;page-break-before:auto!important;
   break-after:auto!important;page-break-after:auto!important;
  }
+ /* Leave a clearly visible separation above the introductory minutes
+    paragraph; apply to printed PDF only, not the already accepted report. */
  #paper .reference-minutes>.reference-minutes-opening{
-  margin-top:11mm!important;
+  margin-top:20mm!important;
  }
 }
