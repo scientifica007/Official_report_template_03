@@ -28,7 +28,7 @@ test("previews contain two unapproved paper documents with physical signature sp
  assert.match(text,/رأي في التنشيط/);
  assert.match(text,/3.5/);
  assert.match(text,/إمضاءات أعضاء اللجنة/);
- assert.match(text,/غير مطابقة بعد للقالب الرسمي/);
+ assert.doesNotMatch(text,/معاينة تجريبية غير مطابقة بعد للقالب الرسمي/);
 });
 test("chair editor remains separate from member contributions",()=>{
  let s=changeMode(freshCommittee(),"individual");
