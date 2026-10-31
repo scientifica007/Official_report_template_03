@@ -171,7 +171,9 @@
  #paper .reference-minutes .reference-subtitle,
  #paper .reference-minutes .reference-line{font-size:14pt!important}
  #paper .reference-minutes .reference-member-sign,
- #paper .reference-minutes .reference-chair-sign{
+ #paper .reference-minutes .reference-chair-sign,
+ #paper .reference-minutes .reference-member-sign p,
+ #paper .reference-minutes .reference-chair-sign p{
    font-size:12pt!important;
  }
  #paper .reference-minutes-date-left,
