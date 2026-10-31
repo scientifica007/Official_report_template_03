@@ -2,7 +2,7 @@
  * Browser print and DOCX consume buildReferenceDocuments; never mutate the
  * chair's editable data or present signatures as electronic approvals. */
 import {node,add,clear} from "./dom.mjs";
-import {buildReferenceDocuments,mark} from "./document-model.mjs";
+import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
 const empty="................................................";
 function textLine(parent,label,value){
  const p=node("p","","paper-line");
@@ -53,10 +53,10 @@ function assessment(page,finalText,observations){
  textLine(page,"التقدير:",finalText||(!observations.length?empty:""));
  if(!observations.length)return;
  const section=node("div","","reference-original-contributions");
- section.append(node("strong","تقديرات الأعضاء الأصلية — مصنفة بحسب المعيار وصاحب المساهمة:"));
+ 
  for(const item of observations){
   const line=node("p","","reference-original-contribution");
-  add(line,node("strong",item.author+" — "+item.criterion+": "),node("span",item.text));
+  add(line,node("strong",item.criterion+": "),node("span",printableAssessmentText(item.text)));
   section.append(line);
  }
  page.append(section);

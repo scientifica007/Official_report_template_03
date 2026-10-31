@@ -105,3 +105,26 @@
    overflow-wrap:anywhere;
  }
 }
+
+/* P4-B7: footer at physical A4 bottom, additional report sheets and
+   compact minutes signature spacing. No changes to the interactive editor. */
+@media print {
+ #paper .reference-page .reference-report-footer{bottom:-18mm!important}
+ #paper > .screen-only{display:none!important}
+ #paper .reference-original-contributions{margin-top:0!important}
+ #paper .reference-original-contribution{break-inside:avoid!important}
+ #paper .reference-lesson-continuation .paper-section-heading,
+ #paper .reference-discussion-continuation .paper-section-heading{
+  margin:6pt 0 14pt!important
+ }
+ #paper .reference-minutes{
+  height:262mm!important;min-height:262mm!important;max-height:262mm!important
+ }
+ #paper .reference-minutes .reference-member-sign p,
+ #paper .reference-minutes .reference-chair-sign p{
+  font-size:10.5pt!important;margin:2pt 0!important;line-height:1.1!important
+ }
+ #paper .reference-minutes .paper-section-heading{margin:3pt 0!important}
+ #paper .reference-minutes .paper-line{margin:3pt 0!important}
+ #paper .reference-minutes .reference-three-signers{margin:0!important}
+}

@@ -66,12 +66,13 @@ export function suggestedAppreciation(final20){
  if(final20<15)return "جيد";
  return "جيد جدًّا";
 }
-export function reportFooter(meta,page){
- if(!Number.isInteger(page)||page<1||page>5)throw Error("صفحة تقرير غير معروفة");
+export function reportFooter(meta,page,total=5){
+ if(!Number.isInteger(page)||!Number.isInteger(total)||page<1||total<1||page>total)
+  throw Error("صفحة تقرير غير معروفة");
  const candidate=(meta.candidate||[meta.familyName,meta.givenName].filter(Boolean).join(" ")||"_____").trim();
  const institution=(meta.institution||"_______").trim();
  return "تقرير عملية التفتيش قصد الترسيم للأستاذ المتربص: «"+candidate+
-  "» المؤسسة: «"+institution+"»، "+reportMonthYear(meta.date)+"، الصفحة "+page+" من 5";
+  "» المؤسسة: «"+institution+"»، "+reportMonthYear(meta.date)+"، الصفحة "+page+" من "+total;
 }
 export function struckChoices(decision){
  const names=[["success","ناجح(ة)"],["first","التأجيل الأول"],["second","التأجيل الثاني"]];

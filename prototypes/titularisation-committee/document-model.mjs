@@ -15,6 +15,12 @@ const has=Object.hasOwn;
 const mark=v=>typeof v==="number"&&Number.isFinite(v)?
  v.toFixed(2).padStart(5,"0"):"—";
 export {mark};
+/** Remove only automatically generated test-attribution prefixes in print. */
+export function printableAssessmentText(value){
+ return String(value??"").replace(
+  /^بيانات تجريبية\s*—\s*(?:رئيس اللجنة|العضو الأول|العضو الثاني|العضو الثالث)(?:\s*—\s*[^:]{1,120})?:\s*/u,""
+ );
+}
 const val=x=>typeof x==="string"?x.trim():"";
 const metaValue=(m,key)=>val(m[key])||"................................................";
 const note=x=>val(x)||"";
@@ -84,7 +90,7 @@ export function buildReferenceDocuments(state){
   referenceId:REFERENCE_ID,meta:m,rubricId:state.rubricId,rubricLabel:rubric.label,
   dateInWords:dateInArabicWords(m.date),monthYear:reportMonthYear(m.date),
   examVenue:val(m.location)||val(m.examCenter),
-  reportFooter:page=>reportFooter(m,page),
+  reportFooter:(page,total=5)=>reportFooter(m,page,total),
   decisionChoices:struckChoices(m.decision),
   proposedAppreciation:suggestedAppreciation(grade20),
   displayedAppreciation:note(state.final.notes.general)||suggestedAppreciation(grade20),
