@@ -8,6 +8,7 @@ import {renderDocuments} from "./preview.mjs";
 import {node,clear,labelValue} from "./dom.mjs";
 import {createCommitteeDocx} from "./docx-export.mjs";
 import {fitPrintPages} from "./print-fit.mjs";
+import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 let state=freshCommittee(),who="final";
 const openedMetaGroups=new Set();
@@ -100,8 +101,8 @@ $("load").addEventListener("change",async e=>{
   state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
-if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>fitPrintPages($("paper")));
-$("print").addEventListener("click",()=>{fitPrintPages($("paper"));window.print()});
+if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>preparePrintPagination($("paper"),state));
+$("print").addEventListener("click",()=>{preparePrintPagination($("paper"),state);window.print()});
 $("docx").addEventListener("click",()=>{
  try{
   const bytes=createCommitteeDocx(state);
