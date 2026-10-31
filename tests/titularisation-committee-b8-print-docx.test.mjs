@@ -22,7 +22,7 @@ test("cover and minutes omit the two unwanted printed disclaimers",()=>{
  assert.doesNotMatch(src,/معاينة تجريبية غير مطابقة بعد للقالب الرسمي/);
  assert.doesNotMatch(src,/مسودة للطباعة والإمضاء الورقي، وليست إقرارًا إلكترونيًا/);
 });
-test("Google Docs footer uses stable export-time denominator and a native PAGE field",()=>{
+test("Word report section carries a dynamic SECTIONPAGES field and editable cached fallback",()=>{
  const s=freshCommittee();
  for(const total of [5,7,12]){
   const zip=files(createCommitteeDocx(s,{reportPageCount:total}));
@@ -31,7 +31,8 @@ test("Google Docs footer uses stable export-time denominator and a native PAGE f
    .map(m=>m[1]).join("");
   assert.ok(visible.endsWith(" من "+total),visible);
   assert.match(footer,/ PAGE /);
-  assert.doesNotMatch(footer,/PAGEREF|SECTIONPAGES|NUMPAGES|ReportLastPage/);
+  assert.match(footer,/w:fldSimple w:instr=" SECTIONPAGES " w:dirty="true"/);
+  assert.doesNotMatch(footer,/PAGEREF|NUMPAGES|ReportLastPage/);
   assert.match(zip["word/settings.xml"],/updateFields/);
  }
  assert.throws(()=>createCommitteeDocx(s,{reportPageCount:4}),/عدد صفحات/);

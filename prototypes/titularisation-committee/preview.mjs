@@ -23,8 +23,10 @@ function addReportFooters(article,d){
 }
 function table(parent,titles,rows,className=""){
  const t=node("table","","official-table "+className);
- const head=node("thead"),tr=node("tr");
- titles.forEach(x=>tr.append(node("th",x)));head.append(tr);t.append(head);
+ if(titles?.length){
+  const head=node("thead"),tr=node("tr");
+  titles.forEach(x=>tr.append(node("th",x)));head.append(tr);t.append(head);
+ }
  const body=node("tbody");
  rows.forEach(row=>{
   const tr=node("tr");
@@ -107,7 +109,7 @@ function candidate(article,d){
  d.candidateFields.forEach(([label,value])=>textLine(pg,label+":",value));
  const exam=node("div","","reference-candidate-exam");
  heading(exam,"ظروف إجراء امتحان التثبيت");
- table(exam,["البيان","المعلومة"],d.examFields,"reference-exam-info");
+ table(exam,null,d.examFields,"reference-exam-info");
  pg.append(exam);
 }
 function lesson(article,d){

@@ -34,7 +34,7 @@ function cell(s,width,fill="",size=20,center=false,bold=false,end=false){
  return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
  p(s,{size:Math.max(size,28),center,bold,end,before:18,after:18})+'</w:tc>';
 }
-function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerColumns=[],size=20}={}){
+function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerColumns=[],headerRow=true,labelColumn=false,size=20}={}){
  const cols=rows[0]?.length||1;
  const widthsUsed=widths||Array(cols).fill(Math.floor(10000/cols));
  if(widthsUsed.length!==cols||rows.some(row=>row.length!==cols))
@@ -50,11 +50,11 @@ function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerC
  '</w:tblGrid>'+rows.map((row,i)=>{
   const total=row.some(v=>typeof v==="string"&&
    ["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v));
-  const fill=total?"E4E7E3":(bandFill[i]||(i===0?headerFill:""));
+  const fill=total?"E4E7E3":(bandFill[i]||((headerRow&&i===0)?headerFill:""));
   const minHeight=rowHeights[i]?'<w:trPr><w:trHeight w:val="'+rowHeights[i]+'" w:hRule="atLeast"/></w:trPr>':'';
   return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,Math.max(size,28),
-   i===0||(total&&typeof v==="string"&&/^\d/.test(v))||(!total&&centerColumns.includes(j+1)),
-   i===0||total,total&&["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v))).join("")+'</w:tr>';
+   (headerRow&&i===0)||(total&&typeof v==="string"&&/^\d/.test(v))||(!total&&centerColumns.includes(j+1)),
+   (headerRow&&i===0)||total||(labelColumn&&j===0),total&&["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v))).join("")+'</w:tr>';
  }).join("")+'</w:tbl>';
 }
 
@@ -85,7 +85,7 @@ function memberNotes(d,phase){
   out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
  return out;
 }
-function signatures(d){
+function signatures(d,spacious=false){
  const cols=[3334,3333,3333],group=d.signers.slice(0,3),chair=d.signers[3];
  const grid=cols.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
  const tc=(txt,w,span=1,fill=false)=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+
@@ -97,10 +97,10 @@ function signatures(d){
  '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/><w:tblLayout w:type="fixed"/>'+
  '<w:tblBorders>'+["top","bottom","left","right","insideH","insideV"].map(k=>'<w:'+k+' w:val="single" w:sz="6"/>').join("")+
  '</w:tblBorders></w:tblPr><w:tblGrid>'+grid+'</w:tblGrid>'+
- tr(group.map((m,i)=>tc(m.label,cols[i],1,true)),320)+
- tr(group.map((m,i)=>tc(body(m,i),cols[i])),1350)+
- tr([tc(chair.label,10000,3,true)],300)+
- tr([tc(body(chair,3),10000,3)],600)+'</w:tbl>';
+ tr(group.map((m,i)=>tc(m.label,cols[i],1,true)),spacious?450:320)+
+ tr(group.map((m,i)=>tc(body(m,i),cols[i])),spacious?1700:1350)+
+ tr([tc(chair.label,10000,3,true)],spacious?350:300)+
+ tr([tc(body(chair,3),10000,3)],spacious?800:600)+'</w:tbl>';
 }
 function cover(d){
  let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:36});
@@ -126,9 +126,10 @@ function candidatePage(d){
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
-  b+=p(label+": "+value,{size:28,before:120,after:120});
- b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:135});
- b+=table(d.examFields,{widths:[3700,6300],size:22});
+  b+=p(label+": "+value,{size:28,before:235,after:235});
+ b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:225});
+ b+=table(d.examFields,{widths:[3700,6300],headerRow:false,labelColumn:true,
+  rowHeights:Object.fromEntries(d.examFields.map((_,i)=>[i,620])),size:28});
  return b;
 }
 function lessonPage(d){
@@ -174,14 +175,14 @@ function resultsPage(d){
   ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
   ["المجموع",mark(60),mark(d.marks.total60)],
   ["العلامة النهائية",mark(20),mark(d.marks.total20)]],
-  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:450,1:620,2:620,3:620,4:620},centerColumns:[2,3],size:23});
- b+=p("التقدير العام:",{bold:true,before:150});
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:1400,2:1400,3:1400,4:1400},centerColumns:[2,3],size:23});
+ b+=p("التقدير العام:",{bold:true,before:480});
  b+=p(d.displayedAppreciation?
   d.displayedAppreciation:
   placeholder+"\n"+placeholder+"\n"+placeholder,{size:28,center:true,after:120});
- b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
+ b+=p("قرار أعضاء اللجنة:",{bold:true,before:470});
  b+=decisionChoices(d);
- b+=signatures(d);
+ b+=signatures(d,true);
  return b;
 }
 function minutes(d){
@@ -196,7 +197,7 @@ function minutes(d){
  b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
   d.dateInWords+" بــ: "+(d.examVenue||placeholder)+
   " في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
-  {before:170});
+  {before:550});
  b+=p("المعين(ة) في رتبة: "+d.metaValue("rank"));
  b+=p("بمؤسسة: "+d.metaValue("institution")+"، لولاية: "+d.metaValue("wilaya"));
  b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{before:120});
@@ -262,7 +263,12 @@ function reportFooterXml(d,reportPageCount){
  '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
  '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="start"/>'+
  '<w:pBdr><w:top w:val="single" w:sz="5"/></w:pBdr></w:pPr>'+
- run(label,false,14)+field+run(" من "+reportPageCount,false,14)+'</w:p></w:ftr>';
+ run(label,false,14)+field+run(" من ",false,14)+
+ // The report has its own Word section; SECTIONPAGES excludes the minutes.
+ // Keep an editable cached value for importers that do not evaluate the field.
+ '<w:fldSimple w:instr=" SECTIONPAGES " w:dirty="true">'+
+ textRun(String(reportPageCount),false,true,14)+'</w:fldSimple>'+
+ '</w:p></w:ftr>';
 }
 export function createCommitteeDocx(state,{reportPageCount=5}={}){
  if(!Number.isInteger(reportPageCount)||reportPageCount<5||reportPageCount>500)

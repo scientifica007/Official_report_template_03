@@ -181,3 +181,24 @@
    text-align:left!important;
  }
 }
+/* P4-B9: only redistribute the approved results page; preserve the accepted
+   A4 footer, page-number calculations, cover and minutes positioning. */
+@media print {
+ #paper .reference-results{
+   display:flex!important;
+   flex-direction:column!important;
+   justify-content:space-between!important;
+ }
+ #paper .reference-results > .reference-report-footer{
+   position:absolute!important;
+ }
+ #paper .reference-results > .screen-only{
+   display:none!important;
+ }
+ #paper .reference-candidate .reference-exam-info td:first-child{
+   font-weight:700!important;
+ }
+ #paper .reference-candidate .reference-exam-info td:nth-child(2){
+   font-weight:400!important;
+ }
+}

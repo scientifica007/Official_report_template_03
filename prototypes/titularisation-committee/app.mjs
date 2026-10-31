@@ -7,6 +7,7 @@ import {renderMembers} from "./members-ui.mjs";
 import {renderDocuments} from "./preview.mjs";
 import {node,clear,labelValue} from "./dom.mjs";
 import {createCommitteeDocx} from "./docx-export.mjs";
+import {estimateDocxReportPages} from "./docx-pagination.mjs";
 import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
@@ -105,12 +106,10 @@ if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>prepa
 $("print").addEventListener("click",()=>{preparePrintPagination($("paper"),state);window.print()});
 $("docx").addEventListener("click",()=>{
  try{
-  // Re-evaluate print pagination for this exact draft before exporting Word.
-  // Google Docs doesn't consistently resolve cross-section PAGEREF fields:
-  // use a portable denominator computed at export, not a broken field.
-  preparePrintPagination($("paper"),state);
-  const report=$("paper").querySelector?.(".official-report");
-  const reportPageCount=report?.querySelectorAll?.(":scope > .reference-page")?.length||5;
+  // PDF and Word can paginate the same prose differently. Never copy the
+  // browser's total into a Word footer; compute Word's cached fallback
+  // independently, while SECTIONPAGES updates in compatible Word readers.
+  const reportPageCount=estimateDocxReportPages(state);
   const bytes=createCommitteeDocx(state,{reportPageCount});
   const url=URL.createObjectURL(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}));
   const a=node("a");a.href=url;a.download="titularisation-report-and-minutes-draft.docx";
