@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {freshCommittee,editMeta} from "../prototypes/titularisation-committee/committee-engine.mjs";
+import {freshCommittee,editMeta,changeMode,fillDemoMember,submit} from "../prototypes/titularisation-committee/committee-engine.mjs";
+import {estimateDocxReportPages} from "../prototypes/titularisation-committee/docx-pagination.mjs";
 import {committeeDocumentXml,createCommitteeDocx} from "../prototypes/titularisation-committee/docx-export.mjs";
 import {renderDocuments} from "../prototypes/titularisation-committee/preview.mjs";
 class El{
@@ -76,4 +77,18 @@ test("Word candidate/results line spacing is expanded conservatively and minutes
  assert.match(xml,/<w:trHeight w:val="520" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:trHeight w:val="850" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:spacing w:before="550" w:after="120"\/>/);
+});
+
+test("Word estimate uses its own report structure and excludes the independent minutes",()=>{
+ let s=freshCommittee();
+ assert.equal(estimateDocxReportPages(s),5);
+ s=changeMode(s,"individual");
+ for(const seat of ["chair","member1","member2","member3"]){
+  s=fillDemoMember(s,seat);
+  s=submit(s,seat);
+ }
+ assert.equal(estimateDocxReportPages(s),7);
+ const zip=unpack(createCommitteeDocx(s,{reportPageCount:estimateDocxReportPages(s)}));
+ assert.match(zip["word/footer1.xml"],/ SECTIONPAGES /);
+ assert.match(zip["word/footer1.xml"],/<w:t xml:space="preserve">7<\/w:t>/);
 });
