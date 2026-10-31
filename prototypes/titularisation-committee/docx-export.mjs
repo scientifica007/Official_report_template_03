@@ -85,7 +85,7 @@ function memberNotes(d,phase){
   out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
  return out;
 }
-function signatures(d){
+function signatures(d,spacious=false){
  const cols=[3334,3333,3333],group=d.signers.slice(0,3),chair=d.signers[3];
  const grid=cols.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
  const tc=(txt,w,span=1,fill=false)=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+
@@ -97,10 +97,10 @@ function signatures(d){
  '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/><w:tblLayout w:type="fixed"/>'+
  '<w:tblBorders>'+["top","bottom","left","right","insideH","insideV"].map(k=>'<w:'+k+' w:val="single" w:sz="6"/>').join("")+
  '</w:tblBorders></w:tblPr><w:tblGrid>'+grid+'</w:tblGrid>'+
- tr(group.map((m,i)=>tc(m.label,cols[i],1,true)),320)+
- tr(group.map((m,i)=>tc(body(m,i),cols[i])),1350)+
- tr([tc(chair.label,10000,3,true)],300)+
- tr([tc(body(chair,3),10000,3)],600)+'</w:tbl>';
+ tr(group.map((m,i)=>tc(m.label,cols[i],1,true)),spacious?450:320)+
+ tr(group.map((m,i)=>tc(body(m,i),cols[i])),spacious?1700:1350)+
+ tr([tc(chair.label,10000,3,true)],spacious?350:300)+
+ tr([tc(body(chair,3),10000,3)],spacious?800:600)+'</w:tbl>';
 }
 function cover(d){
  let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:36});
@@ -126,10 +126,10 @@ function candidatePage(d){
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
-  b+=p(label+": "+value,{size:28,before:150,after:150});
+  b+=p(label+": "+value,{size:28,before:210,after:210});
  b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:225});
  b+=table(d.examFields,{widths:[3700,6300],headerRow:false,labelColumn:true,
-  rowHeights:Object.fromEntries(d.examFields.map((_,i)=>[i,520])),size:28});
+  rowHeights:Object.fromEntries(d.examFields.map((_,i)=>[i,620])),size:28});
  return b;
 }
 function lessonPage(d){
@@ -175,14 +175,14 @@ function resultsPage(d){
   ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
   ["المجموع",mark(60),mark(d.marks.total60)],
   ["العلامة النهائية",mark(20),mark(d.marks.total20)]],
-  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:850,2:850,3:850,4:850},centerColumns:[2,3],size:23});
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:1250,2:1250,3:1250,4:1250},centerColumns:[2,3],size:23});
  b+=p("التقدير العام:",{bold:true,before:480});
  b+=p(d.displayedAppreciation?
   d.displayedAppreciation:
   placeholder+"\n"+placeholder+"\n"+placeholder,{size:28,center:true,after:120});
  b+=p("قرار أعضاء اللجنة:",{bold:true,before:470});
  b+=decisionChoices(d);
- b+=signatures(d);
+ b+=signatures(d,true);
  return b;
 }
 function minutes(d){
