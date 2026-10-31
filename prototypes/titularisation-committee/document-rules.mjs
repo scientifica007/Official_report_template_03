@@ -13,17 +13,17 @@ const decades=["","","عشرين","ثلاثين","أربعين","خمسين","س
 const normalizeDigits=s=>String(s??"").replace(/[٠-٩]/g,ch=>String(ch.charCodeAt(0)-0x660))
  .replace(/[۰-۹]/g,ch=>String(ch.charCodeAt(0)-0x6f0));
 const yearWords=year=>{
- if(year===2000)return "ألفية";
+ if(year===2000)return "ألفين";
  if(year>=2001&&year<=2099){
   const suffix=year-2000;
-  if(suffix===100)return "ألفية ومائة";
-  if(suffix<10)return "ألفية و"+units[suffix];
-  if(suffix===10)return "ألفية وعشرة";
-  if(suffix===11)return "ألفية وأحد عشر";
-  if(suffix===12)return "ألفية واثني عشر";
-  if(suffix<20)return "ألفية و"+["","","","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"][suffix-10];
+  if(suffix===100)return "ألفين ومائة";
+  if(suffix<10)return "ألفين و"+units[suffix];
+  if(suffix===10)return "ألفين وعشرة";
+  if(suffix===11)return "ألفين وأحد عشر";
+  if(suffix===12)return "ألفين واثني عشر";
+  if(suffix<20)return "ألفين و"+["","","","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"][suffix-10];
   const ten=Math.floor(suffix/10),unit=suffix%10;
-  return "ألفية و"+(unit?units[unit]+" و":"")+decades[ten];
+  return "ألفين و"+(unit?units[unit]+" و":"")+decades[ten];
  }
  return String(year);
 };
