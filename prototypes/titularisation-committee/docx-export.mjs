@@ -34,7 +34,7 @@ function cell(s,width,fill="",size=20,center=false,bold=false,end=false){
  return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
  p(s,{size:Math.max(size,28),center,bold,end,before:18,after:18})+'</w:tc>';
 }
-function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerColumns=[],size=20}={}){
+function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerColumns=[],headerRow=true,labelColumn=false,size=20}={}){
  const cols=rows[0]?.length||1;
  const widthsUsed=widths||Array(cols).fill(Math.floor(10000/cols));
  if(widthsUsed.length!==cols||rows.some(row=>row.length!==cols))
@@ -50,11 +50,11 @@ function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerC
  '</w:tblGrid>'+rows.map((row,i)=>{
   const total=row.some(v=>typeof v==="string"&&
    ["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v));
-  const fill=total?"E4E7E3":(bandFill[i]||(i===0?headerFill:""));
+  const fill=total?"E4E7E3":(bandFill[i]||((headerRow&&i===0)?headerFill:""));
   const minHeight=rowHeights[i]?'<w:trPr><w:trHeight w:val="'+rowHeights[i]+'" w:hRule="atLeast"/></w:trPr>':'';
   return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,Math.max(size,28),
-   i===0||(total&&typeof v==="string"&&/^\d/.test(v))||(!total&&centerColumns.includes(j+1)),
-   i===0||total,total&&["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v))).join("")+'</w:tr>';
+   (headerRow&&i===0)||(total&&typeof v==="string"&&/^\d/.test(v))||(!total&&centerColumns.includes(j+1)),
+   (headerRow&&i===0)||total||(labelColumn&&j===0),total&&["العلامة المحصلة","المجموع","العلامة النهائية"].includes(v))).join("")+'</w:tr>';
  }).join("")+'</w:tbl>';
 }
 
@@ -126,9 +126,10 @@ function candidatePage(d){
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
-  b+=p(label+": "+value,{size:28,before:120,after:120});
- b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:135});
- b+=table(d.examFields,{widths:[3700,6300],size:22});
+  b+=p(label+": "+value,{size:28,before:150,after:150});
+ b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:225});
+ b+=table(d.examFields,{widths:[3700,6300],headerRow:false,labelColumn:true,
+  rowHeights:Object.fromEntries(d.examFields.map((_,i)=>[i,520])),size:28});
  return b;
 }
 function lessonPage(d){
@@ -174,12 +175,12 @@ function resultsPage(d){
   ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
   ["المجموع",mark(60),mark(d.marks.total60)],
   ["العلامة النهائية",mark(20),mark(d.marks.total20)]],
-  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:450,1:620,2:620,3:620,4:620},centerColumns:[2,3],size:23});
- b+=p("التقدير العام:",{bold:true,before:150});
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:850,2:850,3:850,4:850},centerColumns:[2,3],size:23});
+ b+=p("التقدير العام:",{bold:true,before:480});
  b+=p(d.displayedAppreciation?
   d.displayedAppreciation:
   placeholder+"\n"+placeholder+"\n"+placeholder,{size:28,center:true,after:120});
- b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
+ b+=p("قرار أعضاء اللجنة:",{bold:true,before:470});
  b+=decisionChoices(d);
  b+=signatures(d);
  return b;
@@ -196,7 +197,7 @@ function minutes(d){
  b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
   d.dateInWords+" بــ: "+(d.examVenue||placeholder)+
   " في سير امتحان التثبيت للسيد(ة): "+(d.candidate||placeholder),
-  {before:170});
+  {before:550});
  b+=p("المعين(ة) في رتبة: "+d.metaValue("rank"));
  b+=p("بمؤسسة: "+d.metaValue("institution")+"، لولاية: "+d.metaValue("wilaya"));
  b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{before:120});
