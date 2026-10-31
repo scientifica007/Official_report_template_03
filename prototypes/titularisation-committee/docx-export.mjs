@@ -126,7 +126,7 @@ function candidatePage(d){
  // Candidate fields in the original reference are ordinary labelled lines,
  // not a two-column table; keep the exam circumstances in their own table.
  for(const [label,value] of d.candidateFields)
-  b+=p(label+": "+value,{size:28,before:210,after:210});
+  b+=p(label+": "+value,{size:28,before:235,after:235});
  b+=p("ظروف إجراء امتحان التثبيت",{center:true,bold:true,before:225});
  b+=table(d.examFields,{widths:[3700,6300],headerRow:false,labelColumn:true,
   rowHeights:Object.fromEntries(d.examFields.map((_,i)=>[i,620])),size:28});
@@ -175,7 +175,7 @@ function resultsPage(d){
   ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
   ["المجموع",mark(60),mark(d.marks.total60)],
   ["العلامة النهائية",mark(20),mark(d.marks.total20)]],
-  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:1250,2:1250,3:1250,4:1250},centerColumns:[2,3],size:23});
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:520,1:1400,2:1400,3:1400,4:1400},centerColumns:[2,3],size:23});
  b+=p("التقدير العام:",{bold:true,before:480});
  b+=p(d.displayedAppreciation?
   d.displayedAppreciation:
