@@ -3,6 +3,9 @@
  * chair's editable data or present signatures as electronic approvals. */
 import {node,add,clear} from "./dom.mjs";
 import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
+import {COMMITTEE_APPROVAL_HEADING,MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
+ MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,MINUTES_OPENING_LEAD,minutesOpeningText}
+ from "./document-language.mjs";
 const empty="................................................";
 function textLine(parent,label,value,extraClass=""){
  const p=node("p","","paper-line"+(extraClass?" "+extraClass:""));
@@ -69,7 +72,7 @@ function assessment(page,finalText,observations){
  page.append(section);
 }
 function signatures(page,d){
- heading(page,"مصادقة أعضاء اللجنة — إمضاءات أعضاء اللجنة على النسخة الورقية");
+ heading(page,COMMITTEE_APPROVAL_HEADING);
  const wrap=node("div","","reference-three-signers");
  d.signers.slice(0,3).forEach(x=>{
   const card=node("div","","reference-member-sign");
@@ -95,7 +98,7 @@ function cover(article,d){
  pg.append(node("h2","تقرير التفتيش قصد الترسيم","reference-main-title"));
  pg.append(node("p",d.referenceScopeWarning||
   "للأساتذة المتخصصين في التكوين والتعليم المهنيين","reference-subtitle"));
- pg.append(node("p","المراجع: مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
+ pg.append(node("p","المراجع: "+LEGAL_REFERENCES,"reference-line"));
 
  const bottom=node("div","","reference-cover-exam");
  heading(bottom,"إجراء امتحان التثبيت");
@@ -144,7 +147,7 @@ function results(article,d,state){
  heading(pg,"خلاصة النتائج");
  table(pg,["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],[
   ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
-  ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
+  [DISCUSSION_RESULT_TITLE,mark(20),mark(d.marks.discussion)],
   ["المجموع",mark(60),mark(d.marks.total60)],
   ["العلامة النهائية",mark(20),mark(d.marks.total20)]
  ],"reference-results-table");
@@ -171,17 +174,26 @@ function results(article,d,state){
 function minutes(article,d){
  const pg=makePage(article,"reference-minutes");
  ministry(pg);
- pg.append(node("h2","محضر التفتيش قصد الترسيم"));
- pg.append(node("p","للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف","reference-subtitle"));
- pg.append(node("p","مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
+ // The title, eligible ranks and legal references form one compact heading block.
+ const header=node("div","","reference-minutes-header");
+ header.append(node("h2",MINUTES_TITLE));
+ header.append(node("p",MINUTES_SCOPE,"reference-subtitle"));
+ header.append(node("p","المراجع: "+LEGAL_REFERENCES,"reference-line"));
+ pg.append(header);
 
- textLine(pg,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم نصرح بأننا شاركنا يوم:",
-  d.dateInWords+" بــ: "+(d.examVenue||empty),"reference-minutes-opening");
- textLine(pg,"في سير امتحان التثبيت للسيد(ة):",d.candidate);
- textLine(pg,"المعين(ة) في رتبة:",d.metaValue("rank"));
- textLine(pg,"بمؤسسة:",d.metaValue("institution"));
- textLine(pg,"لولاية:",d.metaValue("wilaya"));
- heading(pg,"بعد مداولة لجنة الامتحان، النتائج هي:");
+ // The minutes narrative starts as a distinct, clearly separated body.
+ const body=node("div","","reference-minutes-body");
+ const opening=node("p","","paper-line reference-minutes-opening");
+ const full=minutesOpeningText(d,empty);
+ add(opening,node("strong",MINUTES_OPENING_LEAD),
+  node("span",full.slice(MINUTES_OPENING_LEAD.length)));
+ body.append(opening);
+ textLine(body,"الرتبة:",d.metaValue("rank"));
+ textLine(body,"المؤسسة:",d.metaValue("institution"));
+ textLine(body,"الولاية:",d.metaValue("wilaya"));
+ pg.append(body);
+
+ heading(pg,MINUTES_RESULTS_INTRO);
  textLine(pg,"العلامة النهائية:",mark(d.marks.total20)+" /20");
  textLine(pg,"التقدير العام:",d.displayedAppreciation);
  heading(pg,"قرار اللجنة:");
@@ -190,7 +202,9 @@ function minutes(article,d){
  textLine(dateBox,"حُرّر في:",d.metaValue("decisionPlace"));
  textLine(dateBox,"التاريخ:",d.meta.decisionDate||d.meta.date);
  pg.append(dateBox);
- signatures(pg,d);
+ const signBlock=node("div","","reference-minutes-signatures");
+ signatures(signBlock,d);
+ pg.append(signBlock);
 }
 export function renderDocuments(container,state){
  clear(container);
