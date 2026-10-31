@@ -16,9 +16,13 @@ const getFiles=bytes=>{
  return found;
 };
 test("date is written literally as requested and invalid days are not invented",()=>{
- assert.equal(dateInArabicWords("14 نوفمبر 2026"),"الرابع عشر من شهر نوفمبر سنة ألفية وستة وعشرين");
- assert.equal(dateInArabicWords("14/11/2026"),"الرابع عشر من شهر نوفمبر سنة ألفية وستة وعشرين");
- assert.equal(dateInArabicWords("22 أكتوبر 2026"),"الثاني والعشرون من شهر أكتوبر سنة ألفية وستة وعشرين");
+ assert.equal(dateInArabicWords("14 نوفمبر 2026"),"الرابع عشر من شهر نوفمبر سنة ألفين وستة وعشرين");
+ assert.equal(dateInArabicWords("14/11/2026"),"الرابع عشر من شهر نوفمبر سنة ألفين وستة وعشرين");
+ assert.equal(dateInArabicWords("22 أكتوبر 2026"),"الثاني والعشرون من شهر أكتوبر سنة ألفين وستة وعشرين");
+ assert.equal(dateInArabicWords("18 نوفمبر 2026"),
+  "الثامن عشر من شهر نوفمبر سنة ألفين وستة وعشرين");
+ assert.equal(dateInArabicWords("01/01/2000"),"الأول من شهر جانفي سنة ألفين");
+ assert.equal(dateInArabicWords("01/01/2011"),"الأول من شهر جانفي سنة ألفين وأحد عشر");
  assert.equal(dateInArabicWords("31/02/2026"),"31/02/2026");
 });
 test("appreciation ranges use the FINAL /20 result only and stay advisory",()=>{
@@ -80,7 +84,7 @@ test("DOCX sections have five-page report footer and completely blank minutes fo
  assert.equal((xml.match(/<w:pageBreakBefore\/>/g)||[]).length,4);
  assert.equal((xml.match(/<w:gridSpan w:val="3"\/>/g)||[]).length,4);
  assert.match(xml,/<w:strike\/>/);
- assert.ok(xml.includes("الرابع عشر من شهر نوفمبر سنة ألفية وستة وعشرين"));
+ assert.ok(xml.includes("الرابع عشر من شهر نوفمبر سنة ألفين وستة وعشرين"));
  assert.match(xml,/<w:jc w:val="end"\/>/);
 });
 test("portable JSON is self-describing and old v1 restoration remains intact",()=>{
@@ -95,7 +99,7 @@ test("portable JSON is self-describing and old v1 restoration remains intact",()
  assert.equal(exported.documentContract.template.print.minutesHasFooter,false);
  assert.equal(exported.documentContract.outputData.candidate,"اسم اصطناعي");
  assert.equal(exported.documentContract.outputData.minutesDateInWords,
-  "الرابع عشر من شهر نوفمبر سنة ألفية وستة وعشرين");
+  "الرابع عشر من شهر نوفمبر سنة ألفين وستة وعشرين");
  assert.ok(exported.documentContract.template.printableSource?.includes("preview.mjs")||
   exported.documentContract.template.printableSource===undefined);
  assert.equal(stringifyCommittee(restoreCommittee(exported)),before,
