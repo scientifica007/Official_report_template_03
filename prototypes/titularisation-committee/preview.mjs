@@ -4,8 +4,8 @@
 import {node,add,clear} from "./dom.mjs";
 import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
 const empty="................................................";
-function textLine(parent,label,value){
- const p=node("p","","paper-line");
+function textLine(parent,label,value,extraClass=""){
+ const p=node("p","","paper-line"+(extraClass?" "+extraClass:""));
  add(p,node("strong",label+" "),node("span",value||empty));parent.append(p);
 }
 function heading(parent,label){parent.append(node("h3",label,"paper-section-heading"))}
@@ -55,7 +55,9 @@ function choices(parent,d){
  parent.append(wrap);
 }
 function assessment(page,finalText,observations){
- textLine(page,"التقدير:",finalText||(!observations.length?empty:""));
+ // Empty inspector text must stay genuinely blank, not become printable dots.
+ if(finalText)textLine(page,"التقدير:",finalText);
+ else page.append(node("p","التقدير:","paper-line reference-empty-appreciation"));
  if(!observations.length)return;
  const section=node("div","","reference-original-contributions");
  
@@ -174,7 +176,7 @@ function minutes(article,d){
  pg.append(node("p","مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
 
  textLine(pg,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم نصرح بأننا شاركنا يوم:",
-  d.dateInWords+" بــ: "+(d.examVenue||empty));
+  d.dateInWords+" بــ: "+(d.examVenue||empty),"reference-minutes-opening");
  textLine(pg,"في سير امتحان التثبيت للسيد(ة):",d.candidate);
  textLine(pg,"المعين(ة) في رتبة:",d.metaValue("rank"));
  textLine(pg,"بمؤسسة:",d.metaValue("institution"));

@@ -69,5 +69,5 @@ test("PDF footer is lowered within A4 printable area; colored total rows and min
  assert.match(preview,/official-total-row/);
  assert.doesNotMatch(preview,/textLine\(pg,"حُرّر في:"/);
  const app=readFileSync(root+"app.mjs","utf8");
- assert.match(app,/createCommitteeDocx\(state,\{reportPageCount\}\)/);
+ assert.match(app,/createCommitteeDocx\(state,\{kind,reportPageCount\}\)/);
 });

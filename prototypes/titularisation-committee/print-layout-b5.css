@@ -202,3 +202,26 @@
    font-weight:400!important;
  }
 }
+
+/* ARCH-01D2-P4-B10 — print the report OR the separately issued minutes.
+   Do not change the already accepted report footer position or its numbering. */
+@media print {
+ body[data-print-target="report"] #paper .official-minutes,
+ body[data-print-target="minutes"] #paper .official-report{
+  display:none!important;
+ }
+ body[data-print-target="report"] #paper .official-report{
+  break-after:auto!important;page-break-after:auto!important;
+ }
+ body[data-print-target="report"] #paper .official-report>.reference-page:last-child{
+  break-after:auto!important;page-break-after:auto!important;
+ }
+ body[data-print-target="minutes"] #paper .official-minutes,
+ body[data-print-target="minutes"] #paper .reference-minutes{
+  break-before:auto!important;page-break-before:auto!important;
+  break-after:auto!important;page-break-after:auto!important;
+ }
+ #paper .reference-minutes>.reference-minutes-opening{
+  margin-top:11mm!important;
+ }
+}

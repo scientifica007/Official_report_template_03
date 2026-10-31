@@ -102,19 +102,42 @@ $("load").addEventListener("change",async e=>{
   state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
-if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>preparePrintPagination($("paper"),state));
-$("print").addEventListener("click",()=>{preparePrintPagination($("paper"),state);window.print()});
-$("docx").addEventListener("click",()=>{
+// PDF keeps the browser's native print/save-as-PDF workflow; selection applies
+// solely to the paper print surface. Both drafts remain visible in the editor.
+function choosePrintDocument(kind){
+ document.body.setAttribute("data-print-target",kind);
+ if(kind==="report")preparePrintPagination($("paper"),state);
+ window.print();
+}
+if(typeof window!=="undefined"){
+ window.addEventListener?.("beforeprint",()=>{
+  if(document.body.getAttribute?.("data-print-target")!=="minutes")
+   preparePrintPagination($("paper"),state);
+ });
+ window.addEventListener?.("afterprint",()=>{
+  document.body.removeAttribute?.("data-print-target");
+  // Restore both preview drafts without changing any saved committee input.
+  renderDocuments($("paper"),state);fitPrintPages($("paper"));
+ });
+}
+$("print").addEventListener("click",()=>choosePrintDocument("report"));
+$("print-minutes")?.addEventListener("click",()=>choosePrintDocument("minutes"));
+function downloadWord(kind){
  try{
-  // PDF and Word can paginate the same prose differently. Never copy the
-  // browser's total into a Word footer; compute Word's cached fallback
-  // independently, while SECTIONPAGES updates in compatible Word readers.
-  const reportPageCount=estimateDocxReportPages(state);
-  const bytes=createCommitteeDocx(state,{reportPageCount});
-  const url=URL.createObjectURL(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}));
-  const a=node("a");a.href=url;a.download="titularisation-report-and-minutes-draft.docx";
-  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
-  message("تم إنشاء DOCX قابل للتحرير (مسودة غير معتمدة). يمكن تعديل الأرقام والنصوص قبل الإمضاء الورقي.");
+  const reportPageCount=kind==="report"?estimateDocxReportPages(state):5;
+  const bytes=createCommitteeDocx(state,{kind,reportPageCount});
+  const url=URL.createObjectURL(new Blob([bytes],
+   {type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}));
+  const link=node("a");
+  link.href=url;
+  link.download=kind==="report"?"titularisation-report-draft.docx":"titularisation-minutes-draft.docx";
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  message(kind==="report"?
+   "نُزّل التقرير وحده DOCX، مع تذييل يحسب صفحات التقرير دون المحضر.":
+   "نُزّل المحضر وحده DOCX، دون تذييل التقرير.");
  }catch(err){message("تعذّر إنشاء DOCX: "+err.message)}
-});
+}
+$("docx").addEventListener("click",()=>downloadWord("report"));
+$("docx-minutes")?.addEventListener("click",()=>downloadWord("minutes"));
 render();
