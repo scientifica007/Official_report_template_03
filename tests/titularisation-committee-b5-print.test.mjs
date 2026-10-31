@@ -36,7 +36,7 @@ test("14pt Times New Roman and six-point spacing maintain differentiated cover h
 test("candidate table and heading share a bottom anchored grouping",()=>{
  assert.match(preview,/const exam=node\("div","","reference-candidate-exam"\)/);
  assert.match(preview,/heading\(exam,"ظروف إجراء امتحان التثبيت"\)/);
- assert.match(preview,/table\(exam,\["البيان","المعلومة"\],d.examFields/);
+ assert.match(preview,/table\(exam,null,d.examFields/);
  assert.match(css,/reference-candidate-exam\{margin-top:auto!important\}/);
 });
 test("Word stays independently editable with RTL Times New Roman and 14pt defaults",()=>{
