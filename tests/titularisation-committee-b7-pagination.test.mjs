@@ -23,13 +23,14 @@ test("footer reflects actual report page count without counting separate minutes
  assert.throws(()=>reportFooter(m,8,7),/صفحة تقرير/);
  assert.throws(()=>reportFooter(m,6),/صفحة تقرير/);
 });
-test("Word retains automatic PAGE but uses portable denominator for Google Docs",()=>{
+test("Word retains PAGE and calculates section-specific page totals without counting minutes",()=>{
  const f=files(createCommitteeDocx(freshCommittee()));
  assert.doesNotMatch(f["word/document.xml"],/ReportLastPage/);
  assert.match(f["word/footer1.xml"],/<w:t xml:space="preserve">5<\/w:t>/);
- assert.doesNotMatch(f["word/footer1.xml"],/PAGEREF|SECTIONPAGES|NUMPAGES/);
+ assert.match(f["word/footer1.xml"],/ SECTIONPAGES /);
+ assert.doesNotMatch(f["word/footer1.xml"],/PAGEREF|NUMPAGES/);
  assert.match(f["word/footer1.xml"],/ PAGE /);
- assert.doesNotMatch(f["word/footer1.xml"],/SECTIONPAGES|NUMPAGES/);
+ assert.doesNotMatch(f["word/footer1.xml"],/NUMPAGES/);
  assert.match(f["word/settings.xml"],/updateFields w:val="true"/);
  assert.doesNotMatch(f["word/footer2.xml"],/تقرير عملية/);
 });
