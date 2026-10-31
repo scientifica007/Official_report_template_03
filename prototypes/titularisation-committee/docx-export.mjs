@@ -29,12 +29,12 @@ function p(s,{bold=false,center=false,end=false,page=false,size=0,before=120,aft
  '<w:jc w:val="'+(center?'center':end?'end':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
  '</w:pPr>'+run(s,bold,size||28)+'</w:p>';
 }
-function cell(s,width,fill="",size=20){
+function cell(s,width,fill="",size=20,center=false){
  const bg=fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':"";
  return '<w:tc><w:tcPr><w:tcW w:w="'+width+'" w:type="dxa"/><w:vAlign w:val="center"/>'+bg+'</w:tcPr>'+
- p(s,{size:Math.max(size,28),before:18,after:18})+'</w:tc>';
+ p(s,{size:Math.max(size,28),center,before:18,after:18})+'</w:tc>';
 }
-function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},size=20}={}){
+function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},centerColumns=[],size=20}={}){
  const cols=rows[0]?.length||1;
  const widthsUsed=widths||Array(cols).fill(Math.floor(10000/cols));
  if(widthsUsed.length!==cols||rows.some(row=>row.length!==cols))
@@ -50,19 +50,36 @@ function table(rows,{widths=null,headerFill="",bandFill={},rowHeights={},size=20
  '</w:tblGrid>'+rows.map((row,i)=>{
   const fill=bandFill[i]||(i===0?headerFill:"");
   const minHeight=rowHeights[i]?'<w:trPr><w:trHeight w:val="'+rowHeights[i]+'" w:hRule="atLeast"/></w:trPr>':'';
-  return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,size)).join("")+'</w:tr>';
+  return '<w:tr>'+minHeight+row.map((v,j)=>cell(v,widthsUsed[j],fill,size,centerColumns.includes(j+1))).join("")+'</w:tr>';
  }).join("")+'</w:tbl>';
 }
 
 const placeholder="................................................";
 const basis="مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.";
+// Separate Word table cells keep a distinct strike through EACH choice.
 function decisionChoices(d){
- const choices=d.decisionChoices.map(opt=>{
-  let markup=run((opt.chosen?"☑ ":"☐ ")+opt.label+"       ",false,21);
+ const widths=[3334,3333,3333],grid=widths.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
+ const cells=d.decisionChoices.map((opt,i)=>{
+  const label=(opt.chosen?"☑ ":"☐ ")+opt.label;
+  let markup=run(label,false,24);
   if(opt.struck)markup=markup.replaceAll('<w:rtl w:val=','<w:strike/><w:rtl w:val=');
-  return markup;
+  return '<w:tc><w:tcPr><w:tcW w:w="'+widths[i]+'" w:type="dxa"/>'+
+   '<w:tcMar><w:start w:w="210" w:type="dxa"/><w:end w:w="210" w:type="dxa"/></w:tcMar>'+
+   '</w:tcPr><w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="center"/></w:pPr>'+
+   markup+'</w:p></w:tc>';
  }).join("");
- return '<w:p><w:pPr><w:bidi w:val="1"/><w:jc w:val="center"/></w:pPr>'+choices+'</w:p>';
+ return '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/>'+
+ '<w:tblBorders>'+["top","bottom","left","right","insideH","insideV"]
+ .map(k=>'<w:'+k+' w:val="nil"/>').join("")+'</w:tblBorders>'+
+ '</w:tblPr><w:tblGrid>'+grid+'</w:tblGrid><w:tr>'+cells+'</w:tr></w:tbl>';
+}
+function memberNotes(d,phase){
+ const entries=d.memberObservations[phase]||[];
+ if(!entries.length)return "";
+ let out=p("تقديرات الأعضاء الأصلية — مصنفة بحسب المعيار وصاحب المساهمة:",{bold:true,size:21});
+ for(const item of entries)
+  out+=p(item.author+" — "+item.criterion+": "+item.text,{size:20,before:35,after:35});
+ return out;
 }
 function signatures(d){
  const cols=[3334,3333,3333],group=d.signers.slice(0,3),chair=d.signers[3];
@@ -71,15 +88,15 @@ function signatures(d){
  (span>1?'<w:gridSpan w:val="'+span+'"/>':"")+(fill?'<w:shd w:fill="DADADA"/>':"")+
  '</w:tcPr>'+p(txt,{size:28,before:45,after:45})+'</w:tc>';
  const tr=(cells,h)=>'<w:tr><w:trPr><w:trHeight w:val="'+h+'" w:hRule="atLeast"/></w:trPr>'+cells.join("")+'</w:tr>';
- const body=m=>"اللقب والاسم: "+m.name+"\nالوظيفة: "+m.role+"\nالتوقيع: ................................";
+ const body=(m,i)=>"اللقب والاسم: "+m.name+"\nالوظيفة: "+m.role+"\n"+(i===2?"التوقيع: ":"الختم والتوقيع: ")+"................................";
  return p("مصادقة أعضاء اللجنة:",{bold:true,before:105})+
  '<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:bidiVisual w:val="1"/><w:tblLayout w:type="fixed"/>'+
  '<w:tblBorders>'+["top","bottom","left","right","insideH","insideV"].map(k=>'<w:'+k+' w:val="single" w:sz="6"/>').join("")+
  '</w:tblBorders></w:tblPr><w:tblGrid>'+grid+'</w:tblGrid>'+
  tr(group.map((m,i)=>tc(m.label,cols[i],1,true)),320)+
- tr(group.map((m,i)=>tc(body(m),cols[i])),1350)+
+ tr(group.map((m,i)=>tc(body(m,i),cols[i])),1350)+
  tr([tc(chair.label,10000,3,true)],300)+
- tr([tc(body(chair),10000,3)],600)+'</w:tbl>';
+ tr([tc(body(chair,3),10000,3)],600)+'</w:tbl>';
 }
 function cover(d){
  let b=p("الجمهورية الجزائرية الديمقراطية الشعبية",{center:true,bold:true,size:36});
@@ -113,31 +130,25 @@ function candidatePage(d){
 function lessonPage(d){
  let b=p("إجراء الامتحان",{center:true,bold:true,page:true,size:32});
  b+=p("الامتحان الأول: حصة تدريسية",{bold:true,size:23});
- if(d.rubricId!=="lesson_grouped_5_v1")
-  b+=p("الشبكة المستخدمة: "+d.rubricLabel+" (شبكة عمل غير مثبت اعتمادها رسميًا)",
-    {size:16});
+
  const records=[];
- const fills={};
+
  records.push(["الرقم","معايير ومؤشرات التقدير","قاعدة التنقيط","العلامة المحصلة"]);
  d.lessonRows.forEach((item,i)=>{
   records.push([String(i+1),item.label+
    (item.indicators?.length?"\n"+item.indicators.map(x=>"• "+x).join("\n"):""),
     mark(item.cap),mark(item.score)]);
-  if(d.lessonRows.length===5){
-   fills[records.length]="D9E9D2";
-   records.push(["","النقطة الجزئية -"+(i+1)+"-","",""]);
-  }
+
  });
- records.push(["","العلامة المحصلة","40",mark(d.marks.lesson)]);
+ records.push(["","العلامة المحصلة",mark(40),mark(d.marks.lesson)]);
  const lessonHeights={};
  records.forEach((_,i)=>{
-  lessonHeights[i]=i===0?420:i===records.length-1?390:
-   (d.lessonRows.length===5&&i%2===0?300:(d.lessonRows.length===5?890:460));
+  lessonHeights[i]=i===0?420:i===records.length-1?390:(d.lessonRows.length===5?1100:550);
  });
- b+=table(records,{widths:[1000,6000,1400,1600],headerFill:"F5E5AB",bandFill:fills,rowHeights:lessonHeights,size:23});
+ b+=table(records,{widths:[1000,6000,1400,1600],headerFill:"F5E5AB",rowHeights:lessonHeights,centerColumns:[1,3,4],size:23});
  b+=p("التقدير:",{bold:true,before:90});
- b+=p(d.prose.lesson||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
-  {size:23});
+ b+=p(d.prose.lesson||(!d.memberObservations.lesson.length?placeholder+"\n"+placeholder:""),{size:23});
+ b+=memberNotes(d,"lesson");
  return b;
 }
 function discussionPage(d){
@@ -145,24 +156,24 @@ function discussionPage(d){
  b+=p("موضوع المناقشة: "+(d.discussionTopic||placeholder),{before:170,after:140});
  b+=table([["العناصر المقيمة","قاعدة التنقيط","العلامة المحصلة"],
   ...d.discussionRows.map(x=>[x.label,mark(x.cap),mark(x.score)]),
-  ["العلامة المحصلة","20",mark(d.marks.discussion)]],
-  {widths:[6500,1600,1900],headerFill:"DCEBD5",rowHeights:{0:480,1:710,2:710,3:710,4:710,5:710,6:710,7:710,8:380},size:23});
+  ["العلامة المحصلة",mark(20),mark(d.marks.discussion)]],
+  {widths:[6500,1600,1900],headerFill:"DCEBD5",rowHeights:{0:480,1:710,2:710,3:710,4:710,5:710,6:710,7:710,8:380},centerColumns:[2,3],size:23});
  b+=p("التقدير:",{bold:true,before:130});
- b+=p(d.prose.discussion||placeholder+"\n"+placeholder+"\n"+placeholder+"\n"+placeholder,
-  {size:21});
+ b+=p(d.prose.discussion||(!d.memberObservations.discussion.length?placeholder+"\n"+placeholder:""),{size:21});
+ b+=memberNotes(d,"discussion");
  return b;
 }
 function resultsPage(d){
  let b=p("خلاصة النتائج",{page:true,center:true,bold:true,size:25});
  b+=table([["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],
-  ["1 - إلقاء الدرس","40",mark(d.marks.lesson)],
-  ["2 - المحادثة","20",mark(d.marks.discussion)],
-  ["المجموع","60",mark(d.marks.total60)],
-  ["العلامة النهائية","20",mark(d.marks.total20)]],
-  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:450,1:620,2:620,3:620,4:620},size:23});
+  ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
+  ["2 - المحادثة",mark(20),mark(d.marks.discussion)],
+  ["المجموع",mark(60),mark(d.marks.total60)],
+  ["العلامة النهائية",mark(20),mark(d.marks.total20)]],
+  {widths:[5500,2000,2500],headerFill:"C8C8C8",rowHeights:{0:450,1:620,2:620,3:620,4:620},centerColumns:[2,3],size:23});
  b+=p("التقدير العام:",{bold:true,before:150});
  b+=p(d.displayedAppreciation?
-  d.displayedAppreciation+(d.appreciationIsSuggestion?" (تقدير مقترح قابل للتغيير)":""):
+  d.displayedAppreciation:
   placeholder+"\n"+placeholder+"\n"+placeholder,{size:21,after:120});
  b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
  b+=decisionChoices(d);
@@ -175,7 +186,7 @@ function minutes(d){
  b+=p("وزارة التكوين والتعليم المهنيين",{center:true,bold:true,size:22});
  b+=p("المفتشية العامة",{center:true,bold:true,size:22});
  b+=p("محضر التفتيش قصد الترسيم",{center:true,bold:true,size:28,before:190});
- b+=p("للأساتذة المتخصصين في التكوين والتعليم المهنيين، وللأساتذة المتخصصين لإعادة التكييف",
+ b+=p("للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف",
   {center:true,size:18});
  b+=p("المراجع: "+basis,{center:true,size:17});
  b+=p("نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم، نصرح بأننا شاركنا يوم "+
@@ -187,7 +198,7 @@ function minutes(d){
  b+=p("بعد مداولة لجنة الامتحان، النتائج هي:",{before:120});
  b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
   "      التقدير العام: "+(d.displayedAppreciation||placeholder)+
-  (d.appreciationIsSuggestion?" (مقترح)":""));
+  "");
  b+=p("قرار اللجنة:",{bold:true})+decisionChoices(d);
  b+=p("حُرّر في: "+d.metaValue("decisionPlace"),{before:100});
  b+=p("التاريخ: "+(d.meta.decisionDate||d.meta.date||placeholder),{end:true});
