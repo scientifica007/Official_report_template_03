@@ -63,6 +63,7 @@ test("Word report footer count follows real section pages when originals require
   if(name==="word/footer1.xml")footer=decode.decode(bytes.subarray(start,start+size));
   p=start+size;
  }
- assert.match(footer,/PAGEREF ReportLastPage/);
+ assert.doesNotMatch(footer,/PAGEREF|لم يتم العثور على المحتوى/);
+ assert.match(footer,/<w:t xml:space="preserve">5<\/w:t>/);
  assert.match(footer,/ PAGE /);
 });
