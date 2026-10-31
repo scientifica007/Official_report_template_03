@@ -56,7 +56,8 @@ export function portableCommitteeObject(state){
     originalSubmittedMemberObservations:d.memberObservations,
     printNumberFormat:"00.00 (display only; stored scores remain numeric)",
     committeeDecisionCode:d.decisionCode,committeeDecisionLabel:d.decision,
-    reportFooters:[1,2,3,4,5].map(i=>d.reportFooter(i)),\n    reportFooterPreviewIsBaselineOnly:true,
+    reportFooters:[1,2,3,4,5].map(i=>d.reportFooter(i)),
+    reportFooterPreviewIsBaselineOnly:true,
     minutesDateInWords:d.dateInWords,
     minutesExamVenue:d.examVenue,
     paperSignatures:d.signers
