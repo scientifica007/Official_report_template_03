@@ -105,7 +105,13 @@ if(typeof window!=="undefined")window.addEventListener?.("beforeprint",()=>prepa
 $("print").addEventListener("click",()=>{preparePrintPagination($("paper"),state);window.print()});
 $("docx").addEventListener("click",()=>{
  try{
-  const bytes=createCommitteeDocx(state);
+  // Re-evaluate print pagination for this exact draft before exporting Word.
+  // Google Docs doesn't consistently resolve cross-section PAGEREF fields:
+  // use a portable denominator computed at export, not a broken field.
+  preparePrintPagination($("paper"),state);
+  const report=$("paper").querySelector?.(".official-report");
+  const reportPageCount=report?.querySelectorAll?.(":scope > .reference-page")?.length||5;
+  const bytes=createCommitteeDocx(state,{reportPageCount});
   const url=URL.createObjectURL(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}));
   const a=node("a");a.href=url;a.download="titularisation-report-and-minutes-draft.docx";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);

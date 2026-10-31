@@ -28,6 +28,9 @@ function table(parent,titles,rows,className=""){
  const body=node("tbody");
  rows.forEach(row=>{
   const tr=node("tr");
+  if(row.some(value=>typeof value==="string"&&
+    /^(?:العلامة المحصلة|المجموع|العلامة النهائية)$/.test(value)))
+   tr.className="official-total-row";
   row.forEach(x=>tr.append(node("td",x??"")));
   body.append(tr);
  });
@@ -89,7 +92,7 @@ function cover(article,d){
  pg.append(node("p",d.referenceScopeWarning||
   "للأساتذة المتخصصين في التكوين والتعليم المهنيين","reference-subtitle"));
  pg.append(node("p","المراجع: مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
- pg.append(node("p","معاينة تجريبية غير مطابقة بعد للقالب الرسمي؛ "+d.sourceWarning,"caution"));
+
  const bottom=node("div","","reference-cover-exam");
  heading(bottom,"إجراء امتحان التثبيت");
  textLine(bottom,"المكان:",d.metaValue("location"));
@@ -167,7 +170,7 @@ function minutes(article,d){
  pg.append(node("h2","محضر التفتيش قصد الترسيم"));
  pg.append(node("p","للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف","reference-subtitle"));
  pg.append(node("p","مرسوم تنفيذي رقم 09-93 مؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.","reference-line"));
- pg.append(node("p","مسودة للطباعة والإمضاء الورقي، وليست إقرارًا إلكترونيًا.","caution"));
+
  textLine(pg,"نحن الموقعين أسفله أعضاء لجنة التفتيش قصد الترسيم نصرح بأننا شاركنا يوم:",
   d.dateInWords+" بــ: "+(d.examVenue||empty));
  textLine(pg,"في سير امتحان التثبيت للسيد(ة):",d.candidate);
@@ -179,8 +182,8 @@ function minutes(article,d){
  textLine(pg,"التقدير العام:",d.displayedAppreciation);
  heading(pg,"قرار اللجنة:");
  choices(pg,d);
- textLine(pg,"حُرّر في:",d.metaValue("decisionPlace"));
  const dateBox=node("div","","reference-minutes-date-left");
+ textLine(dateBox,"حُرّر في:",d.metaValue("decisionPlace"));
  textLine(dateBox,"التاريخ:",d.meta.decisionDate||d.meta.date);
  pg.append(dateBox);
  signatures(pg,d);

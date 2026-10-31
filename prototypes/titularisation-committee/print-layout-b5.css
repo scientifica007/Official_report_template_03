@@ -128,3 +128,56 @@
  #paper .reference-minutes .paper-line{margin:3pt 0!important}
  #paper .reference-minutes .reference-three-signers{margin:0!important}
 }
+
+/* P4-B8: allow a real lower paper-footer region without creating overflow
+   sheets. Content page is still 252mm; A4 printable area now extends 5mm
+   from the physical bottom. The footer is anchored independently. */
+@page {size:A4 portrait;margin:12mm 14mm 5mm}
+@media print {
+ #paper .reference-page .reference-report-footer{
+   bottom:-23mm!important;
+ }
+ #paper .reference-page .official-table tr.official-total-row th,
+ #paper .reference-page .official-table tr.official-total-row td{
+   background:#e4e7e3!important;
+   font-weight:700!important;
+   -webkit-print-color-adjust:exact!important;
+   print-color-adjust:exact!important;
+   vertical-align:middle!important;
+ }
+ #paper .reference-lesson-table tr.official-total-row td:nth-child(2),
+ #paper .reference-discussion-table tr.official-total-row td:first-child,
+ #paper .reference-results-table tr.official-total-row td:first-child{
+   text-align:left!important;
+ }
+ #paper .reference-lesson-table tr.official-total-row td:nth-child(n+3),
+ #paper .reference-discussion-table tr.official-total-row td:nth-child(n+2),
+ #paper .reference-results-table tr.official-total-row td:nth-child(n+2){
+   text-align:center!important;
+   font-weight:700!important;
+ }
+ #paper .reference-minutes{
+   display:flex!important;
+   flex-direction:column!important;
+   justify-content:space-between!important;
+   height:262mm!important;
+   min-height:262mm!important;
+   max-height:262mm!important;
+ }
+ #paper .reference-minutes .paper-ministry p{
+   font-size:16pt!important;
+ }
+ #paper .reference-minutes h2{font-size:17pt!important}
+ #paper .reference-minutes .reference-subtitle,
+ #paper .reference-minutes .reference-line{font-size:14pt!important}
+ #paper .reference-minutes .reference-member-sign,
+ #paper .reference-minutes .reference-chair-sign,
+ #paper .reference-minutes .reference-member-sign p,
+ #paper .reference-minutes .reference-chair-sign p{
+   font-size:12pt!important;
+ }
+ #paper .reference-minutes-date-left,
+ #paper .reference-minutes-date-left .paper-line{
+   text-align:left!important;
+ }
+}

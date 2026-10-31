@@ -23,10 +23,11 @@ test("footer reflects actual report page count without counting separate minutes
  assert.throws(()=>reportFooter(m,8,7),/صفحة تقرير/);
  assert.throws(()=>reportFooter(m,6),/صفحة تقرير/);
 });
-test("Word uses PAGE and PAGEREF of last report sheet, with field refresh on opening",()=>{
+test("Word retains automatic PAGE but uses portable denominator for Google Docs",()=>{
  const f=files(createCommitteeDocx(freshCommittee()));
- assert.match(f["word/document.xml"],/w:bookmarkStart w:id="31" w:name="ReportLastPage"/);
- assert.match(f["word/footer1.xml"],/ PAGEREF ReportLastPage /);
+ assert.doesNotMatch(f["word/document.xml"],/ReportLastPage/);
+ assert.match(f["word/footer1.xml"],/<w:t xml:space="preserve">5<\/w:t>/);
+ assert.doesNotMatch(f["word/footer1.xml"],/PAGEREF|SECTIONPAGES|NUMPAGES/);
  assert.match(f["word/footer1.xml"],/ PAGE /);
  assert.doesNotMatch(f["word/footer1.xml"],/SECTIONPAGES|NUMPAGES/);
  assert.match(f["word/settings.xml"],/updateFields w:val="true"/);

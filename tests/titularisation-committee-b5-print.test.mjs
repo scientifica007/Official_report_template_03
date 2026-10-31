@@ -27,7 +27,7 @@ test("footer stays absolutely attached to page; minutes contain no printed foote
 });
 test("14pt Times New Roman and six-point spacing maintain differentiated cover headings",()=>{
  assert.match(css,/font-size:14pt!important/);
- assert.doesNotMatch(css,/font-size:12pt!important/);
+ assert.match(css,/reference-minutes \.reference-member-sign/);
  assert.match(css,/margin-top:6pt!important;margin-bottom:6pt!important/);
  assert.match(css,/font-size:17pt!important/);
  assert.match(css,/font-size:23pt!important/);

@@ -89,6 +89,6 @@ test("simulated UI is isolated: no network login or official document claim",()=
  const paper=readFileSync("prototypes/titularisation-committee/preview.mjs","utf8");
  for(const file of [ui,paper])assert.doesNotMatch(file,/supabase|fetch\s*\(|localStorage/i);
  assert.match(source,/بيانات اصطناعية فقط/);
- assert.match(paper,/غير مطابقة بعد للقالب الرسمي/);
+ assert.doesNotMatch(paper,/معاينة تجريبية غير مطابقة بعد للقالب الرسمي/);
  assert.match(ui,/window\.print/);
 });
