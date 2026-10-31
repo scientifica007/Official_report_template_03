@@ -74,8 +74,8 @@ test("PDF redistributes only results-page flow without altering accepted footer 
 });
 test("Word candidate/results line spacing is expanded conservatively and minutes opening has a separate top gap",()=>{
  const xml=committeeDocumentXml(freshCommittee());
- assert.match(xml,/<w:trHeight w:val="520" w:hRule="atLeast"\/>/);
- assert.match(xml,/<w:trHeight w:val="850" w:hRule="atLeast"\/>/);
+ assert.match(xml,/<w:trHeight w:val="620" w:hRule="atLeast"\/>/);
+ assert.match(xml,/<w:trHeight w:val="1250" w:hRule="atLeast"\/>/);
  assert.match(xml,/<w:spacing w:before="550" w:after="120"\/>/);
 });
 
