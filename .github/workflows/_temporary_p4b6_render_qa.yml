@@ -1,0 +1,49 @@
+name: Temporary P4-B6 export visual QA
+on:
+  push:
+    branches: [fix/p4b6-output-field-observations-format]
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build anonymized compact and stress DOCX samples
+        run: |
+          node --input-type=module <<'NODE'
+          import {writeFileSync} from 'node:fs';
+          import {freshCommittee,editMeta,editScore,editNote,changeMode,fillDemoMember,submit}
+           from './prototypes/titularisation-committee/committee-engine.mjs';
+          import {createCommitteeDocx} from './prototypes/titularisation-committee/docx-export.mjs';
+          import {committeeDocumentXml} from './prototypes/titularisation-committee/docx-export.mjs';
+          let s=freshCommittee();
+          for(const [k,v] of Object.entries({
+           rank:'أستاذ متخصص في التكوين والتعليم المهنيين',
+           candidate:'مترشح افتراضي',
+           institution:'مؤسسة تدريبية افتراضية',
+           location:'مركز اختبار تجريبي',
+           date:'14 نوفمبر 2026',decision:'success',
+           member1Name:'عضو اصطناعي أول',member1Role:'مدير مؤسسة',
+           member2Name:'عضو اصطناعي ثان',member2Role:'مسؤول بيداغوجي',
+           member3Name:'عضو اصطناعي ثالث',member3Role:'أستاذ متخصص',
+           chairName:'مفتش تجريبي'
+          }))s=editMeta(s,k,v);
+          for(const [id,v] of Object.entries({g1:8,g2:6,g3:6,g4:5,g5:4}))
+           s=editScore(s,'final','lesson',id,v);
+          for(const [id,v] of Object.entries({d1:2,d2:2,d3:2,d4:2,d5:2,d6:2,d7:1}))
+           s=editScore(s,'final','discussion',id,v);
+          writeFileSync('p4b6-compact.docx',createCommitteeDocx(s));
+          let stress=changeMode(s,'individual');
+          for(const seat of ['chair','member1','member2','member3']){
+           stress=fillDemoMember(stress,seat);
+           stress=submit(stress,seat);
+          }
+          writeFileSync('p4b6-stress.docx',createCommitteeDocx(stress));
+          console.log('compact+stress, distinct member source text preserved');
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p4b6-render-qa
+          path: p4b6-*.docx
