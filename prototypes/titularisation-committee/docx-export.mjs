@@ -1,7 +1,7 @@
 /* Self-contained, browser-side DOCX export; independent of Report 03.
  * Uncompressed OOXML ZIP (no third-party runtime or network requests).
  * Print and DOCX share the same reference projection, not separate calculations. */
-import {buildReferenceDocuments,mark} from "./document-model.mjs";
+import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
 const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 // Each Word paragraph has RTL reading order; isolated ASCII runs preserve
@@ -76,9 +76,9 @@ function decisionChoices(d){
 function memberNotes(d,phase){
  const entries=d.memberObservations[phase]||[];
  if(!entries.length)return "";
- let out=p("تقديرات الأعضاء الأصلية — مصنفة بحسب المعيار وصاحب المساهمة:",{bold:true,size:21});
+ let out="";
  for(const item of entries)
-  out+=p(item.author+" — "+item.criterion+": "+item.text,{size:20,before:35,after:35});
+  out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:20,before:35,after:35});
  return out;
 }
 function signatures(d){
@@ -177,7 +177,10 @@ function resultsPage(d){
   placeholder+"\n"+placeholder+"\n"+placeholder,{size:21,after:120});
  b+=p("قرار أعضاء اللجنة:",{bold:true,before:140});
  b+=decisionChoices(d);
- b+=signatures(d);
+ let signed=signatures(d);
+ const pos=signed.lastIndexOf("</w:p>");
+ signed=signed.slice(0,pos)+'<w:bookmarkStart w:id="31" w:name="ReportLastPage"/><w:bookmarkEnd w:id="31"/>'+signed.slice(pos);
+ b+=signed;
  return b;
 }
 function minutes(d){
@@ -260,7 +263,7 @@ function reportFooterXml(d){
  '<w:pBdr><w:top w:val="single" w:sz="5"/></w:pBdr></w:pPr>'+
  run(label,false,14)+field+run(" من ",false,14)+
  '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'+
- '<w:r><w:instrText xml:space="preserve"> SECTIONPAGES </w:instrText></w:r>'+
+ '<w:r><w:instrText xml:space="preserve"> PAGEREF ReportLastPage </w:instrText></w:r>'+
  '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'+
  '<w:r><w:t>5</w:t></w:r>'+
  '<w:r><w:fldChar w:fldCharType="end"/></w:r>'+'</w:p></w:ftr>';
@@ -275,19 +278,20 @@ export function createCommitteeDocx(state){
    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'+
    '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'+
    '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'+
-   '<Override PartName="/word/footer2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'+
+   '<Override PartName="/word/footer2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'+\n   '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'+
    '</Types>',
   "_rels/.rels":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'+
    '</Relationships>',
   "word/document.xml":committeeDocumentXml(state),
+  "word/settings.xml":'<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/></w:settings>',
   "word/footer1.xml":reportFooterXml(d),
   "word/footer2.xml":'<?xml version="1.0" encoding="UTF-8"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p/></w:ftr>',
   "word/_rels/document.xml.rels":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
    '<Relationship Id="rIdReportFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'+
-   '<Relationship Id="rIdEmptyFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer2.xml"/>'+
+   '<Relationship Id="rIdEmptyFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer2.xml"/>'+\n   '<Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>'+
    '</Relationships>',
   "word/styles.xml":'<?xml version="1.0" encoding="UTF-8"?>'+
    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
