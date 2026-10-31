@@ -65,7 +65,7 @@ function decisionChoices(d){
  const widths=[3334,3333,3333],grid=widths.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
  const cells=d.decisionChoices.map((opt,i)=>{
   const label=(opt.chosen?"☑ ":"☐ ")+opt.label;
-  let markup=run(label,false,24);
+  let markup=run(label,false,28);
   if(opt.struck)markup=markup.replaceAll('<w:rtl w:val=','<w:strike/><w:rtl w:val=');
   return '<w:tc><w:tcPr><w:tcW w:w="'+widths[i]+'" w:type="dxa"/>'+
    '<w:tcMar><w:start w:w="210" w:type="dxa"/><w:end w:w="210" w:type="dxa"/></w:tcMar>'+
