@@ -51,3 +51,18 @@ test("Word outputs no partial-grade rows or rubric label and uses distinct strik
  assert.ok(ctrs>15,"numeric cells and headers should use centered paragraphs");
  assert.match(xml,/<w:tblBorders><w:top w:val="nil"\/>/);
 });
+
+test("Word report footer count follows real section pages when originals require more sheets",async()=>{
+ const bytes= (await import("../prototypes/titularisation-committee/docx-export.mjs")).createCommitteeDocx(freshCommittee());
+ const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),decode=new TextDecoder();
+ let p=0,footer="";
+ while(p+30<bytes.length&&view.getUint32(p,true)===0x04034b50){
+  const len=view.getUint16(p+26,true),extra=view.getUint16(p+28,true);
+  const name=decode.decode(bytes.subarray(p+30,p+30+len));
+  const start=p+30+len+extra,size=view.getUint32(p+18,true);
+  if(name==="word/footer1.xml")footer=decode.decode(bytes.subarray(start,start+size));
+  p=start+size;
+ }
+ assert.match(footer,/SECTIONPAGES/);
+ assert.match(footer,/ PAGE /);
+});
