@@ -200,7 +200,7 @@ function minutes(d){
  // Explicit gap above the first operative statement, not between headings.
  b+=p(minutesOpeningText(d,placeholder),{before:950,after:130,size:28});
  b+=p("المعيَّن(ة) في رتبة: "+d.metaValue("rank"));
- b+=p("المؤسسة: "+d.metaValue("institution"));
+ b+=p("بمؤسسة: "+d.metaValue("institution"));
  b+=p("الولاية: "+d.metaValue("wilaya"));
  b+=p(MINUTES_RESULTS_INTRO,{before:120});
  b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
