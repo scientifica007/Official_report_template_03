@@ -11,7 +11,9 @@ export const DECISIONS=Object.freeze([
  ["first","التأجيل الأول"],["second","التأجيل الثاني"]
 ]);
 const has=Object.hasOwn;
-const mark=v=>typeof v==="number"&&Number.isFinite(v)?String(Number(v.toFixed(3))):"—";
+// Printed numerical notation: leading zero and two decimals. Never mutate grades.
+const mark=v=>typeof v==="number"&&Number.isFinite(v)?
+ v.toFixed(2).padStart(5,"0"):"—";
 export {mark};
 const val=x=>typeof x==="string"?x.trim():"";
 const metaValue=(m,key)=>val(m[key])||"................................................";
@@ -25,6 +27,26 @@ function scoredGroup(g,grades,profile){
  const complete=active.every(x=>typeof x.score==="number");
  return {id:g.id,label:g.label,cap:g.cap,
   indicators:rows.map(x=>x.label),score:complete?active.reduce((n,x)=>n+x.score,0):null};
+}
+function memberPhaseObservations(state,phase){
+ if(state.mode!=="individual")return [];
+ const grading=state.final.grading;
+ const labels=Object.fromEntries((phase==="lesson"?
+  lessonItems(grading):DISCUSSION).map(item=>[item.id,item.label]));
+ const results=[];
+ for(const seat of SEATS){
+  const c=state.members[seat.id];
+  if(!c?.submitted)continue;
+  const source=val(state.meta[seat.id+"Name"])||seat.label;
+  const summary=val(c.notes[phase==="lesson"?"lessonSummary":"discussionSummary"]);
+  if(summary)results.push({author:seat.label+" — "+source,criterion:"تقدير عام",text:summary});
+  for(const [id,value] of Object.entries(c.notes[phase]||{})){
+   const text=val(value);
+   if(text)results.push({author:seat.label+" — "+source,
+    criterion:labels[id]||id,text});
+  }
+ }
+ return results;
 }
 export function buildReferenceDocuments(state){
  const data=documentData(state),m=data.meta,r=data.result;
@@ -100,6 +122,10 @@ export function buildReferenceDocuments(state){
    ["الموضوع",metaValue(m,"lessonTopic")]
   ],
   discussionTopic:val(m.discussionTopic),
+  memberObservations:{
+   lesson:memberPhaseObservations(state,"lesson"),
+   discussion:memberPhaseObservations(state,"discussion")
+  },
   marks:{lesson:r.lesson.total,discussion:r.discussion.total,total60:r.total60,total20:grade20,
    complete:r.complete},
   lessonRows:rows,discussionRows:conversation,
