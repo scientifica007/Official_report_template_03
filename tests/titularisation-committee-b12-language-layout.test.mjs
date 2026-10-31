@@ -57,6 +57,7 @@ test("PDF title/scope/references are one compact heading followed by separately 
 });
 test("DOCX report and minutes use the same proofread administrative headings",()=>{
  const report=committeeDocumentXml(fixture(),{kind:"report"});
+ const readableReport=report.replace(/<[^>]*>/g,"");
  const minutes=committeeDocumentXml(fixture(),{kind:"minutes"});
  const readableMinutes=minutes.replace(/<[^>]*>/g,"");
  for(const token of [MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
@@ -64,7 +65,7 @@ test("DOCX report and minutes use the same proofread administrative headings",()
   "في إجراء امتحان التثبيت للمترشح(ة): مترشح تجريبي"]){
   assert.ok(readableMinutes.includes(token),token);
  }
- assert.ok(report.includes(DISCUSSION_RESULT_TITLE));
+ assert.ok(readableReport.includes(DISCUSSION_RESULT_TITLE));
  assert.ok(report.includes(COMMITTEE_APPROVAL_HEADING));
  assert.doesNotMatch(report,/إمضاءات أعضاء اللجنة على النسخة الورقية/);
  assert.doesNotMatch(minutes,/نحن الموقعين أسفله|في سير امتحان التثبيت/);
