@@ -224,20 +224,28 @@
  /* P4-B12: treat title, ranks and references as ONE compact header,
     then start the operative minutes text in a clearly separate body. */
  #paper .reference-minutes{
-  justify-content:flex-start!important;
+  display:flex!important;flex-direction:column!important;
+  align-items:stretch!important;justify-content:flex-start!important;
+ }
+ #paper .reference-minutes > *{
+  width:100%!important;min-width:0!important;
+  flex-shrink:0!important;box-sizing:border-box!important;
+ }
+ #paper .reference-minutes .paper-section-heading{
+  display:block!important;width:100%!important;clear:both!important;
  }
  #paper .reference-minutes-header{
   display:flex!important;flex-direction:column!important;
   gap:0!important;
  }
- #paper .reference-minutes-header h2{
+ #paper .reference-minutes .reference-minutes-header h2{
   font-size:17pt!important;line-height:1.18!important;
-  text-align:center!important;margin:0 0 2mm!important;
+  text-align:center!important;margin:0 0 1mm!important;
  }
- #paper .reference-minutes-header .reference-subtitle,
- #paper .reference-minutes-header .reference-line{
-  font-size:14pt!important;line-height:1.18!important;
-  text-align:center!important;margin:1mm 0!important;
+ #paper .reference-minutes .reference-minutes-header .reference-subtitle,
+ #paper .reference-minutes .reference-minutes-header .reference-line{
+  font-size:14pt!important;line-height:1.12!important;
+  text-align:center!important;margin:0!important;
  }
  #paper .reference-minutes-body{
   padding-top:22mm!important;
