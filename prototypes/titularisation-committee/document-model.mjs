@@ -25,6 +25,18 @@ export function printableAssessmentText(value){
 const val=x=>typeof x==="string"?x.trim():"";
 const metaValue=(m,key)=>val(m[key])||"................................................";
 const note=x=>val(x)||"";
+// B18: the visible "birth" input is canonical; B16's hidden birthDate is
+// only a compatibility fallback. Existing loaded drafts may have an empty or
+// stale birthDate, even though "birth" is populated in the editor.
+// Preserve explicit B16 dates if their old combined birth field contains them.
+function minutesCandidateBirthDate(meta){
+ const current=val(meta.birth),legacy=val(meta.birthDate);
+ if(!current)return legacy;
+ if(legacy&&current!==legacy&&current.includes(legacy))return legacy;
+ // Do not treat an old, undated "date and place" description as a date.
+ if(!legacy&&!val(meta.birthPlace)&&!/[0-9٠-٩۰-۹]/u.test(current))return "";
+ return current;
+}
 function scoredGroup(g,grades,profile){
  const rows=g.items.map(item=>{
   const cap=profile?.weights?.[item.id]??null;
@@ -106,7 +118,7 @@ export function buildReferenceDocuments(state){
   textWarning:pendingTexts?
    "توجد "+pendingTexts+" مسودة نصية مجمعة للمراجعة داخل المحرر؛ لا تُنسب تلقائيًا إلى اللجنة في التقرير.":"",
   candidate:val(m.candidate)||[m.familyName,m.givenName].filter(Boolean).join(" "),
-  candidateBirthDate:val(m.birthDate),candidateBirthPlace:val(m.birthPlace),
+  candidateBirthDate:minutesCandidateBirthDate(m),candidateBirthPlace:val(m.birthPlace),
   reportTitle:professionalTitle,
   candidateFields:[
    ["اللقب",metaValue(m,"familyName")],["الاسم",metaValue(m,"givenName")],
