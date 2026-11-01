@@ -218,18 +218,18 @@ declare
  v_grading jsonb;v_notes jsonb;v_scores jsonb;
  v_phase text;v_key text;v_value jsonb;v_cap numeric;v_number numeric;
 begin
- if p is null or jsonb_typeof(p)<>'object' or octet_length(p::text)>90000 then
+ if p is null or jsonb_typeof(p) is distinct from 'object' or octet_length(p::text)>90000 then
   raise exception 'Invalid or oversized payload' using errcode='22023';
  end if;
  if exists(select 1 from jsonb_object_keys(p) as keys(field_name) where field_name not in ('grading','notes')) then
   raise exception 'Unexpected payload field' using errcode='22023';
  end if;
  v_grading:=p->'grading';v_notes:=p->'notes';
- if jsonb_typeof(v_grading)<>'object' or jsonb_typeof(v_notes)<>'object'
- or v_grading->>'schema'<>'titularisation-workbench-draft-v1'
+ if jsonb_typeof(v_grading) is distinct from 'object' or jsonb_typeof(v_notes) is distinct from 'object'
+ or v_grading->>'schema' is distinct from 'titularisation-workbench-draft-v1'
  or v_grading->>'rubricId' is distinct from p_rubric
- or v_grading->'revision'<>'1'::jsonb
- or jsonb_typeof(v_grading->'scores')<>'object' then
+ or v_grading->'revision' is distinct from '1'::jsonb
+ or jsonb_typeof(v_grading->'scores') is distinct from 'object' then
   raise exception 'Invalid grading data or rubric' using errcode='22023';
  end if;
  if exists(select 1 from jsonb_object_keys(v_grading) as keys(field_name)
@@ -238,19 +238,23 @@ begin
    where field_name not in ('lesson','discussion','lessonSummary','discussionSummary','general','recommendations')) then
   raise exception 'Unknown grading or note field' using errcode='22023';
  end if;
- if v_grading->'profile' <> 'null'::jsonb and v_grading ? 'profile' then
+ if v_grading->'profile' is distinct from 'null'::jsonb then
   raise exception 'Unexpected unfrozen analytical weights' using errcode='22023';
+ end if;
+ if exists(select 1 from jsonb_object_keys(v_grading->'scores') as keys(field_name)
+  where field_name not in ('lesson','discussion')) then
+  raise exception 'Unexpected score phase' using errcode='22023';
  end if;
  for v_phase in select unnest(array['lesson','discussion']) loop
   v_scores:=v_grading->'scores'->v_phase;
-  if jsonb_typeof(v_scores)<>'object'
-   or jsonb_typeof(v_notes->v_phase)<>'object' then
+  if jsonb_typeof(v_scores) is distinct from 'object'
+   or jsonb_typeof(v_notes->v_phase) is distinct from 'object' then
    raise exception 'Missing scores or note phase' using errcode='22023';
   end if;
   for v_key,v_value in select key,value from jsonb_each(v_scores) loop
    select cap into v_cap from public.titularisation_score_caps
    where rubric_id=p_rubric and phase=v_phase and item_id=v_key;
-   if not found or jsonb_typeof(v_value)<>'number' then
+   if not found or jsonb_typeof(v_value) is distinct from 'number' then
     raise exception 'Unknown item or non-numeric grade' using errcode='22023';
    end if;
    v_number:=(v_value::text)::numeric;
@@ -259,7 +263,7 @@ begin
    end if;
   end loop;
   for v_key,v_value in select key,value from jsonb_each(v_notes->v_phase) loop
-   if jsonb_typeof(v_value)<>'string' or length(v_value #>> '{}')>5000
+   if jsonb_typeof(v_value) is distinct from 'string' or length(v_value #>> '{}')>5000
     or not exists(select 1 from public.titularisation_score_caps
      where rubric_id=p_rubric and phase=v_phase and item_id=v_key) then
     raise exception 'Unknown item or invalid note' using errcode='22023';
@@ -268,7 +272,7 @@ begin
  end loop;
  for v_key in select unnest(array['lessonSummary','discussionSummary','general','recommendations']) loop
   v_value:=v_notes->v_key;
-  if jsonb_typeof(v_value)<>'string' or length(v_value #>> '{}')>10000 then
+  if jsonb_typeof(v_value) is distinct from 'string' or length(v_value #>> '{}')>10000 then
    raise exception 'Invalid summary field' using errcode='22023';
   end if;
  end loop;
