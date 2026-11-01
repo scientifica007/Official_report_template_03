@@ -94,7 +94,7 @@ test("PDF print scoping does not change accepted report footer or page numbering
  const preview=readFileSync(root+"preview.mjs","utf8");
  assert.match(css,/body\[data-print-target="report"\] #paper \.official-minutes/);
  assert.match(css,/body\[data-print-target="minutes"\] #paper \.official-report/);
- assert.match(css,/bottom:-26mm!important/);
+ assert.match(css,/bottom:-28mm!important/);
  assert.match(css,/\.reference-minutes-body\{\s*padding-top:9mm!important/);
  assert.match(preview,/reference-minutes-opening/);
 });
