@@ -2,7 +2,7 @@
 // NEVER fetches using service-role keys; the approved inspector's own Supabase
 // JWT is required, and the existing JSON/document engine validates all data.
 import {restoreCommittee} from "./committee-engine.mjs";
-const config=()=>window.REPORT03_CLOUD_CONFIG||{};
+const config=()=>typeof window==='undefined'?{}:(window.REPORT03_CLOUD_CONFIG||{});
 export const committeeCloudEnabled=()=>config().temporaryCommitteeEnabled===true;
 const token=()=>{
  const stored=localStorage.getItem("official_report03_cloud_session_v1");
