@@ -20,7 +20,7 @@ const statusText=(message)=>{
  if(node)node.textContent=message;
 };
 function configured(){
- return /^https:\/\//.test(base)&&key.length>20&&
+ return cfg.temporaryCommitteeEnabled===true&&/^https:\/\//.test(base)&&key.length>20&&
   /^[0-9a-f-]{36}$/i.test(requestedMission)&&allowedSeats.has(requestedSeat);
 }
 function saveSession(value){
