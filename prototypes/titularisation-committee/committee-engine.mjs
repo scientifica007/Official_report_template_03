@@ -29,8 +29,7 @@ export const METADATA_GROUPS=Object.freeze([
   ["inspectorSeat","مقر المفتش"],["inspectorPhone","هاتف المفتش"],
   ["inspectorEmail","البريد الإلكتروني للمفتش"],["chairName","اسم ولقب رئيس اللجنة"]]},
  {label:"بيانات الأستاذ المترشح",fields:[
-  ["familyName","اللقب"],["givenName","الاسم"],["birth","تاريخ ومكان الميلاد"],
-  ["birthDate","تاريخ الميلاد (للمحضر)"],["birthPlace","مكان الميلاد (للمحضر)"],
+  ["familyName","اللقب"],["givenName","الاسم"],["birth","تاريخ الميلاد"],["birthPlace","مكان الميلاد"],
   ["installationDate","تاريخ التنصيب"],["assignmentDate","تاريخ التعيين"],
   ["assignmentInstitution","مؤسسة التعيين"],["examCenter","مركز الامتحان"],
   ["certificate","الشهادة"],["specialty","الاختصاص"],
@@ -55,7 +54,8 @@ export const METADATA_GROUPS=Object.freeze([
   ["minutesScopeCustom","صياغة الفئة الحرة للمحضر"]
  ]}
 ]);
-const baseMetaKeys=["candidate","institution","rank","date","location","session"];
+// Keep the B16 birthDate key as a hidden compatibility alias for previously saved JSON.
+const baseMetaKeys=["candidate","institution","rank","date","location","session","birthDate"];
 const metaKeys=new Set([...baseMetaKeys,...METADATA_GROUPS.flatMap(g=>g.fields.map(f=>f[0]))]);
 const emptyMeta=()=>({...Object.fromEntries([...metaKeys].map(k=>[k,""])),minutesScopeMode:"specialist"});
 const validDecisions=new Set(["","success","first","second"]);
@@ -84,7 +84,10 @@ export function editMeta(state,field,value){
  if(!metaKeys.has(field))throw Error("حقل تعريف غير معروف");
  if(field==="decision"&&!validDecisions.has(value))throw Error("قرار لجنة غير معروف");
  if(field==="minutesScopeMode"&&!validMinutesScopes.has(value))throw Error("صياغة فئة المحضر غير معروفة");
- const s=clone(state);s.meta[field]=cleanString(value,300);s.serial++;return s;
+ const s=clone(state);s.meta[field]=cleanString(value,300);
+ // The single visible date field updates the legacy B16 minutes alias as well.
+ if(field==="birth")s.meta.birthDate=s.meta.birth;
+ s.serial++;return s;
 }
 export function changeMode(state,mode){
  if(!own(MODES,mode))throw Error("وضع تقييم غير معروف");

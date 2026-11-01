@@ -19,8 +19,8 @@ const words=x=>x.textContent+" "+x.children.map(words).join(" ");
 const plainXml=xml=>xml.replace(/<[^>]+>/g,"");
 function sample(){
  let s=freshCommittee();
- for(const [key,value] of [["candidate","مترشح تجريبي"],["birthDate","12/03/1981"],
-  ["birthPlace","تبسة"],["birth","12/03/1981، تبسة"],
+ for(const [key,value] of [["candidate","مترشح تجريبي"],["birth","12/03/1981، تبسة"],
+  ["birthDate","12/03/1981"],["birthPlace","تبسة"],
   ["location","مركز تجريبي"],["date","18 نوفمبر 2026"]])s=editMeta(s,key,value);
  return s;
 }
@@ -59,7 +59,7 @@ test("B16: shared opening renders ordinary text but the candidate alone is bold 
  assert.match(name,/<w:b\/>/);
  assert.ok(plainXml(word).includes("المولد(ة) في: 12/03/1981 بـ: تبسة"));
 });
-test("B16: two editable birth fields survive JSON, and old combined birth text is not guessed",()=>{
+test("B16/B17: legacy birth-date alias survives JSON, and old combined text is not guessed",()=>{
  const s=sample();
  assert.equal(s.meta.birthDate,"12/03/1981");
  assert.equal(s.meta.birthPlace,"تبسة");
@@ -78,8 +78,8 @@ test("B16: two editable birth fields survive JSON, and old combined birth text i
  assert.equal(projection.candidateBirthPlace,"");
  assert.ok(minutesOpeningText(projection).includes("المولد(ة) في: "));
  const schema=readFileSync(prefix+"committee-engine.mjs","utf8");
- assert.match(schema,/\["birthDate","تاريخ الميلاد \(للمحضر\)"\]/);
- assert.match(schema,/\["birthPlace","مكان الميلاد \(للمحضر\)"\]/);
+ assert.match(schema,/\["birth","تاريخ الميلاد"\]/);
+ assert.match(schema,/\["birthPlace","مكان الميلاد"\]/);
 });
 test("B16: only final report page enlarges four committee labels",()=>{
  const css=readFileSync(prefix+"print-layout-b5.css","utf8");

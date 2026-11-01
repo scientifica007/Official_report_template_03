@@ -110,7 +110,7 @@ export function buildReferenceDocuments(state){
   reportTitle:professionalTitle,
   candidateFields:[
    ["اللقب",metaValue(m,"familyName")],["الاسم",metaValue(m,"givenName")],
-   ["تاريخ ومكان الميلاد",metaValue(m,"birth")],["الرتبة",metaValue(m,"rank")],
+   ["تاريخ ومكان الميلاد",([val(m.birthDate)||val(m.birth),val(m.birthPlace)].filter(Boolean).join("، ")||metaValue(m,"birth"))],["الرتبة",metaValue(m,"rank")],
    ["تاريخ التنصيب",metaValue(m,"installationDate")],
    ["تاريخ التعيين",metaValue(m,"assignmentDate")],
    ["مؤسسة التعيين",metaValue(m,"assignmentInstitution")],
