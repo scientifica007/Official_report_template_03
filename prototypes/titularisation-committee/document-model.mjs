@@ -34,7 +34,7 @@ function minutesCandidateBirthDate(meta){
  if(!current)return legacy;
  if(legacy&&current!==legacy&&current.includes(legacy))return legacy;
  // Do not treat an old, undated "date and place" description as a date.
- if(!legacy&&!val(meta.birthPlace)&&!/[\\p{Nd}]/u.test(current))return "";
+ if(!legacy&&!val(meta.birthPlace)&&!/[0-9٠-٩۰-۹]/u.test(current))return "";
  return current;
 }
 function scoredGroup(g,grades,profile){
