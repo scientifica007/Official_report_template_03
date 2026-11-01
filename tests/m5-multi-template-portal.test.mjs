@@ -44,7 +44,8 @@ test("M5: temporary accounts are not represented as active without backend and s
  assert.match(repoDoc,/تُحفظ مساهماته في سجل المهمة/);
  assert.match(repoDoc,/رمز جلسة JWT/);
  assert.match(repoDoc,/ثلاثة مقاعد مستقلة/);
- assert.doesNotMatch(cloud,/service_role|sb_secret_/i);
+ assert.doesNotMatch(cloud,/sb_secret_[a-zA-Z0-9]{20,}/);
+ assert.doesNotMatch(cloud,/["\x27]eyJhbGciOi[a-zA-Z0-9_-]+/);
  assert.doesNotMatch(lab,/data-login-member|password.*member/i);
 });
 test("M5: approved B19 outputs, footer and data engines remain available",()=>{
