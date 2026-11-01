@@ -1,6 +1,7 @@
 import {RUBRICS} from "../titularisation-workbench/engine.mjs";
 import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,changeMode,restoreCommittee,stringifyCommittee} from "./committee-engine.mjs";
 import {DECISIONS} from "./document-model.mjs";
+import {MINUTES_SCOPES} from "./document-language.mjs";
 import {renderWeights} from "./weights-ui.mjs";
 import {renderForm} from "./form-ui.mjs";
 import {renderMembers} from "./members-ui.mjs";
@@ -43,7 +44,20 @@ function render(){
   details.append(node("summary",group.label));
   const grid=node("div","","meta-grid");
   for(const [key,label] of group.fields){
-   if(key==="decision"){
+   if(key==="minutesScopeMode"){
+    const wrap=node("label","","field"),select=node("select");
+    wrap.append(node("span",label));
+    for(const [id,wording] of Object.entries(MINUTES_SCOPES)){
+     const opt=node("option",id==="custom"?"صياغة حرة — أكتب النص بنفسي":wording);
+     opt.value=id;select.append(opt);
+    }
+    select.value=state.meta.minutesScopeMode;
+    select.addEventListener("change",()=>commit(()=>editMeta(state,key,select.value)));
+    wrap.append(select);grid.append(wrap);
+   }else if(key==="minutesScopeCustom"){
+    if(state.meta.minutesScopeMode==="custom")
+     labelValue(grid,label,state.meta[key],value=>commit(()=>editMeta(state,key,value)));
+   }else if(key==="decision"){
     const wrap=node("label","","field"),select=node("select");
     wrap.append(node("span",label));
     for(const [code,name] of DECISIONS){const opt=node("option",name);opt.value=code;select.append(opt)}
