@@ -1,0 +1,18 @@
+name: Check titularisation Edge Function
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/titularisation-access/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/validate-titularisation-edge.yml'
+  workflow_dispatch:
+jobs:
+  deno-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check temporary committee access function
+        run: deno check supabase/functions/titularisation-access/index.ts

@@ -13,6 +13,7 @@ import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
+import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,mergeSubmittedCloudMembers} from "./committee-cloud-bridge.mjs";
 let state=freshCommittee(),who="final";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
@@ -122,6 +123,44 @@ $("load").addEventListener("change",async e=>{
   state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
+// Optional M5.1: only authorized, submitted seats can be imported.
+// Never import stale draft contributions, nor change chair's scores or notes.
+if(committeeCloudEnabled()){
+ const panel=$("committee-cloud-bridge"),picker=$("committee-cloud-mission");
+ if(panel&&picker){
+  panel.hidden=false;
+  const info=v=>{$("committee-cloud-status").textContent=v;};
+  $("committee-cloud-refresh").addEventListener("click",async()=>{
+   info("جارٍ تحميل مهام الترسيم من حساب المفتش...");
+   try{
+    const missions=await listCloudCommitteeMissions();
+    clear(picker);
+    const opt=node("option","— اختر مهمة —");opt.value="";picker.append(opt);
+    for(const m of missions){
+     const item=node("option",m.title+" — "+(m.status==="draft"?"جارية":"مغلقة"));
+     item.value=m.id;picker.append(item);
+    }
+    info("تم تحميل "+missions.length+" مهمة. اختر المهمة المطابقة لشبكة التقييم الحالية.");
+   }catch(err){info(err.message)}
+  });
+  $("committee-cloud-import").addEventListener("click",async()=>{
+   const id=picker.value;
+   if(!id){info("اختر المهمة أولًا.");return;}
+   info("جارٍ قراءة المساهمات المرسلة والتحقق منها...");
+   try{
+    const {mission,rows}=await loadCloudCommitteeSubmissions(id);
+    const next=mergeSubmittedCloudMembers(state,mission,rows);
+    const labels=next.seats.join("، ");
+    if(!confirm("استيراد مساهمات "+labels+" سيستبدل محتوى هذه المقاعد في المسودة الحالية. لن يتغير تحرير المفتش النهائي. صدّر ملف JSON احتياطيًا أولًا. موافق؟")){
+     info("لم تتغير المسودة.");return;
+    }
+    clearVoiceDrafts();
+    state=next.state;who="final";render();
+    info("استُوردت "+next.seats.length+" مساهمة مرسلة بعد التحقق. بقيت بيانات المفتش النهائية كما هي.");
+   }catch(err){info(err.message)}
+  });
+ }
+}
 // PDF keeps the browser's native print/save-as-PDF workflow; selection applies
 // solely to the paper print surface. Both drafts remain visible in the editor.
 function choosePrintDocument(kind){

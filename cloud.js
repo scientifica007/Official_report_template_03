@@ -22,6 +22,11 @@ const expandedSharedItems=new Set();
 let sharedFieldEvents=[],sharedAssessmentEvents=[],sharedDataLoadedFor='',sharedDataError='';
 let sharedReportBusy=false,pendingFieldSaves=0;
 let institutionDraft={institution:{},director:{}};
+// M5.1 gate stays FALSE until migration and Supabase Edge Function pass live
+// RLS/credential tests. Never imply locally published HTML authenticates seats.
+const committeeEnabled=cfg.temporaryCommitteeEnabled===true;
+let committeeMissions=[],committeeSeats=[],committeeContributions=[];
+let committeeSelectedId="",committeeError="",committeeIssuedOnce=null;
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
 const verifiedUser=()=>profile&&profile.approved;
@@ -689,6 +694,7 @@ function useSharedInstitution(id){
 const NAV_ITEMS=[
  ['dashboard','لوحة القيادة','▦'],
  ['templates','نماذج التفتيش','▣'],
+ ['titularisation','لجان الترسيم','☷'],
  ['missions','مهامي الجارية','◷'],
  ['institutions','المؤسسات','▤'],
  ['colleagues','المفتشون الزملاء','♙'],
@@ -734,6 +740,139 @@ function templatesView(){
  '<p class="portal-template-warning">لم تُفعَّل خدمة الحسابات المؤقتة بعد. لا يوفّر الرابط الحالي دخولًا آمنًا للأعضاء، ولا يرسل كلمات مرور أو يحتفظ ببيانات عضو في السحابة.</p></section>'+
  '<section class="portal-template-future"><h3>النموذج الشخصي الثاني — مخطط مستقبلًا</h3>'+
  '<p>سيكون للمعايير والمؤشرات والأوزان تعريف مستقل؛ ولا تُفعَّل صلاحيات المشاركة قبل جاهزية الخادم والتحقق من الهوية.</p></section>';
+}
+// M5.1 — authenticated owner-only committee dashboard; the server and RLS,
+// not this visible HTML, authorize members, scores and account revocation.
+async function loadCommittee(){
+ if(!committeeEnabled||!verifiedUser())return;
+ try{
+  const rows=await get('titularisation_missions',{
+   select:'id,title,rubric_id,status,expires_at,created_at',
+   order:'created_at.desc',limit:'60'
+  });
+  committeeMissions=Array.isArray(rows)?rows:[];
+  if(!committeeMissions.some(m=>m.id===committeeSelectedId)){
+   committeeSelectedId=committeeMissions[0]?.id||'';
+   committeeIssuedOnce=null;
+  }
+  await loadCommitteeDetails();
+  committeeError='';
+ }catch(err){
+  committeeError='تعذر تحميل مهام الترسيم: '+err.message;
+  committeeMissions=[];committeeSeats=[];committeeContributions=[];
+ }
+}
+async function loadCommitteeDetails(){
+ if(!committeeSelectedId){committeeSeats=[];committeeContributions=[];return;}
+ const [seats,contributions]=await Promise.all([
+  get('titularisation_seats',{select:'mission_id,seat_code,display_name,username,status,expires_at,revoked_at',
+   mission_id:'eq.'+committeeSelectedId,order:'seat_code.asc'}),
+  get('titularisation_contributions',{select:'mission_id,seat_code,payload,status,revision,submitted_at',
+   mission_id:'eq.'+committeeSelectedId,order:'seat_code.asc'})
+ ]);
+ committeeSeats=Array.isArray(seats)?seats:[];
+ committeeContributions=Array.isArray(contributions)?contributions:[];
+}
+const committeeMemberName=id=>({member1:'العضو الأول',member2:'العضو الثاني',member3:'العضو الثالث'})[id]||id;
+function committeeView(){
+ const intro='<div class="portal-page-heading"><h2>لجان التفتيش قصد الترسيم</h2>'+
+ '<p>مهام مستقلة عن التفتيش المعمق 03. تصدر حسابات مؤقتة لكل عضو، وتُحفظ مساهمات اللجنة دون تغيير سلطة رئيسها في تحرير التقرير النهائي.</p></div>';
+ if(!committeeEnabled)return intro+'<section class="portal-widget"><h3>الحسابات المؤقتة — في مرحلة الاختبار الخادمي</h3>'+
+ '<p class="cloud-warning">أُعدّت شيفرة قاعدة البيانات والوظيفة الخادمية ومحرر العضو، لكنها لم تُفعّل على خادم Supabase. لا يمكن إصدار حسابات حقيقية قبل فحص RLS وإعداد أسرار الخادم وتفعيل الخدمة صراحة.</p>'+
+ '<p>تطبيق الترسيم المقبول ميدانيًا يظل متاحًا دون تغيير.</p>'+
+ '<a class="btn subtle portal-template-link" href="./prototypes/titularisation-committee/" target="_blank" rel="noopener noreferrer">فتح تطبيق الترسيم الحالي</a></section>';
+ const selected=committeeMissions.find(m=>m.id===committeeSelectedId);
+ let html=intro+(committeeError?'<p class="cloud-warning">'+elt(committeeError)+'</p>':'')+
+ '<section class="portal-widget"><h3>إنشاء مهمة ترسيم</h3>'+
+ '<p>حدد الشبكة المعتمدة للتجربة. تُنشأ ثلاثة مقاعد مستقلة تلقائيًا ولا تُوزع بيانات الدخول إلا بإجراء صريح.</p>'+
+ '<div class="portal-form-grid"><label>عنوان المهمة<input id="committee-title" type="text" maxlength="200" placeholder="مثال: ترسيم الأستاذ — المؤسسة — التاريخ"></label>'+
+ '<label>شبكة التقييم<select id="committee-rubric">'+
+ '<option value="lesson_grouped_5_v1">خمسة معايير</option>'+
+ '<option value="lesson_inspector_10_v1">عشرة عناصر</option></select></label>'+
+ '<label>مدة الصلاحية بالساعات<input id="committee-expiry" type="number" min="1" max="720" value="168"></label></div>'+
+ '<button class="btn primary" type="button" data-cloud-action="committee-create">إنشاء مهمة اللجنة</button></section>'+
+ '<section class="portal-widget"><h3>المهام</h3>'+
+ '<label>اختيار المهمة<select id="committee-select"><option value="">— اختر مهمة —</option>'+
+ committeeMissions.map(m=>'<option value="'+elt(m.id)+'"'+(m.id===committeeSelectedId?' selected':'')+'>'+
+ elt(m.title+' — '+(m.status==='draft'?'جارية':'مغلقة'))+'</option>').join('')+
+ '</select></label><button type="button" class="btn subtle" data-cloud-action="committee-refresh">تحديث المهام والمساهمات</button></section>';
+ if(!selected)return html;
+ const isOpen=selected.status==='draft'&&new Date(selected.expires_at).getTime()>Date.now();
+ html+='<section class="portal-widget"><h3>'+elt(selected.title)+'</h3>'+
+ '<p>الشبكة: '+elt(selected.rubric_id)+' · انتهاء الصلاحية: '+elt(new Date(selected.expires_at).toLocaleString('ar-DZ'))+'</p>'+
+ '<p class="portal-template-warning">الرابط لا يتضمن كلمة المرور. اعرض كلمة المرور عند الإصدار مرة واحدة فقط ولا تحفظها داخل مسودة JSON أو تطبعها على التقرير.</p>';
+ if(committeeIssuedOnce&&committeeIssuedOnce.mission_id===selected.id){
+  html+='<div class="portal-template-warning" role="status"><strong>بيانات دخول تصدر مرة واحدة</strong>'+
+   '<p>المقعد: '+elt(committeeMemberName(committeeIssuedOnce.seat_code))+
+   ' · المستخدم: <code dir="ltr">'+elt(committeeIssuedOnce.username||'')+'</code></p>'+
+   '<p>كلمة المرور: <code dir="ltr">'+elt(committeeIssuedOnce.password||'')+'</code></p>'+
+   (committeeIssuedOnce.link?'<p><a href="'+elt(committeeIssuedOnce.link)+'" target="_blank" rel="noopener noreferrer">رابط العضو</a></p>':'')+
+   '<button type="button" class="btn subtle" data-cloud-action="committee-hide-secret">إخفاء بيانات الدخول نهائيًا</button></div>';
+ }
+ for(const seat of committeeSeats){
+  const c=committeeContributions.find(x=>x.seat_code===seat.seat_code);
+  html+='<article class="portal-template-card"><div><h4>'+elt(committeeMemberName(seat.seat_code))+'</h4>'+
+   '<p>الحساب: '+elt(seat.status==='active'?'نشط':seat.status==='revoked'?'ملغى':'غير مُنشأ')+
+   ' · المساهمة: '+elt(c?.status==='submitted'?'مرسلة':'لم ترسل بعد')+'</p>'+
+   '<p>اسم العرض: '+elt(seat.display_name||'—')+
+   (seat.username?' · اسم المستخدم: <code dir="ltr">'+elt(seat.username)+'</code>':'')+'</p>'+
+   '<div class="portal-actions">';
+  if(isOpen&&seat.status!=='active'){
+   html+='<input type="text" aria-label="اسم '+elt(committeeMemberName(seat.seat_code))+
+     '" data-committee-member-name="'+elt(seat.seat_code)+'" maxlength="160" placeholder="اسم العضو (اختياري)">'+
+     '<button type="button" class="btn primary" data-cloud-action="committee-issue" data-seat="'+elt(seat.seat_code)+'">إصدار بيانات الدخول</button>';
+  }
+  if(isOpen&&seat.status==='active')
+   html+='<button type="button" class="btn subtle" data-cloud-action="committee-rotate" data-seat="'+elt(seat.seat_code)+'">تغيير كلمة المرور</button>';
+  if(seat.status!=='vacant')
+   html+='<button type="button" class="btn danger-outline" data-cloud-action="committee-revoke" data-seat="'+elt(seat.seat_code)+'">إلغاء الحساب المؤقت وحذفه</button>';
+  html+='</div>'+(c?.status==='submitted'?'<details><summary>عرض المساهمة المرسلة (قراءة فقط)</summary>'+
+   '<pre class="committee-payload-preview" dir="rtl">'+elt(JSON.stringify(c.payload,null,2))+
+   '</pre></details>':'')+'</div></article>';
+ }
+ if(isOpen)html+='<div class="portal-actions"><button type="button" class="btn danger-outline" data-cloud-action="committee-close">إغلاق المهمة وسحب صلاحيات الدخول</button></div>';
+ html+='</section>';
+ return html;
+}
+async function createCommittee(){
+ if(!committeeEnabled)throw Error('خدمة الحسابات المؤقتة غير مفعلة بعد.');
+ const title=text(document.getElementById('committee-title')?.value);
+ const rubric=document.getElementById('committee-rubric')?.value;
+ const hours=Number(document.getElementById('committee-expiry')?.value);
+ if(title.length<3||title.length>200||!['lesson_grouped_5_v1','lesson_inspector_10_v1'].includes(rubric)||
+ !Number.isInteger(hours)||hours<1||hours>720)throw Error('بيانات المهمة غير صالحة.');
+ const id=await raw('POST','/rest/v1/rpc/create_titularisation_mission',{
+  p_title:title,p_rubric_id:rubric,p_expiry_hours:hours
+ },true);
+ if(typeof id!=='string')throw Error('تعذر تحديد معرف المهمة.');
+ committeeSelectedId=id;committeeIssuedOnce=null;
+ await loadCommittee();feedback='أُنشئت مهمة الترسيم مع ثلاثة مقاعد مستقلة.';
+}
+async function committeeSeatAction(action,seatCode){
+ if(!committeeEnabled)throw Error('خدمة الحسابات المؤقتة غير مفعلة.');
+ if(!['member1','member2','member3'].includes(seatCode))throw Error('مقعد غير معروف.');
+ if(!committeeSelectedId)throw Error('اختر مهمة أولًا.');
+ if(action==='revoke'&&!confirm('سيُلغى حساب هذا العضو فورًا وتُحذف بيانات دخوله، مع الاحتفاظ بمساهمته الأصلية. هل تؤكد؟'))return;
+ if(action==='rotate'&&!confirm('سيُعاد إصدار كلمة مرور جديدة للعضو. هل تؤكد؟'))return;
+ const name=text(root.querySelector('[data-committee-member-name="'+seatCode+'"]')?.value);
+ const result=await raw('POST','/functions/v1/titularisation-access',{
+  action,mission_id:committeeSelectedId,seat_code:seatCode,
+  ...(action==='issue'?{display_name:name}:{})
+ },true);
+ committeeIssuedOnce=result?.password?result:null;
+ await loadCommittee();
+ feedback=action==='revoke'?
+  (result.account_deleted?'أُلغي الحساب مع الاحتفاظ بالمساهمة.':'سُحب الوصول لكن حذف حساب المصادقة يحتاج إعادة المحاولة.'):
+  'صدرت بيانات الدخول. سلّمها للعضو ثم أخفها من الشاشة.';
+}
+async function closeCommittee(){
+ if(!committeeEnabled||!committeeSelectedId)throw Error('اختر مهمة.');
+ if(!confirm('إغلاق المهمة يسحب وصول الأعضاء فورًا ويحفظ المساهمات. يجب إزالة حساباتهم المؤقتة بعد ذلك. هل تؤكد؟'))return;
+ await raw('POST','/rest/v1/rpc/close_titularisation_mission',{
+  p_mission_id:committeeSelectedId
+ },true);
+ committeeIssuedOnce=null;await loadCommittee();
+ feedback='أُغلقت المهمة وسُحب وصول الأعضاء. يمكن حذف حساباتهم من البطاقات أدناه.';
 }
 function dashboardView(){
  const active=missions.filter(m=>m.status==='draft');
@@ -966,6 +1105,7 @@ function guardedView(){
 function portalView(){
  const content=currentPage==='dashboard'?dashboardView():
   currentPage==='templates'?templatesView():
+  currentPage==='titularisation'?committeeView():
   currentPage==='institutions'?institutionEditor():
   currentPage==='colleagues'?colleaguesView():
   currentPage==='missions'?missionsView():
@@ -1104,6 +1244,8 @@ async function signOut(){
  try{await raw('POST','/auth/v1/logout',{},true)}catch(e){}
  session=null;profile=null;shared=[];notifications=[];profiles=[];changes=[];accountDecisions=[];myDecisions=[];activeReportMissionId='';sharedFieldEvents=[];sharedAssessmentEvents=[];sharedDataLoadedFor='';embeddedDrafts=Object.create(null);missions=[];missionMembers=[];missionNotifications=[];missionEnabled=false;missionError='';selectedMissionId='';missionContributions=[];contributionLoadedFor='';contributionError='';contributionDrafts=Object.create(null);selectedSharedId='';editingVersion=null;
  storageSet(null);currentPage='dashboard';institutionDraft={institution:{},director:{}};
+ committeeMissions=[];committeeSeats=[];committeeContributions=[];committeeSelectedId='';
+ committeeIssuedOnce=null;committeeError='';
  feedback='تم تسجيل الخروج، ومُسحت مسودة التقرير من ذاكرة التبويب. سجل المؤسسات المركزي محفوظ.';
 }
 // Report editor is outside the portal root: bind its header control to the
@@ -1226,6 +1368,12 @@ root.addEventListener('input',e=>{
 });
 root.addEventListener('change',async e=>{
  if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
+ if(e.target.id==='committee-select'){
+  committeeSelectedId=committeeMissions.some(x=>x.id===e.target.value)?e.target.value:'';
+  committeeIssuedOnce=null;
+  try{await loadCommitteeDetails();feedback='';}catch(err){committeeError=err.message;}
+  render();return;
+ }
  if(e.target.id==='mission-select'){
   selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
   missionContributions=[];contributionLoadedFor='';contributionError='';
@@ -1258,7 +1406,10 @@ root.addEventListener('click',async e=>{
   }
   if(page==='admin'&&!profile?.is_admin)return;
   if(!verifiedUser())return;
-  currentPage=page;feedback='';render();return;
+  if(page!=='titularisation')committeeIssuedOnce=null;
+  currentPage=page;feedback='';render();
+  if(page==='titularisation'&&committeeEnabled){await loadCommittee();render();}
+  return;
  }
  if(action==='open-institution'){useSharedInstitution(button.dataset.institutionId);currentPage='institutions';feedback='';render();return}
  if(action==='new-institution'){useSharedInstitution('');feedback='';render();return}
@@ -1269,6 +1420,12 @@ root.addEventListener('click',async e=>{
   else if(action==='load')await loadSelected();
   else if(action==='refresh'){await fetchAll();feedback='القائمة والإشعارات محدثة.'}
   else if(action==='read')await markRead(button.dataset.notificationId);
+  else if(action==='committee-create')await createCommittee();
+  else if(action==='committee-refresh'){await loadCommittee();feedback='تم تحديث المهام.';}
+  else if(action==='committee-issue'||action==='committee-revoke'||action==='committee-rotate')
+   await committeeSeatAction(action.split('-')[1],button.dataset.seat);
+  else if(action==='committee-close')await closeCommittee();
+  else if(action==='committee-hide-secret'){committeeIssuedOnce=null;feedback='أُخفيت بيانات الدخول من الذاكرة الظاهرة.';}
   else if(action==='mission-create')await createMission();
   else if(action==='mission-open-quick'){
    const mission=missions.find(m=>m.id===button.dataset.missionId&&m.status==='draft');
