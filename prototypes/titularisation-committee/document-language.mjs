@@ -4,9 +4,19 @@
  */
 export const COMMITTEE_APPROVAL_HEADING="مصادقة أعضاء اللجنة";
 export const MINUTES_TITLE="محضر التفتيش قصد الترسيم";
-export const MINUTES_SCOPE="للأساتذة المتخصصين في التكوين والتعليم المهنيين، والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف";
+export const MINUTES_SCOPE="للأساتذة المتخصصين في التكوين والتعليم المهنيين.";
+export const MINUTES_SCOPES=Object.freeze({
+ specialist:MINUTES_SCOPE,
+ rehabilitation:"للأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف.",
+ general:"لأساتذة التكوين المهني.",
+ custom:""
+});
+export function minutesScopeText(meta){
+ const choice=meta?.minutesScopeMode||"specialist";
+ return choice==="custom"?(meta?.minutesScopeCustom||""):MINUTES_SCOPES[choice]||MINUTES_SCOPE;
+}
 export const LEGAL_REFERENCES="المرسوم التنفيذي رقم 09-93 المؤرخ في 26 صفر عام 1430، والقرار رقم 03 المؤرخ في 06 جانفي 2015.";
-export const MINUTES_RESULTS_INTRO="بعد مداولة لجنة الامتحان، جاءت النتائج كما يأتي:";
+export const MINUTES_RESULTS_INTRO="أسفرت مداولات لجنة الامتحان عن النتائج الآتية:";
 export const DISCUSSION_RESULT_TITLE="2 - المناقشة";
 export const MINUTES_OPENING_LEAD="نحن الموقّعون أدناه، أعضاء لجنة التفتيش قصد الترسيم، نصرّح بأننا شاركنا يوم ";
 export function minutesOpeningText(d,empty="................................................"){
