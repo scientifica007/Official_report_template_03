@@ -70,7 +70,7 @@ test("PDF redistributes only results-page flow without altering accepted footer 
  assert.match(css,/reference-results\{/);
  assert.match(css,/flex-direction:column!important/);
  assert.match(css,/justify-content:space-between!important/);
- assert.match(css,/bottom:-28mm!important/);
+ assert.match(css,/bottom:-26mm!important/);
 });
 test("Word candidate/results line spacing is expanded conservatively and minutes opening has a separate top gap",()=>{
  const xml=committeeDocumentXml(freshCommittee());
