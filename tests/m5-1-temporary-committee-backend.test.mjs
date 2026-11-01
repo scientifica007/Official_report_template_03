@@ -41,7 +41,8 @@ test("M5.1: RLS blocks revoked, expired, foreign seats on EVERY call",()=>{
  assert.match(sql,/s\.status='active'/);
  assert.match(sql,/s\.revoked_at is null and s\.expires_at>now\(\)/);
  assert.match(sql,/m\.status='draft' and m\.expires_at>now\(\)/);
- assert.match(sql,/if not public\.is_active_titularisation_seat\(p_mission_id,p_seat_code\)/);
+ assert.match(sql,/if not found or not public\.is_active_titularisation_seat\(p_mission_id,p_seat_code\)/);
+ assert.match(sql,/for update;\n if not found or not public\.is_active_titularisation_seat/);
  assert.match(sql,/revoke all on public\.titularisation_contributions from public,anon,authenticated/);
  assert.match(sql,/grant select on public\.titularisation_contributions to authenticated/);
  assert.doesNotMatch(sql,/grant (?:insert|update|delete).*public\.titularisation_contributions to authenticated/i);
