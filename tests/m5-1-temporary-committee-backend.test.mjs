@@ -30,7 +30,11 @@ test("M5.1: three independent account seats, never interchangeable with approved
  assert.match(sql,/create table if not exists public\.titularisation_seats/);
  assert.match(sql,/on delete set null/);
  assert.doesNotMatch(sql,/update public\.inspector_profiles set approved=true/);
- assert.match(edge,/user_metadata:\{account_type:"titularisation_temporary"\}/);
+ assert.match(edge,/app_metadata:\{account_type:"titularisation_temporary"\}/);
+ assert.doesNotMatch(edge,/user_metadata:\{account_type:/);
+ assert.match(sql,/if new\.raw_app_meta_data->>'account_type' = 'titularisation_temporary' then/);
+ assert.match(sql,/create or replace function public\.create_inspector_profile\(\)/);
+ assert.match(sql,/revoke all on function public\.create_inspector_profile\(\) from public,anon,authenticated/);
 });
 test("M5.1: RLS blocks revoked, expired, foreign seats on EVERY call",()=>{
  assert.match(sql,/alter table public\.titularisation_missions enable row level security/);

@@ -5,6 +5,30 @@
 begin;
 create extension if not exists pgcrypto;
 
+-- Auth Admin creates disposable committee users. Never enroll them into the
+-- permanent inspector approval queue: only server-writable app_metadata
+-- identifies these accounts. User-editable user_metadata is not trusted here.
+-- Existing inspector signup retains exactly its original behavior.
+create or replace function public.create_inspector_profile()
+returns trigger language plpgsql security definer set search_path = '' as $
+declare raw_prof text;
+begin
+ if new.raw_app_meta_data->>'account_type' = 'titularisation_temporary' then
+  return new;
+ end if;
+ raw_prof := coalesce(new.raw_user_meta_data->>'profession','IFEP');
+ insert into public.inspector_profiles(id,email,first_name,last_name,profession,district,approved,is_admin)
+ values(new.id,coalesce(new.email,''),
+   left(coalesce(new.raw_user_meta_data->>'first_name',''),120),
+   left(coalesce(new.raw_user_meta_data->>'last_name',''),120),
+   case when raw_prof in ('IFEP','ITP','IAF') then raw_prof else 'IFEP' end,
+   left(coalesce(new.raw_user_meta_data->>'district',''),120),false,false)
+ on conflict(id) do nothing;
+ return new;
+end; $;
+revoke all on function public.create_inspector_profile() from public,anon,authenticated;
+
+
 create table if not exists public.titularisation_missions (
  id uuid primary key default gen_random_uuid(),
  owner_id uuid not null references auth.users(id) on delete restrict,

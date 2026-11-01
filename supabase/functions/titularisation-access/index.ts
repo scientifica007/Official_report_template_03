@@ -132,7 +132,9 @@ async function provision(db:ReturnType<typeof admin>,actor:string,
  const temporaryPassword=password();
  const {data:created,error:ce}=await db.auth.admin.createUser({
   email:loginEmail(username),password:temporaryPassword,email_confirm:true,
-  user_metadata:{account_type:"titularisation_temporary"}
+  // Admin-only application metadata separates guests from professional
+  // inspectors at the auth.users INSERT trigger; never rely on user_metadata.
+  app_metadata:{account_type:"titularisation_temporary"}
  });
  if(ce||!created.user)return error("تعذر إصدار بيانات الدخول.",503);
  const uid=created.user.id;
