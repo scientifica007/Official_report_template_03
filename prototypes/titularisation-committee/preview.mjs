@@ -59,8 +59,8 @@ function choices(parent,d){
 }
 function assessment(page,finalText,observations){
  // Empty inspector text must stay genuinely blank, not become printable dots.
- if(finalText)textLine(page,"التقدير:",finalText);
- else page.append(node("p","التقدير:","paper-line reference-empty-appreciation"));
+ if(finalText)textLine(page,"التقدير:",finalText,"reference-assessment-label");
+ else page.append(node("p","التقدير:","paper-line reference-empty-appreciation reference-assessment-label"));
  if(!observations.length)return;
  const section=node("div","","reference-original-contributions");
  
@@ -178,8 +178,8 @@ function minutes(article,d){
  // The title, eligible ranks and legal references form one compact heading block.
  const header=node("div","","reference-minutes-header");
  header.append(node("h2",MINUTES_TITLE));
- header.append(node("p",MINUTES_SCOPE,"reference-subtitle"));
- header.append(node("p","المراجع: "+LEGAL_REFERENCES,"reference-line"));
+ if(d.minutesScope)header.append(node("p",d.minutesScope,"reference-subtitle"));
+ header.append(node("p","المراجع: "+LEGAL_REFERENCES,"reference-line reference-minutes-references"));
  pg.append(header);
 
  // The minutes narrative starts as a distinct, clearly separated body.
