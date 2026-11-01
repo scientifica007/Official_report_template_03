@@ -74,10 +74,11 @@ function assessment(page,finalText,observations){
 function signatures(page,d){
  heading(page,COMMITTEE_APPROVAL_HEADING);
  const wrap=node("div","","reference-three-signers");
- d.signers.slice(0,3).forEach(x=>{
+ d.signers.slice(0,3).forEach((x,index)=>{
   const card=node("div","","reference-member-sign");
   add(card,node("strong",x.label),node("p","اللقب والاسم: "+x.name),
-   node("p","الوظيفة: "+x.role),node("p",(x.label==="العضو الثالث"?"التوقيع: ":"الختم والتوقيع: ")+"........................"));
+   node("p","الوظيفة: "+x.role),node("p",(index===2?"التوقيع: ":"الختم والتوقيع: ")+"........................"));
+  if(index<2)card.append(node("div","","reference-stamp-space"));
   wrap.append(card);
  });
  page.append(wrap);
@@ -153,7 +154,7 @@ function results(article,d,state){
  ],"reference-results-table");
  textLine(pg,"التقدير العام:",d.displayedAppreciation?
   d.displayedAppreciation:
-  empty+"\n"+empty);
+  empty+"\n"+empty,"reference-general-appreciation");
  heading(pg,"قرار أعضاء اللجنة:");
  choices(pg,d);
  signatures(pg,d);
