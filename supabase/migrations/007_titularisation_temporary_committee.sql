@@ -279,14 +279,16 @@ create or replace function public.save_titularisation_member_contribution(
 ) returns bigint language plpgsql security definer set search_path='' as $$
 declare v_rubric text;v_revision bigint;
 begin
- -- Row-level checks happen inside this guarded RPC even if a token remains
- -- cryptographically valid after revocation or mission close.
- if not public.is_active_titularisation_seat(p_mission_id,p_seat_code) then
-  raise exception 'Seat access expired or revoked' using errcode='42501';
- end if;
+ -- Lock mission THEN seat before authorization. This serializes member
+ -- submission with simultaneous close/revoke and prevents late accepted writes.
  select rubric_id into v_rubric
  from public.titularisation_missions where id=p_mission_id and status='draft' for update;
  if not found then raise exception 'Mission closed' using errcode='42501'; end if;
+ perform 1 from public.titularisation_seats s
+ where s.mission_id=p_mission_id and s.seat_code=p_seat_code for update;
+ if not found or not public.is_active_titularisation_seat(p_mission_id,p_seat_code) then
+  raise exception 'Seat access expired or revoked' using errcode='42501';
+ end if;
  perform public.validate_titularisation_member_payload(v_rubric,p_payload);
  if p_submit is null then raise exception 'Explicit submit decision required' using errcode='22023'; end if;
  insert into public.titularisation_contributions
