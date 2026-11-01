@@ -60,7 +60,7 @@ test("only automatically generated chair-label prefixes are excluded from collec
 test("PDF footer is lowered within A4 printable area; colored total rows and minutes spacing are scoped to print",()=>{
  const css=readFileSync(root+"print-layout-b5.css","utf8");
  assert.match(css,/@page \{size:A4 portrait;margin:12mm 14mm 5mm\}/);
- assert.match(css,/bottom:-23mm!important/);
+ assert.match(css,/bottom:-26mm!important/);
  assert.match(css,/tr\.official-total-row/);
  assert.match(css,/font-weight:700!important/);
  assert.match(css,/reference-minutes\{[\s\S]*?justify-content:space-between!important/);
