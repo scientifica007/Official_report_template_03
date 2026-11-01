@@ -43,7 +43,8 @@ test("Word outputs no partial-grade rows or rubric label and uses distinct strik
  const xml=committeeDocumentXml(s);
  assert.doesNotMatch(xml,/النقطة الجزئية|الشبكة المستخدمة:|تقدير مقترح قابل للتغيير/);
  assert.doesNotMatch(xml,/للأساتذة المتخصصين لإعادة التكييف/);
- assert.match(xml,/والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف/);
+ assert.match(xml,/للأساتذة المتخصصين في التكوين والتعليم المهنيين\./);
+ assert.doesNotMatch(xml,/والأساتذة المتخصصين في التكوين والتعليم المهنيين لإعادة التكييف/);
  assert.ok((xml.match(/<w:strike\/>/g)||[]).length>=2);
  assert.match(xml,/<w:jc w:val="center"\/>/);
  assert.match(xml,/الختم والتوقيع:/);
