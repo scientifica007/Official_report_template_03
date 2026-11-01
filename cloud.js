@@ -688,6 +688,7 @@ function useSharedInstitution(id){
 }
 const NAV_ITEMS=[
  ['dashboard','لوحة القيادة','▦'],
+ ['templates','نماذج التفتيش','▣'],
  ['missions','مهامي الجارية','◷'],
  ['institutions','المؤسسات','▤'],
  ['colleagues','المفتشون الزملاء','♙'],
@@ -709,6 +710,31 @@ function dashboardCard(label,value,description,target){
  return '<button type="button" class="portal-metric" data-cloud-action="nav" data-page="'+target+'">'+
  '<strong>'+elt(value)+'</strong><span>'+elt(label)+'</span><small>'+elt(description)+'</small></button>';
 }
+// M5.0 — The portal is a launcher, not an authorization wrapper around
+// publicly served GitHub Pages files. The titularisation lab remains
+// local-only until a separately reviewed backend enforces seat permissions.
+function templatesView(){
+ return '<div class="portal-page-heading"><h2>نماذج التفتيش والتقويم المهني</h2>'+
+ '<p>اختر نموذج العمل. يحتفظ كل نموذج بقواعد تقييمه ومحرره ومخرجاته المستقلة.</p></div>'+
+ '<section class="portal-template-grid" aria-label="نماذج التقارير المتاحة">'+
+ '<article class="portal-template-card"><div class="portal-template-symbol" aria-hidden="true">03</div>'+
+ '<div><h3>تقرير التفتيش المعمق — النموذج 03</h3>'+
+ '<p>إعداد التقارير المعمقة، المهام الجارية، المؤسسات والمساهمات المهنية المرتبطة بالحساب.</p>'+
+ '<p class="portal-template-status">حساب المفتش المعتمد · مهام سحابية وفق صلاحيات المنصة</p>'+
+ '<button type="button" class="btn primary" data-cloud-action="nav" data-page="report">فتح محرر النموذج 03</button></div></article>'+
+ '<article class="portal-template-card"><div class="portal-template-symbol" aria-hidden="true">ت</div>'+
+ '<div><h3>التفتيش قصد الترسيم — النموذج الأول</h3>'+
+ '<p>تقييم الحصة والمناقشة، وإعداد التقرير والمحضر، وتصدير PDF وDOCX وJSON، والإملاء الصوتي.</p>'+
+ '<p class="portal-template-status">مقبول ميدانيًا · نسخة محلية مستقلة</p>'+
+ '<p class="portal-template-warning">تنبيه: لا يرتبط المختبر حاليًا بحسابك السحابي. لا تُحفظ مسوداته على Supabase، ورابطه العام ليس حسابًا محميًا لأعضاء اللجنة. احفظ JSON بنفسك.</p>'+
+ '<a class="btn primary portal-template-link" href="./prototypes/titularisation-committee/" target="_blank" rel="noopener noreferrer">فتح تطبيق الترسيم في نافذة جديدة</a></div></article>'+
+ '</section>'+
+ '<section class="portal-template-future"><h3>حسابات أعضاء لجنة الترسيم المؤقتة — قيد التفعيل</h3>'+
+ '<p>سيتمكن رئيس اللجنة من إصدار ثلاثة روابط مستقلة، مع اسم مستخدم وكلمة مرور خاصة بكل عضو، وصلاحية مقيدة بالمهمة وحدها، ثم إلغاء الوصول بعد طباعة الوثائق مع إبقاء المساهمات الأصلية محفوظة.</p>'+
+ '<p class="portal-template-warning">لم تُفعَّل خدمة الحسابات المؤقتة بعد. لا يوفّر الرابط الحالي دخولًا آمنًا للأعضاء، ولا يرسل كلمات مرور أو يحتفظ ببيانات عضو في السحابة.</p></section>'+
+ '<section class="portal-template-future"><h3>النموذج الشخصي الثاني — مخطط مستقبلًا</h3>'+
+ '<p>سيكون للمعايير والمؤشرات والأوزان تعريف مستقل؛ ولا تُفعَّل صلاحيات المشاركة قبل جاهزية الخادم والتحقق من الهوية.</p></section>';
+}
 function dashboardView(){
  const active=missions.filter(m=>m.status==='draft');
  const invited=missionMembers.filter(m=>m.inspector_id===session.user.id&&m.membership_status==='invited');
@@ -727,6 +753,9 @@ function dashboardView(){
  '<p class="cloud-warning">'+elt(missionError||'تعذر تحميل المهام السحابية.')+'</p>')+
  (invited.length?'<p class="cloud-tip">لديك '+invited.length+' دعوة تنتظر الرد. <button type="button" class="btn subtle" data-cloud-action="nav" data-page="missions">عرض الدعوات</button></p>':'')+
  '<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="refresh">تحديث المهام</button></div></section>'+
+ '<section class="portal-template-shortcut"><h3>نماذج التفتيش</h3>'+
+ '<p>يتوفر النموذج 03 والتفتيش قصد الترسيم. محرر الترسيم يعمل محليًا ولا تُحفظ بياناته في حساب المنصة بعد.</p>'+
+ '<button type="button" class="btn primary" data-cloud-action="nav" data-page="templates">استعراض نماذج التفتيش</button></section>'+
  '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'اختيار المؤسسة','institutions')+
  dashboardCard('المفتشون المعتمدون',profiles.filter(p=>p.approved).length,'بيانات الزملاء','colleagues')+
  dashboardCard('إشعارات غير مقروءة',unread,'التحديثات والدعوات','notifications')+'</div>';
@@ -936,6 +965,7 @@ function guardedView(){
 }
 function portalView(){
  const content=currentPage==='dashboard'?dashboardView():
+  currentPage==='templates'?templatesView():
   currentPage==='institutions'?institutionEditor():
   currentPage==='colleagues'?colleaguesView():
   currentPage==='missions'?missionsView():
@@ -943,8 +973,8 @@ function portalView(){
   currentPage==='account'?accountView():
   currentPage==='admin'&&profile.is_admin?renderAccountsManagement():
   reservedView(currentPage);
- return '<header class="portal-topbar"><div><strong>منصة التفتيش المعمق</strong>'+
- '<small>النموذج 03 — فضاء المفتشين المعتمدين</small></div>'+
+ return '<header class="portal-topbar"><div><strong>منصة التفتيش والتقويم المهني</strong>'+
+ '<small>نماذج التفتيش — فضاء المفتشين المعتمدين</small></div>'+
  '<div class="session-controls portal-session-controls"><span class="session-name">'+elt(text(profile.first_name+' '+profile.last_name))+
  '</span><button type="button" class="btn session-logout" data-cloud-action="logout" aria-label="تسجيل الخروج من حساب المفتش">تسجيل الخروج</button></div>'+
  '</header><div class="portal-body">'+portalNavigation()+
@@ -978,7 +1008,7 @@ function render(){
   return;
  }
  if(!session?.access_token){
-  root.innerHTML='<div class="portal-auth-wrapper"><header><span class="portal-logo">03</span><h1>منصة التفتيش المعمق</h1><p>سجّل الدخول بحساب مفتش معتمد أو أرسل طلب تسجيل جديد.</p></header>'+
+  root.innerHTML='<div class="portal-auth-wrapper"><header><span class="portal-logo">03</span><h1>منصة التفتيش والتقويم المهني</h1><p>سجّل الدخول بحساب مفتش معتمد أو أرسل طلب تسجيل جديد.</p></header>'+
   '<div class="portal-auth-card">'+unauthenticatedView()+
   '<div id="cloud-message" class="cloud-message" role="status" aria-live="polite">'+elt(feedback)+'</div></div></div>';
   return;
