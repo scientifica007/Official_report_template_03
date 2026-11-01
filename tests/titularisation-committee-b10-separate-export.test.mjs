@@ -87,7 +87,7 @@ test("no decorative placeholder dots are printed after an empty assessment",()=>
  s=editNote(s,"final","lessonSummary","تقدير اللجنة");
  renderDocuments(rootNode,s);
  assert.equal(walk(rootNode,e=>e.className.includes("reference-empty-appreciation")).length,1);
- assert.ok(walk(rootNode,e=>e.className==="paper-line").some(e=>e.children.some(c=>c.textContent==="تقدير اللجنة")));
+ assert.ok(walk(rootNode,e=>e.className.split(/\s+/).includes("paper-line")).some(e=>e.children.some(c=>c.textContent==="تقدير اللجنة")));
 });
 test("PDF print scoping does not change accepted report footer or page numbering CSS",()=>{
  const css=readFileSync(root+"print-layout-b5.css","utf8");
