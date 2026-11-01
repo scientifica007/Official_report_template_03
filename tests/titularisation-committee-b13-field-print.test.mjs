@@ -30,7 +30,7 @@ test("P4-B13: full report and one-page minutes use a physical Arabic glyph safet
 });
 
 test("P4-B13: report footer is lowered but remains within the A4 printable boundary",()=>{
- assert.match(css,/bottom:-26mm!important/);
+ assert.match(css,/bottom:-28mm!important/);
  assert.match(css,/#paper \.reference-page \.reference-report-footer\{\s*left:3mm!important;right:3mm!important/);
  const a4Height=297,pageTop=12,bodyHeight=252,offset=26,printBottomMargin=5;
  assert.ok(pageTop+bodyHeight+offset<=a4Height-printBottomMargin);
