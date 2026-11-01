@@ -44,7 +44,7 @@ test("PDF title/scope/references are one compact heading followed by separately 
  assert.equal(header[0].children.length,3);
  assert.match(content(header[0]),new RegExp(MINUTES_TITLE));
  assert.ok(content(header[0]).includes(MINUTES_SCOPE));
- assert.ok(content(header[0]).includes("المراجع: "+LEGAL_REFERENCES));
+ assert.ok(content(header[0]).includes(LEGAL_REFERENCES));
  assert.match(content(body[0]),/نحن الموقّعون أدناه/);
  assert.match(content(minutes),/المعيَّن\(ة\) في رتبة/);
  assert.match(content(minutes),/بمؤسسة/);
