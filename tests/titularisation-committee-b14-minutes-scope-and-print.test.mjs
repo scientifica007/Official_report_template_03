@@ -116,9 +116,9 @@ test("B14: PDF labels and Word labels are bold and underlined only in lesson/dis
  assert.match(word,/التقدير:/);
 });
 
-test("B14: footer remains on the report only, at the physical printable limit",()=>{
- assert.match(css,/bottom:-28mm!important/);
- assert.equal(12+252+28,297-5);
+test("B14/B15: footer remains on report with safety reserve inside printable limit",()=>{
+ assert.match(css,/bottom:-26mm!important/);
+ assert.ok(12+252+26<297-5);
  const root=new Fake("div");renderDocuments(root,freshCommittee());
  assert.equal(all(root,x=>x.className.includes("reference-report-footer")).length,5);
  const minutes=all(root,x=>x.className==="reference-page reference-minutes")[0];
