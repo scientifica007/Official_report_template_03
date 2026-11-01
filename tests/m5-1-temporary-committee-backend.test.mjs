@@ -61,7 +61,10 @@ test("M5.1: server enforces half-point scoring, caps and authorized rubric",()=>
  assert.match(sql,/rubric_id text not null check\(rubric_id in \('lesson_grouped_5_v1','lesson_inspector_10_v1'\)\)/);
  assert.match(sql,/create table if not exists public\.titularisation_score_caps/);
  assert.match(sql,/v_number<0 or v_number>v_cap or mod\(v_number\*2,1\)<>0/);
- assert.match(sql,/jsonb_typeof\(v_value\)<>'number'/);
+ assert.match(sql,/jsonb_typeof\(v_value\) is distinct from 'number'/);
+ assert.match(sql,/jsonb_typeof\(v_notes\) is distinct from 'object'/);
+ assert.match(sql,/v_grading->'revision' is distinct from '1'::jsonb/);
+ assert.match(sql,/jsonb_typeof\(v_value\) is distinct from 'string'/);
  assert.match(sql,/Unknown item or invalid note/);
  assert.match(sql,/v_grading->>'rubricId' is distinct from p_rubric/);
  assert.match(sql,/Unexpected unfrozen analytical weights/);
