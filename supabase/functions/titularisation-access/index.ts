@@ -117,6 +117,11 @@ async function provision(db:ReturnType<typeof admin>,actor:string,
   .select("mission_id,seat_code,status,auth_user_id").eq("mission_id",mission.id)
   .eq("seat_code",seatCode).single();
  if(se||!seat||seat.status==="active")return error("هذا المقعد مُفعّل بالفعل.",409);
+ const {data:submitted,error:submittedError}=await db.from("titularisation_contributions")
+  .select("status").eq("mission_id",mission.id).eq("seat_code",seatCode).maybeSingle();
+ if(submittedError)return error("تعذر التحقق من المساهمة السابقة.",503);
+ if(submitted?.status==="submitted")
+  return error("مساهمة هذا المقعد مرسلة نهائيًا؛ لا يمكن إصدار حساب جديد لاستبدالها.",409);
  if(seat.auth_user_id){
   // A previously revoked account must be removed before a replacement can
   // be issued. Its contribution remains attached to the seat, not the login.
