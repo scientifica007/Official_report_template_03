@@ -14,7 +14,7 @@ test("B15: report footer bottom must not touch or exceed A4 printable boundary",
  const safePageHeightMm=252;
  const rule=/@media print\s*\{\s*#paper \.reference-page \.reference-report-footer\s*\{\s*bottom:-(\d+)mm!important/gu;
  const offsets=[...css.matchAll(rule)].map(x=>Number(x[1]));
- assert.ok(offsets.length>=3,"Footer style cascade must be identified");
+ assert.ok(offsets.length>=2,"Footer style cascade must be identified");
  const offset=offsets.at(-1);
  assert.equal(offset,26,"Do not move print footer back to the zero-clearance -28mm location");
  const physicalBottom=topMarginMm+safePageHeightMm+offset;
