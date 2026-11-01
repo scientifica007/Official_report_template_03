@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>مختبر إعداد تقرير ومحضر الترسيم</title>
-<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./print-layout-b5.css" media="print"><script type="module" src="./app.mjs"></script></head>
+<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./print-layout-b5.css" media="print"><script src="../../cloud-config.js" defer></script><script type="module" src="./app.mjs"></script></head>
 <body><header><small>ARCH-01D2 — تجربة معزولة</small><h1>مختبر إعداد تقرير ومحضر لجنة الترسيم</h1>
 <p>أداة مساعدة للمفتش واللجنة، لا نظام اعتماد أو تصديق. هذه محاكاة محلية بلا حسابات أعضاء أو تخزين سحابي.</p>
 <p class="warning">استخدم بيانات اصطناعية فقط. المعاينة الورقية قيد المطابقة المرجعية، وهي مسودة عمل لا تمثل إمضاءً أو ختمًا. النسخة الممضاة والمؤشر عليها ورقيًا وحدها المرجع المهني الرسمي.</p>
@@ -23,6 +23,7 @@
 <button id="docx-minutes" type="button">تنزيل المحضر DOCX</button></div>
 <p id="message" role="status" aria-live="polite"></p></section>
 <section class="panel"><h2>معطيات المهمة</h2><div id="meta" class="meta-grid"></div></section>
+<section id="committee-cloud-bridge" class="panel" hidden><h2>مساهمات أعضاء اللجنة السحابية</h2><p>يمكن لرئيس اللجنة استيراد المساهمات المرسلة من حسابات الأعضاء بعد التحقق من المهمة والشبكة. لا يُغيَّر التقدير النهائي للمفتش، ويجب حفظ نسخة JSON قبل الاستيراد.</p><div class="actions"><button type="button" id="committee-cloud-refresh">عرض مهامي</button><select id="committee-cloud-mission" aria-label="اختيار مهمة الترسيم"><option value="">— اختر مهمة —</option></select><button type="button" id="committee-cloud-import">استيراد المساهمات المرسلة</button></div><p id="committee-cloud-status" role="status" aria-live="polite"></p></section>
 <section id="weights" class="panel"></section>
 <section id="editor" class="panel"></section>
 <section id="members" class="panel"></section>
