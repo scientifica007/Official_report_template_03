@@ -42,7 +42,7 @@ function setup({supported=true,key="model1|chair|lesson|g1_1"}={}){
   clearTimeout(_id){}
  };
  globalThis.document={createElement:tag=>new FakeElement(tag)};
- globalThis.navigator={clipboard:{writeText:async()=>{}}};
+ Object.defineProperty(globalThis,"navigator",{configurable:true,writable:true,value:{clipboard:{writeText:async()=>{}}}});
  globalThis.Event=class{constructor(type){this.type=type}};
  globalThis.confirm=()=>true;
  clearVoiceDrafts();
