@@ -290,7 +290,7 @@
  }
  /* Make the three committee decisions readable in report and minutes. */
  #paper .reference-page .reference-decisions{
-  font-size:15pt!important;gap:3mm!important;
+  font-size:16pt!important;gap:3mm!important;
   justify-content:space-around!important;
   padding:2mm 0!important;
  }
