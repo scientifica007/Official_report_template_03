@@ -48,11 +48,17 @@ export const METADATA_GROUPS=Object.freeze([
   ["member3Name","اسم ولقب العضو الثالث"],["member3Role","وظيفة العضو الثالث"],
   ["decision","قرار اللجنة"],["decisionPlace","مكان تحرير المحضر"],
   ["decisionDate","تاريخ تحرير المحضر"]]}
+ ,
+ {label:"صياغة محضر الترسيم",fields:[
+  ["minutesScopeMode","فئة الأساتذة في المحضر"],
+  ["minutesScopeCustom","صياغة الفئة الحرة للمحضر"]
+ ]}
 ]);
 const baseMetaKeys=["candidate","institution","rank","date","location","session"];
 const metaKeys=new Set([...baseMetaKeys,...METADATA_GROUPS.flatMap(g=>g.fields.map(f=>f[0]))]);
-const emptyMeta=()=>Object.fromEntries([...metaKeys].map(k=>[k,""]));
+const emptyMeta=()=>({...Object.fromEntries([...metaKeys].map(k=>[k,""])),minutesScopeMode:"specialist"});
 const validDecisions=new Set(["","success","first","second"]);
+const validMinutesScopes=new Set(["specialist","rehabilitation","general","custom"]);
 const maxNote=4000;
 const proseFields=["lessonSummary","discussionSummary","general","recommendations"];
 const editKey=(field,id)=>["lesson","discussion"].includes(field)?field+":"+id:"field:"+field;
@@ -76,6 +82,7 @@ export function freshCommittee(mode="unified",rubric="grouped5"){
 export function editMeta(state,field,value){
  if(!metaKeys.has(field))throw Error("حقل تعريف غير معروف");
  if(field==="decision"&&!validDecisions.has(value))throw Error("قرار لجنة غير معروف");
+ if(field==="minutesScopeMode"&&!validMinutesScopes.has(value))throw Error("صياغة فئة المحضر غير معروفة");
  const s=clone(state);s.meta[field]=cleanString(value,300);s.serial++;return s;
 }
 export function changeMode(state,mode){
@@ -350,7 +357,9 @@ export function restoreCommittee(raw){
  const blank=freshCommittee(raw.mode,raw.rubricId);
  if(!plain(raw.meta)||!plain(raw.members)||!Number.isSafeInteger(raw.serial)||raw.serial<1)
    throw Error("بيانات مسودة غير صالحة");
- for(const key of metaKeys)blank.meta[key]=cleanString(raw.meta[key]??"",300);
+ for(const key of metaKeys)
+  blank.meta[key]=cleanString(raw.meta[key]??(key==="minutesScopeMode"?"specialist":""),300);
+ if(!validMinutesScopes.has(blank.meta.minutesScopeMode))throw Error("صياغة فئة المحضر غير معروفة");
  if(!validDecisions.has(blank.meta.decision))throw Error("قرار لجنة غير معروف");
  for(const key of Object.keys(raw.meta))if(!metaKeys.has(key))throw Error("حقل تعريف غير معروف");
  blank.final=checkContribution(raw.final,blank.rubricId,null,false);
