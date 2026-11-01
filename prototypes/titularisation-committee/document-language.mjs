@@ -19,10 +19,20 @@ export const LEGAL_REFERENCES="المرسوم التنفيذي رقم 09-93 ال
 export const MINUTES_RESULTS_INTRO="أسفرت مداولات لجنة الامتحان عن النتائج الآتية:";
 export const DISCUSSION_RESULT_TITLE="2 - المناقشة";
 export const MINUTES_OPENING_LEAD="نحن الموقّعون أدناه، أعضاء لجنة التفتيش قصد الترسيم، نصرّح بأننا شاركنا يوم ";
-export function minutesOpeningText(d,empty="................................................"){
+// Shared word segments for PDF and DOCX, keeping only the candidate bold.
+// Birth date and place are separate editable values; never infer their split
+// from the older combined birth field.
+export function minutesOpeningSegments(d,empty="................................................"){
  const date=d.dateInWords||empty;
  const venue=d.examVenue||empty;
- const candidate=d.candidate||empty;
- return MINUTES_OPENING_LEAD+date+"، بمقرّ: "+venue+
-  "، في إجراء امتحان التثبيت للمترشح(ة): "+candidate+".";
+ return [
+  {text:MINUTES_OPENING_LEAD+date+"، بمقرّ: "+venue+
+   "، في إجراء امتحان التثبيت للمترشح(ة): ",bold:false},
+  {text:d.candidate||empty,bold:true},
+  {text:"، المولد(ة) في: "+(d.candidateBirthDate||empty)+
+   " بـ: "+(d.candidateBirthPlace||empty)+".",bold:false}
+ ];
+}
+export function minutesOpeningText(d,empty="................................................"){
+ return minutesOpeningSegments(d,empty).map(segment=>segment.text).join("");
 }
