@@ -135,7 +135,7 @@
 @page {size:A4 portrait;margin:12mm 14mm 5mm}
 @media print {
  #paper .reference-page .reference-report-footer{
-   bottom:-26mm!important;
+   bottom:-28mm!important;
  }
  #paper .reference-page .official-table tr.official-total-row th,
  #paper .reference-page .official-table tr.official-total-row td{
@@ -300,5 +300,27 @@
  /* Only members 1 and 2 need a reserved stamp area (member 3: signature). */
  #paper .reference-three-signers .reference-member-sign .reference-stamp-space{
   height:19mm!important;
+ }
+}
+
+/* ARCH-01D2-P4-B14 — field-approved PDF, limited refinements only.
+ * 12mm top + 252mm page + 28mm offset = 292mm: the footer ends at the
+ * 5mm physical A4 bottom safety limit. Do not lower it beyond this bound. */
+@media print {
+ #paper .reference-page .reference-assessment-label strong,
+ #paper .reference-page p.reference-empty-appreciation {
+  font-weight:700!important;
+  text-decoration:underline!important;
+  text-underline-offset:2pt!important;
+  text-decoration-thickness:1px!important;
+ }
+ /* Preserve all reference digits, including 2015, on one physical line. */
+ #paper .reference-minutes .reference-minutes-header .reference-minutes-references {
+  font-size:10pt!important;
+  line-height:1.25!important;
+  white-space:nowrap!important;
+  letter-spacing:-0.08pt!important;
+  margin:0!important;
+  text-align:center!important;
  }
 }
