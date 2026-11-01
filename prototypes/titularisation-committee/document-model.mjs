@@ -106,11 +106,11 @@ export function buildReferenceDocuments(state){
   textWarning:pendingTexts?
    "توجد "+pendingTexts+" مسودة نصية مجمعة للمراجعة داخل المحرر؛ لا تُنسب تلقائيًا إلى اللجنة في التقرير.":"",
   candidate:val(m.candidate)||[m.familyName,m.givenName].filter(Boolean).join(" "),
-  candidateBirthDate:val(m.birthDate),candidateBirthPlace:val(m.birthPlace),
+  candidateBirthDate:val(m.birthDate)||val(m.birth),candidateBirthPlace:val(m.birthPlace),
   reportTitle:professionalTitle,
   candidateFields:[
    ["اللقب",metaValue(m,"familyName")],["الاسم",metaValue(m,"givenName")],
-   ["تاريخ ومكان الميلاد",metaValue(m,"birth")],["الرتبة",metaValue(m,"rank")],
+   ["تاريخ ومكان الميلاد",([val(m.birthDate)||val(m.birth),val(m.birthPlace)].filter(Boolean).join("، ")||metaValue(m,"birth"))],["الرتبة",metaValue(m,"rank")],
    ["تاريخ التنصيب",metaValue(m,"installationDate")],
    ["تاريخ التعيين",metaValue(m,"assignmentDate")],
    ["مؤسسة التعيين",metaValue(m,"assignmentInstitution")],
