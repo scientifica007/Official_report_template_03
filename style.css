@@ -615,3 +615,19 @@ body:not(.shared-draft-strong) .shared-draft-warning{
  .summary-assistant-controls button,.summary-assistant-footer button,.summary-assistant-launch{min-height:44px}
 }
 @media print{.report-summary-assistant,.summary-assistant-launch{display:none!important}}
+
+/* M5.0 — multi-model inspector dashboard (never affects the report's print layout). */
+.portal-template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;margin:16px 0}
+.portal-template-card{display:flex;align-items:flex-start;gap:15px;border:1px solid #d2dfdd;border-radius:14px;background:#fff;padding:20px;box-shadow:0 3px 14px #123e300b}
+.portal-template-card>div:last-child{min-width:0;flex:1}
+.portal-template-card h3,.portal-template-future h3{margin:0 0 7px;color:#173f37;font-size:18px}
+.portal-template-card p,.portal-template-future p{line-height:1.7;font-size:14px}
+.portal-template-symbol{display:flex;align-items:center;justify-content:center;flex:0 0 46px;min-height:46px;border-radius:12px;background:#e9f0ef;color:#164b42;font-weight:800;font-size:20px}
+.portal-template-status{font-weight:700;color:#175943}
+.portal-template-warning{color:#674c19;border-inline-start:3px solid #b99349;padding:8px 12px;background:#fff9ec;border-radius:6px}
+.portal-template-link{display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;max-width:100%;line-height:1.5}
+.portal-template-shortcut,.portal-template-future{padding:16px 20px;background:#f7faf9;border:1px solid #d5e0dd;border-radius:12px;margin:15px 0}
+.portal-template-shortcut h3{margin:0 0 6px}
+.portal-template-shortcut p{margin:4px 0 14px;color:#425e56}
+@media(max-width:580px){.portal-template-card{padding:13px;gap:10px}.portal-template-symbol{flex-basis:38px;min-height:38px}.portal-template-card h3{font-size:16px}}
+@media print{.portal-template-grid,.portal-template-shortcut,.portal-template-future{display:none!important}}
