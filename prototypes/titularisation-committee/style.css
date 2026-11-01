@@ -223,3 +223,20 @@ button.demo-fill-button:hover{background:#f5dfa6}
  #paper .reference-minutes{padding-bottom:0!important}
  #paper .reference-minutes .reference-report-footer{display:none!important}
 }
+
+/* Voice UX — shared dictation adapter, kept outside the printed paper. */
+.voice-launch{margin:7px 0 4px;min-height:42px;background:#eef5f1;color:#185d44;border-color:#92bca8}
+.voice-launch:hover{background:#e1efe7}
+.voice-dictation-panel{margin:9px 0 14px;padding:14px;border:1px solid #a9c8b8;border-radius:10px;background:#f5faf7;max-width:100%}
+.voice-privacy-note{font-size:12px;line-height:1.7;color:#644f2c;background:#fff7e3;padding:10px;border-radius:7px;margin:2px 0 10px}
+.voice-language-label,.voice-transcript-label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.voice-language-label select{max-width:320px}
+.voice-transcript-label textarea{min-height:125px;resize:vertical;font-weight:400;text-align:right;direction:rtl}
+.voice-status{font-size:12px;color:#205b45}
+.voice-actions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.voice-actions button{min-height:42px;font-size:12px;flex:1 1 136px}
+.voice-start,.voice-insert{background:#196d51}
+.voice-stop,.voice-copy,.voice-close{background:#edf6f0;color:#21583f;border-color:#90b9a2}
+.voice-cancel{background:#fff1eb;color:#8d3d24;border-color:#d3a493}
+.voice-unsupported{font-size:12px;color:#96562a}
+@media print{.voice-launch,.voice-dictation-panel,.voice-unsupported{display:none!important}}

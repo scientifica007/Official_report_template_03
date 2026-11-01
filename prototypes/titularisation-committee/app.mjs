@@ -12,6 +12,7 @@ import {estimateDocxReportPages} from "./docx-pagination.mjs";
 import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
+import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
 let state=freshCommittee(),who="final";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
@@ -22,6 +23,8 @@ function commit(fn){
  try{state=fn();render()}catch(e){message(e.message)}
 }
 function render(){
+ // Keep unfinished speech text in the tab while rebuilding the editor.
+ dismissVoiceDictation();
  $("mode").value=state.mode;
  $("rubric").value=Object.keys(RUBRICS).find(k=>RUBRICS[k].id===state.rubricId);
  const seats=clear($("who"));
@@ -70,6 +73,7 @@ function render(){
  }
  renderWeights($("weights"),state,commit);
  renderForm($("editor"),state,who,commit);
+ attachVoiceDictation($("editor"));
  renderMembers($("members"),state);
  renderDocuments($("paper"),state);
  fitPrintPages($("paper"));
@@ -96,6 +100,7 @@ $("mode").addEventListener("change",e=>{
 });
 $("rubric").addEventListener("change",e=>{
  if(!confirm("تغيير الشبكة يبدأ مسودة فارغة؛ صدّر JSON أولًا إن أردت حفظها. موافق؟")){render();return}
+ clearVoiceDrafts();
  state=freshCommittee(state.mode,e.target.value);who="final";render();
 });
 $("save").addEventListener("click",()=>{
@@ -113,6 +118,7 @@ $("load").addEventListener("change",async e=>{
  try{
   const next=restoreCommittee(JSON.parse(await file.text()));
   if(!confirm("استيراد الملف سيستبدل مسودة الصفحة الحالية. موافق؟"))return;
+  clearVoiceDrafts();
   state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });

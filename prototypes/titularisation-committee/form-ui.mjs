@@ -42,6 +42,7 @@ function itemRow(container,state,who,phase,item,commit){
  }
  const details=node("details");details.append(node("summary","تقدير كتابي لهذا البند"));
  const note=node("textarea");note.rows=3;note.value=c.notes[phase][item.id]||"";
+ if(note.dataset)note.dataset.voiceKey=[state.rubricId,who,phase,item.id].join("|");
  note.disabled=c.submitted&&who!=="final";
  note.addEventListener("change",()=>commit(()=>editNote(state,who,phase,note.value,item.id)));
  details.append(note);
@@ -92,6 +93,7 @@ export function renderForm(container,state,who,commit){
  container.append(node("h3","التقديرات الكتابية"));
  for(const [key,title] of Object.entries(labels)){
   const textarea=textValue(container,title,person.notes[key],v=>commit(()=>editNote(state,who,key,v)));
+  if(textarea.dataset)textarea.dataset.voiceKey=[state.rubricId,who,"prose",key].join("|");
   textarea.disabled=person.submitted&&!isFinal;
   if(isFinal&&key==="general"){
    const score=totals(person.grading).total60;
