@@ -58,6 +58,7 @@ export function portableCommitteeObject(state){
     committeeDecisionCode:d.decisionCode,committeeDecisionLabel:d.decision,
     reportFooters:[1,2,3,4,5].map(i=>d.reportFooter(i)),
     reportFooterPreviewIsBaselineOnly:true,
+    minutesScope:d.minutesScope,
     minutesDateInWords:d.dateInWords,
     minutesExamVenue:d.examVenue,
     paperSignatures:d.signers

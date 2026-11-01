@@ -10,27 +10,27 @@ const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
 // Each Word paragraph has RTL reading order; isolated ASCII runs preserve
 // dates, numeric grades, addresses, phone numbers and URLs inside Arabic.
 const latinToken=/([A-Za-z0-9][A-Za-z0-9._@/+:%-]*[A-Za-z0-9]|[A-Za-z0-9])/g;
-function textRun(value,bold,ltr,size=24){
+function textRun(value,bold,ltr,size=24,underline=false){
  return '<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'+
-  (bold?'<w:b/>':'')+
+  (bold?'<w:b/>':'')+(underline?'<w:u w:val="single"/>':'')+
   '<w:rtl w:val="'+(ltr?'0':'1')+'"/>'+
   (ltr?'<w:lang w:val="en-US"/>':'<w:lang w:val="ar-DZ" w:bidi="ar-DZ"/>')+
   '<w:sz w:val="'+size+'"/><w:szCs w:val="'+size+'"/></w:rPr>'+
   '<w:t xml:space="preserve">'+esc(value)+'</w:t></w:r>';
 }
-function run(s,bold=false,size=24){
+function run(s,bold=false,size=24,underline=false){
  return String(s??"").split("\n").map((line,lineIndex)=>{
   const parts=line.split(latinToken);
   return (lineIndex?'<w:r><w:br/></w:r>':'')+
-   parts.map((part,i)=>part?textRun(part,bold,i%2===1,size):'').join('');
+   parts.map((part,i)=>part?textRun(part,bold,i%2===1,size,underline):'').join('');
  }).join('');
 }
 // Keep the field-accepted direction and mixed-script runs; only tune spacing
 // and add source-derived table geometry. Report remains editable throughout.
-function p(s,{bold=false,center=false,end=false,page=false,size=0,before=120,after=120}={}){
+function p(s,{bold=false,underline=false,center=false,end=false,page=false,size=0,before=120,after=120}={}){
  return '<w:p><w:pPr><w:bidi w:val="1"/>'+(page?'<w:pageBreakBefore/>':'')+
  '<w:jc w:val="'+(center?'center':end?'end':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
- '</w:pPr>'+run(s,bold,size||28)+'</w:p>';
+ '</w:pPr>'+run(s,bold,size||28,underline)+'</w:p>';
 }
 function cell(s,width,fill="",size=20,center=false,bold=false,end=false){
  const bg=fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':"";
@@ -154,7 +154,7 @@ function lessonPage(d){
   lessonHeights[i]=i===0?420:i===records.length-1?390:(d.lessonRows.length===5?1100:550);
  });
  b+=table(records,{widths:[1000,6000,1400,1600],headerFill:"F5E5AB",rowHeights:lessonHeights,centerColumns:[1,3,4],size:23});
- b+=p("التقدير:",{bold:true,before:90});
+ b+=p("التقدير:",{bold:true,underline:true,before:90});
  b+=p(d.prose.lesson||(!d.memberObservations.lesson.length?placeholder+"\n"+placeholder:""),{size:28});
  b+=memberNotes(d,"lesson");
  return b;
@@ -166,7 +166,7 @@ function discussionPage(d){
   ...d.discussionRows.map(x=>[x.label,mark(x.cap),mark(x.score)]),
   ["العلامة المحصلة",mark(20),mark(d.marks.discussion)]],
   {widths:[6500,1600,1900],headerFill:"DCEBD5",rowHeights:{0:480,1:710,2:710,3:710,4:710,5:710,6:710,7:710,8:380},centerColumns:[2,3],size:23});
- b+=p("التقدير:",{bold:true,before:130});
+ b+=p("التقدير:",{bold:true,underline:true,before:130});
  b+=p(d.prose.discussion||(!d.memberObservations.discussion.length?placeholder+"\n"+placeholder:""),{size:28});
  b+=memberNotes(d,"discussion");
  return b;
@@ -195,8 +195,16 @@ function minutes(d){
  b+=p("المفتشية العامة",{center:true,bold:true,size:32});
  // Title, eligible ranks and legal references stay together visually.
  b+=p(MINUTES_TITLE,{center:true,bold:true,size:32,before:120,after:50});
- b+=p(MINUTES_SCOPE,{center:true,size:28,before:35,after:35});
- b+=p("المراجع: "+basis,{center:true,size:28,before:35,after:35});
+ if(d.minutesScope)b+=p(d.minutesScope,{center:true,size:28,before:35,after:35});
+ // A fixed-width, borderless, no-wrap cell keeps the year "2015" on the
+ // same physical line as its references in Word and compatible importers.
+ b+='<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/>'+
+  '<w:tblLayout w:type="fixed"/><w:tblBorders>'+
+  ['top','bottom','left','right','insideH','insideV'].map(x=>'<w:'+x+' w:val="nil"/>').join('')+
+  '</w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="10000"/></w:tblGrid>'+
+  '<w:tr><w:tc><w:tcPr><w:tcW w:w="10000" w:type="dxa"/><w:noWrap/></w:tcPr>'+
+  p("المراجع: "+basis,{center:true,size:20,before:35,after:35})+
+  '</w:tc></w:tr></w:tbl>';
  // Explicit gap above the first operative statement, not between headings.
  b+=p(minutesOpeningText(d,placeholder),{before:950,after:130,size:28});
  b+=p("المعيَّن(ة) في رتبة: "+d.metaValue("rank"));

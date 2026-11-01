@@ -87,14 +87,14 @@ test("no decorative placeholder dots are printed after an empty assessment",()=>
  s=editNote(s,"final","lessonSummary","تقدير اللجنة");
  renderDocuments(rootNode,s);
  assert.equal(walk(rootNode,e=>e.className.includes("reference-empty-appreciation")).length,1);
- assert.ok(walk(rootNode,e=>e.className==="paper-line").some(e=>e.children.some(c=>c.textContent==="تقدير اللجنة")));
+ assert.ok(walk(rootNode,e=>e.className.split(/\s+/).includes("paper-line")).some(e=>e.children.some(c=>c.textContent==="تقدير اللجنة")));
 });
 test("PDF print scoping does not change accepted report footer or page numbering CSS",()=>{
  const css=readFileSync(root+"print-layout-b5.css","utf8");
  const preview=readFileSync(root+"preview.mjs","utf8");
  assert.match(css,/body\[data-print-target="report"\] #paper \.official-minutes/);
  assert.match(css,/body\[data-print-target="minutes"\] #paper \.official-report/);
- assert.match(css,/bottom:-26mm!important/);
+ assert.match(css,/bottom:-28mm!important/);
  assert.match(css,/\.reference-minutes-body\{\s*padding-top:9mm!important/);
  assert.match(preview,/reference-minutes-opening/);
 });
