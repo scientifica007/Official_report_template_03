@@ -1,0 +1,5 @@
+# M5.1: mixed public member login and authenticated owner operations.
+# IMPORTANT: owner actions verify Authorization JWT and account ownership
+# inside Edge Function; do not treat verify_jwt=false as authorization.
+[functions.titularisation-access]
+verify_jwt = false
