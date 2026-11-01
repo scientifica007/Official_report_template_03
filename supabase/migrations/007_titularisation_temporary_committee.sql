@@ -221,7 +221,7 @@ begin
  if p is null or jsonb_typeof(p)<>'object' or octet_length(p::text)>90000 then
   raise exception 'Invalid or oversized payload' using errcode='22023';
  end if;
- if exists(select 1 from jsonb_object_keys(p) as k where k not in ('grading','notes')) then
+ if exists(select 1 from jsonb_object_keys(p) as keys(field_name) where field_name not in ('grading','notes')) then
   raise exception 'Unexpected payload field' using errcode='22023';
  end if;
  v_grading:=p->'grading';v_notes:=p->'notes';
@@ -232,10 +232,10 @@ begin
  or jsonb_typeof(v_grading->'scores')<>'object' then
   raise exception 'Invalid grading data or rubric' using errcode='22023';
  end if;
- if exists(select 1 from jsonb_object_keys(v_grading) as k
-   where k not in ('schema','revision','rubricId','profile','scores'))
- or exists(select 1 from jsonb_object_keys(v_notes) as k
-   where k not in ('lesson','discussion','lessonSummary','discussionSummary','general','recommendations')) then
+ if exists(select 1 from jsonb_object_keys(v_grading) as keys(field_name)
+   where field_name not in ('schema','revision','rubricId','profile','scores'))
+ or exists(select 1 from jsonb_object_keys(v_notes) as keys(field_name)
+   where field_name not in ('lesson','discussion','lessonSummary','discussionSummary','general','recommendations')) then
   raise exception 'Unknown grading or note field' using errcode='22023';
  end if;
  if v_grading->'profile' <> 'null'::jsonb and v_grading ? 'profile' then
@@ -311,6 +311,54 @@ begin
         case when p_submit then 'contribution_submitted' else 'contribution_saved' end);
  return v_revision;
 end; $$;
+
+
+-- Server-only user-name throttling. Even unknown usernames are counted, and
+-- neither usernames nor credentials are exposed in browser-readable tables.
+create table if not exists public.titularisation_login_attempts (
+ username text primary key,
+ window_started_at timestamptz not null default now(),
+ attempts integer not null default 0 check(attempts>=0)
+);
+alter table public.titularisation_login_attempts enable row level security;
+revoke all on public.titularisation_login_attempts from public,anon,authenticated;
+create or replace function public.guard_titularisation_login(p_username text)
+returns void language plpgsql security definer set search_path='' as $
+declare v_count integer;
+begin
+ if p_username is null or p_username !~ '^cm-[a-z0-9]{12,32}
+revoke all on function public.is_active_titularisation_seat(uuid,text) from public,anon,authenticated;
+revoke all on function public.create_titularisation_mission(text,text,integer) from public,anon,authenticated;
+revoke all on function public.close_titularisation_mission(uuid) from public,anon,authenticated;
+revoke all on function public.validate_titularisation_member_payload(text,jsonb) from public,anon,authenticated;
+revoke all on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean) from public,anon,authenticated;
+grant execute on function public.is_titularisation_owner(uuid) to authenticated;
+grant execute on function public.is_active_titularisation_seat(uuid,text) to authenticated;
+grant execute on function public.create_titularisation_mission(text,text,integer) to authenticated;
+grant execute on function public.close_titularisation_mission(uuid) to authenticated;
+grant execute on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean) to authenticated;
+commit;
+
+-- IMPORTANT: Supabase migration alone does NOT create logins. Provision
+-- Supabase Auth users only through the Edge Function with SERVER secrets.
+-- Run RLS negative tests before the production migration.
+ then
+  raise exception 'Invalid username' using errcode='22023';
+ end if;
+ insert into public.titularisation_login_attempts(username,window_started_at,attempts)
+ values(p_username,now(),1)
+ on conflict(username) do update
+ set attempts=case when public.titularisation_login_attempts.window_started_at<now()-interval '15 minutes'
+       then 1 else public.titularisation_login_attempts.attempts+1 end,
+     window_started_at=case when public.titularisation_login_attempts.window_started_at<now()-interval '15 minutes'
+       then now() else public.titularisation_login_attempts.window_started_at end
+ returning attempts into v_count;
+ if v_count>10 then
+  raise exception 'Too many login attempts' using errcode='P0001';
+ end if;
+end; $;
+revoke all on function public.guard_titularisation_login(text) from public,anon,authenticated;
+grant execute on function public.guard_titularisation_login(text) to service_role;
 
 revoke all on function public.is_titularisation_owner(uuid) from public,anon,authenticated;
 revoke all on function public.is_active_titularisation_seat(uuid,text) from public,anon,authenticated;
