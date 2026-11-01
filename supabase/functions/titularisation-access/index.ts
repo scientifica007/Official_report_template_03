@@ -17,8 +17,9 @@ const alphabet="abcdefghjkmnpqrstuvwxyz23456789";
 function randomCode(length:number){
  const bytes=randomBytes(length);return Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
 }
+const PASSWORD_ALPHABET="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#$%+-_";
 const password=()=>Array.from(randomBytes(32),b=>
- "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#$%+-_"[b%66]).join("");
+ PASSWORD_ALPHABET[b%PASSWORD_ALPHABET.length]).join("");
 function json(value:unknown,status=200,origin=ALLOWED_ORIGIN){
  return new Response(JSON.stringify(value),{
   status,headers:{
@@ -63,8 +64,6 @@ async function requireOwner(token:string,missionId:string){
   .select("id,owner_id,status,expires_at,rubric_id")
   .eq("id",missionId).maybeSingle();
  if(me||!mission||mission.owner_id!==id)throw new Error("FORBIDDEN");
- if(mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now())
-  throw new Error("CLOSED");
  return {db,id,mission};
 }
 async function record(db:ReturnType<typeof admin>,missionId:string,seat:string|null,
@@ -213,6 +212,11 @@ Deno.serve(async req=>{
  if(!token)return error("Authentication required",401);
  try{
   const {db,id,mission}=await requireOwner(token,missionId);
+  if((action==="issue"||action==="rotate")&&
+   (mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now()))
+   return error("هذه المهمة مغلقة أو انتهت صلاحيتها.",409);
+  // Revocation remains permitted AFTER closure, so the inspector can remove
+  // all temporary accounts once the signed paper report has been printed.
   if(action==="issue"){
    const name=String(body.display_name||"").trim();
    if(name.length>160)return error("اسم العرض طويل.",400);
