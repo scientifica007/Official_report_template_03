@@ -135,7 +135,7 @@
 @page {size:A4 portrait;margin:12mm 14mm 5mm}
 @media print {
  #paper .reference-page .reference-report-footer{
-   bottom:-23mm!important;
+   bottom:-26mm!important;
  }
  #paper .reference-page .official-table tr.official-total-row th,
  #paper .reference-page .official-table tr.official-total-row td{
@@ -248,11 +248,11 @@
   text-align:center!important;margin:0!important;
  }
  #paper .reference-minutes-body{
-  padding-top:22mm!important;
+  padding-top:9mm!important;
   margin:0!important;
  }
- #paper .reference-minutes-body .reference-minutes-opening{
-  margin:0 0 4mm!important;line-height:1.25!important;
+ #paper .reference-minutes .reference-minutes-body p.reference-minutes-opening{
+  margin:0 0 4mm!important;line-height:1.47!important;
   text-align:right!important;
  }
  #paper .reference-minutes-signatures{
@@ -261,5 +261,44 @@
  }
  #paper .reference-minutes-signatures .paper-section-heading{
   margin:0 0 2mm!important;
+ }
+}
+
+/* ARCH-01D2-P4-B13 — 01/11/2026 PDF field feedback.
+ * Keep glyphs inside the printable area, and reserve actual rubber-stamp space.
+ * Do not change the interactive editor or DOCX generation. */
+@media print {
+ /* The original 182mm box touches both 14mm page margins. Arabic right-edge
+    glyph overhang needs an additional INNER inset on both physical sides. */
+ #paper .reference-page{
+  padding-inline:3mm!important;
+ }
+ #paper .reference-minutes{
+  padding-bottom:0!important;
+ }
+ /* Keep the report footer outside content, but safely inside A4 print limits. */
+ #paper .reference-page .reference-report-footer{
+  left:3mm!important;right:3mm!important;
+ }
+ /* Result label stays at regular size; only the actual appreciation is enlarged. */
+ #paper .reference-results .reference-general-appreciation{
+  text-align:center!important;
+ }
+ #paper .reference-results .reference-general-appreciation > span{
+  display:block!important;font-size:16pt!important;font-weight:700!important;
+  line-height:1.35!important;margin-top:2mm!important;
+ }
+ /* Make the three committee decisions readable in report and minutes. */
+ #paper .reference-page .reference-decisions{
+  font-size:15pt!important;gap:3mm!important;
+  justify-content:space-around!important;
+  padding:2mm 0!important;
+ }
+ #paper .reference-page .reference-decisions > span{
+  white-space:nowrap!important;
+ }
+ /* Only members 1 and 2 need a reserved stamp area (member 3: signature). */
+ #paper .reference-three-signers .reference-member-sign .reference-stamp-space{
+  height:19mm!important;
  }
 }
