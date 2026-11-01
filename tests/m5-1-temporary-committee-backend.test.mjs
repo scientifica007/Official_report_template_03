@@ -77,7 +77,7 @@ test("M5.1: no browser stored credentials, server secret remains server only",()
  assert.match(edge,/guard_titularisation_login/);
  assert.match(sql,/grant execute on function public\.guard_titularisation_login\(text\) to service_role/);
  assert.match(edge,/if\(origin && origin!==ALLOWED_ORIGIN\)/);
- assert.match(edge,/userClient\(\)\.auth/);
+ assert.match(edge,/const auth=userClient\(\)/);
  assert.match(edge,/signInWithPassword/);
  assert.match(edge,/password:temporaryPassword/);
  assert.doesNotMatch(portal,/SUPABASE_SERVICE_ROLE_KEY|sb_secret_\w{12,}/);
@@ -95,7 +95,7 @@ test("M5.1: owner operations and member login are separated and disabled until b
  assert.match(portal,/committee-issue/);
  assert.match(portal,/committee-revoke/);
  assert.match(portal,/committee-close/);
- assert.match(portal,/لا يُغيَّر التقدير النهائي/);
+ assert.match(portal,/دون تغيير سلطة رئيسها في تحرير التقرير النهائي/);
  assert.match(shell,/name="referrer" content="no-referrer"/);
  assert.match(member,/save_titularisation_member_contribution/);
  assert.match(member,/p_submit:finalize/);
