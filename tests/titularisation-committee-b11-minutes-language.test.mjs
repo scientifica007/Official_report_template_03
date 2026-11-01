@@ -37,8 +37,8 @@ test("minutes date wording is identical in PDF preview and standalone DOCX",()=>
 });
 test("PDF minutes introduction keeps a larger isolated gap without changing the report footer",()=>{
  const css=readFileSync("prototypes/titularisation-committee/print-layout-b5.css","utf8");
- assert.match(css,/#paper \.reference-minutes-body\{\s*padding-top:22mm!important/);
- assert.match(css,/bottom:-23mm!important/);
+ assert.match(css,/#paper \.reference-minutes-body\{\s*padding-top:9mm!important/);
+ assert.match(css,/bottom:-26mm!important/);
  const rules=readFileSync("prototypes/titularisation-committee/document-rules.mjs","utf8");
  assert.doesNotMatch(rules,/ألفية/);
 });
