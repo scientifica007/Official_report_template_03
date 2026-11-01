@@ -77,5 +77,5 @@ test("PDF header is tightly spaced while the body starts lower, without changing
  assert.match(css,/\.reference-minutes-header \.reference-subtitle/);
  assert.match(css,/\.reference-minutes-body\{\s*padding-top:9mm!important/);
  assert.match(css,/\.reference-minutes-signatures\{\s*margin-top:auto!important/);
- assert.match(css,/bottom:-26mm!important/);
+ assert.match(css,/bottom:-28mm!important/);
 });
