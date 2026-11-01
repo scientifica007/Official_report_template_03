@@ -3,7 +3,7 @@
  * Print and DOCX share the same reference projection, not separate calculations. */
 import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
 import {COMMITTEE_APPROVAL_HEADING,MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
- MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,minutesOpeningText}
+ MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,minutesOpeningSegments}
  from "./document-language.mjs";
 const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -27,10 +27,10 @@ function run(s,bold=false,size=24,underline=false){
 }
 // Keep the field-accepted direction and mixed-script runs; only tune spacing
 // and add source-derived table geometry. Report remains editable throughout.
-function p(s,{bold=false,underline=false,center=false,end=false,page=false,size=0,before=120,after=120}={}){
+function p(s,{bold=false,underline=false,center=false,end=false,page=false,size=0,before=120,after=120,segments=null}={}){
  return '<w:p><w:pPr><w:bidi w:val="1"/>'+(page?'<w:pageBreakBefore/>':'')+
  '<w:jc w:val="'+(center?'center':end?'end':'start')+'"/><w:spacing w:before="'+before+'" w:after="'+after+'"/>'+
- '</w:pPr>'+run(s,bold,size||28,underline)+'</w:p>';
+ '</w:pPr>'+(segments?segments.map(part=>run(part.text,part.bold||false,size||28)).join(""):run(s,bold,size||28,underline))+'</w:p>';
 }
 function cell(s,width,fill="",size=20,center=false,bold=false,end=false){
  const bg=fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':"";
@@ -93,7 +93,7 @@ function signatures(d,spacious=false){
  const grid=cols.map(w=>'<w:gridCol w:w="'+w+'"/>').join("");
  const tc=(txt,w,span=1,fill=false)=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+
  (span>1?'<w:gridSpan w:val="'+span+'"/>':"")+(fill?'<w:shd w:fill="DADADA"/>':"")+
- '</w:tcPr>'+p(txt,{size:28,before:45,after:45})+'</w:tc>';
+ '</w:tcPr>'+p(txt,{size:spacious&&fill?32:28,bold:spacious&&fill,center:spacious&&fill,before:45,after:45})+'</w:tc>';
  const tr=(cells,h)=>'<w:tr><w:trPr><w:trHeight w:val="'+h+'" w:hRule="atLeast"/></w:trPr>'+cells.join("")+'</w:tr>';
  const body=(m,i)=>"اللقب والاسم: "+m.name+"\nالوظيفة: "+m.role+"\n"+(i===2?"التوقيع: ":"الختم والتوقيع: ")+"................................";
  return p(COMMITTEE_APPROVAL_HEADING,{bold:true,before:105})+
@@ -117,7 +117,7 @@ function cover(d){
  b+=p("تقرير التفتيش قصد الترسيم",{center:true,bold:true,size:60,before:540,after:120});
  b+=p(d.referenceScopeWarning||"للأساتذة المتخصصين في التكوين والتعليم المهنيين",
   {center:true,bold:true,size:33});
- b+=p("المراجع: "+basis,{center:true,size:26,before:170});
+ b+=p(basis,{center:true,size:26,before:170});
 
  b+=p("إجراء امتحان التثبيت:",{bold:true,before:4400});
  b+=p("المكان: "+d.metaValue("location"),{before:120});
@@ -203,10 +203,10 @@ function minutes(d){
   ['top','bottom','left','right','insideH','insideV'].map(x=>'<w:'+x+' w:val="nil"/>').join('')+
   '</w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="10000"/></w:tblGrid>'+
   '<w:tr><w:tc><w:tcPr><w:tcW w:w="10000" w:type="dxa"/><w:noWrap/></w:tcPr>'+
-  p("المراجع: "+basis,{center:true,size:20,before:35,after:35})+
+  p(basis,{center:true,size:20,before:35,after:35})+
   '</w:tc></w:tr></w:tbl>';
  // Explicit gap above the first operative statement, not between headings.
- b+=p(minutesOpeningText(d,placeholder),{before:950,after:130,size:28});
+ b+=p("",{before:950,after:130,size:28,segments:minutesOpeningSegments(d,placeholder)});
  b+=p("المعيَّن(ة) في رتبة: "+d.metaValue("rank"));
  b+=p("بمؤسسة: "+d.metaValue("institution"));
  b+=p("الولاية: "+d.metaValue("wilaya"));

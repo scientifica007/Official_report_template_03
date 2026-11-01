@@ -98,10 +98,10 @@ test("B14: reference text has a single-line printable rule and no-wrap Word cell
  const root=new Fake("div");renderDocuments(root,freshCommittee());
  const header=minutesHeader(root);
  assert.equal(all(header,x=>x.className.includes("reference-minutes-references")).length,1);
- assert.ok(printable(header).includes("المراجع: "+LEGAL_REFERENCES));
+ assert.ok(printable(header).includes(LEGAL_REFERENCES));
  const word=committeeDocumentXml(freshCommittee(),{kind:"minutes"});
  assert.match(word,/<w:noWrap\/>/);
- assert.ok(documentText(word).includes("المراجع: "+LEGAL_REFERENCES));
+ assert.ok(documentText(word).includes(LEGAL_REFERENCES));
 });
 
 test("B14: PDF labels and Word labels are bold and underlined only in lesson/discussion",()=>{

@@ -106,6 +106,7 @@ export function buildReferenceDocuments(state){
   textWarning:pendingTexts?
    "توجد "+pendingTexts+" مسودة نصية مجمعة للمراجعة داخل المحرر؛ لا تُنسب تلقائيًا إلى اللجنة في التقرير.":"",
   candidate:val(m.candidate)||[m.familyName,m.givenName].filter(Boolean).join(" "),
+  candidateBirthDate:val(m.birthDate),candidateBirthPlace:val(m.birthPlace),
   reportTitle:professionalTitle,
   candidateFields:[
    ["اللقب",metaValue(m,"familyName")],["الاسم",metaValue(m,"givenName")],

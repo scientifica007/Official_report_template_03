@@ -4,7 +4,7 @@
 import {node,add,clear} from "./dom.mjs";
 import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
 import {COMMITTEE_APPROVAL_HEADING,MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
- MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,MINUTES_OPENING_LEAD,minutesOpeningText}
+ MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,minutesOpeningSegments}
  from "./document-language.mjs";
 const empty="................................................";
 function textLine(parent,label,value,extraClass=""){
@@ -99,7 +99,7 @@ function cover(article,d){
  pg.append(node("h2","تقرير التفتيش قصد الترسيم","reference-main-title"));
  pg.append(node("p",d.referenceScopeWarning||
   "للأساتذة المتخصصين في التكوين والتعليم المهنيين","reference-subtitle"));
- pg.append(node("p","المراجع: "+LEGAL_REFERENCES,"reference-line"));
+ pg.append(node("p",LEGAL_REFERENCES,"reference-line"));
 
  const bottom=node("div","","reference-cover-exam");
  heading(bottom,"إجراء امتحان التثبيت");
@@ -179,15 +179,14 @@ function minutes(article,d){
  const header=node("div","","reference-minutes-header");
  header.append(node("h2",MINUTES_TITLE));
  if(d.minutesScope)header.append(node("p",d.minutesScope,"reference-subtitle"));
- header.append(node("p","المراجع: "+LEGAL_REFERENCES,"reference-line reference-minutes-references"));
+ header.append(node("p",LEGAL_REFERENCES,"reference-line reference-minutes-references"));
  pg.append(header);
 
  // The minutes narrative starts as a distinct, clearly separated body.
  const body=node("div","","reference-minutes-body");
  const opening=node("p","","paper-line reference-minutes-opening");
- const full=minutesOpeningText(d,empty);
- add(opening,node("strong",MINUTES_OPENING_LEAD),
-  node("span",full.slice(MINUTES_OPENING_LEAD.length)));
+ for(const part of minutesOpeningSegments(d,empty))
+  opening.append(node(part.bold?"strong":"span",part.text));
  body.append(opening);
  textLine(body,"المعيَّن(ة) في رتبة:",d.metaValue("rank"));
  textLine(body,"بمؤسسة:",d.metaValue("institution"));

@@ -327,3 +327,15 @@
   text-align:center!important;
  }
 }
+
+/* B16: magnify signer labels only on final report page. */
+@media print {
+ #paper .reference-results .reference-three-signers .reference-member-sign > strong,
+ #paper .reference-results .reference-chair-sign > strong {
+  font-size:14pt!important;
+  line-height:1.3!important;
+  font-weight:700!important;
+ }
+ #paper .reference-minutes .reference-minutes-opening > span{font-weight:400!important}
+ #paper .reference-minutes .reference-minutes-opening > strong{font-weight:700!important}
+}

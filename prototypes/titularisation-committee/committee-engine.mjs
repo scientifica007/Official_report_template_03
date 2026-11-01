@@ -30,6 +30,7 @@ export const METADATA_GROUPS=Object.freeze([
   ["inspectorEmail","البريد الإلكتروني للمفتش"],["chairName","اسم ولقب رئيس اللجنة"]]},
  {label:"بيانات الأستاذ المترشح",fields:[
   ["familyName","اللقب"],["givenName","الاسم"],["birth","تاريخ ومكان الميلاد"],
+  ["birthDate","تاريخ الميلاد (للمحضر)"],["birthPlace","مكان الميلاد (للمحضر)"],
   ["installationDate","تاريخ التنصيب"],["assignmentDate","تاريخ التعيين"],
   ["assignmentInstitution","مؤسسة التعيين"],["examCenter","مركز الامتحان"],
   ["certificate","الشهادة"],["specialty","الاختصاص"],
