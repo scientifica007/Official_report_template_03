@@ -26,6 +26,9 @@ test("M5: launcher connects both models without changing their editor or storage
  assert.match(cloud,/لا تُحفظ مسوداته على Supabase/);
  assert.match(cloud,/رابطه العام ليس حسابًا محميًا/);
  assert.match(cloud,/النموذج الشخصي الثاني — مخطط مستقبلًا/);
+ assert.match(cloud,/حسابات أعضاء لجنة الترسيم المؤقتة — قيد التفعيل/);
+ assert.match(cloud,/ثلاثة روابط مستقلة/);
+ assert.match(cloud,/لم تُفعَّل خدمة الحسابات المؤقتة بعد/);
  assert.match(lab,/href="\.\.\/\.\.\/"/);
  assert.match(lab,/العودة إلى منصة التفتيش والتقويم المهني/);
 });
