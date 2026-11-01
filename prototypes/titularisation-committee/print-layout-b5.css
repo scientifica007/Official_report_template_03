@@ -135,7 +135,7 @@
 @page {size:A4 portrait;margin:12mm 14mm 5mm}
 @media print {
  #paper .reference-page .reference-report-footer{
-   bottom:-28mm!important;
+   bottom:-26mm!important;
  }
  #paper .reference-page .official-table tr.official-total-row th,
  #paper .reference-page .official-table tr.official-total-row td{
@@ -303,9 +303,12 @@
  }
 }
 
-/* ARCH-01D2-P4-B14 — field-approved PDF, limited refinements only.
- * 12mm top + 252mm page + 28mm offset = 292mm: the footer ends at the
- * 5mm physical A4 bottom safety limit. Do not lower it beyond this bound. */
+/* ARCH-01D2-P4-B14/B15 — retain accepted formatting, but undo the
+ * B14 footer offset that placed its bottom EXACTLY at the printable limit.
+ * With 12mm top margin + 252mm page + 26mm footer offset = 290mm,
+ * the footer has 2mm spare inside the 292mm bottom print boundary.
+ * B15: DO NOT lower the footer again; a zero-clearance layout can fragment
+ * or transfer the footer to a subsequent physical sheet in Chromium. */
 @media print {
  #paper .reference-page .reference-assessment-label strong,
  #paper .reference-page p.reference-empty-appreciation {
