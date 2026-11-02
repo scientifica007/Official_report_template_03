@@ -206,7 +206,12 @@ function renderDashboard(){
    card.append(element("h3",seatNames[code]));
    card.append(notice("الحساب: "+({vacant:"غير مُصدر",active:"نشط",revoked:"ملغى"})[data.status],"status"));
    card.append(element("p","المساهمة: "+(c?.status==="submitted"?"مرسلة نهائيًا":c?.status==="draft"?"مسودة":"غير موجودة")));
-   if(data.username)card.append(element("p","اسم المستخدم: "+data.username));
+   if(data.username){
+    const details=element("details");
+    details.append(element("summary","بيانات الدخول البديلة (اختيارية)"),
+      element("p","اسم المستخدم: "+data.username));
+    card.append(details);
+   }
    const actions=element("div","","actions");
    if(active&&data.status!=="active"&&c?.status!=="submitted"){
     const name=input("text","اسم اختباري اختياري");name.maxLength=160;
