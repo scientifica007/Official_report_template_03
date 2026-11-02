@@ -107,6 +107,20 @@ export function validateWeights(weights){
  }
  return {valid:errors.length===0,errors,groups};
 }
+// Compare profile VALUES, not JSON object insertion order. Supabase jsonb
+// normalizes key ordering whereas the workbench rebuilds keys while validating.
+// It must never reject two identical 14-item profiles solely for key order.
+export function sameWeightProfile(left,right){
+ if(left===null||right===null)return left===null&&right===null;
+ if(!plain(left)||!plain(right)||!plain(left.weights)||!plain(right.weights)||
+  typeof left.frozen!=="boolean"||left.frozen!==right.frozen)return false;
+ if(Object.keys(left).length!==2||Object.keys(right).length!==2)return false;
+ const a=Object.keys(left.weights),b=Object.keys(right.weights);
+ if(a.length!==b.length||a.some(id=>!Object.hasOwn(right.weights,id)))return false;
+ return a.every(id=>typeof left.weights[id]==="number"&&
+  typeof right.weights[id]==="number"&&
+  Number.isFinite(left.weights[id])&&left.weights[id]===right.weights[id]);
+}
 const copy=d=>JSON.parse(JSON.stringify(d));
 const hasScores=d=>Object.keys(d.scores.lesson||{}).length>0||Object.keys(d.scores.discussion||{}).length>0;
 export function withWeight(draft,id,value){
