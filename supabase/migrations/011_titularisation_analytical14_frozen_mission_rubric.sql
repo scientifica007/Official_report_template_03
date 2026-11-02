@@ -56,8 +56,8 @@ begin
   where key like v||'_%'
     and jsonb_typeof(value)='number';
   if group_sum<>group_cap or
-    item_count<>case v when 'g1' then 3 when 'g2' then 3
-                        when 'g3' then 4 else 2 end then
+    item_count <> (case v when 'g1' then 3 when 'g2' then 3
+                        when 'g3' then 4 else 2 end) then
    raise exception 'Group caps must sum to 12,8,8,6,6' using errcode='22023';
   end if;
  end loop;
