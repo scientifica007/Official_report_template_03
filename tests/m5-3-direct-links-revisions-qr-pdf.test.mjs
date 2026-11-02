@@ -67,11 +67,12 @@ test("M5.3: QR local, PDF downloaded with a real clickable link annotation",asyn
   globalThis.qrcodegen={QrCode:{
    Ecc:{MEDIUM:{}},encodeText:()=>({size:2,getModule:(x,y)=>x===y})
   }};
+  const invitationText=[];
   globalThis.document={createElement:tag=>{
    assert.equal(tag,"canvas");
    return {width:0,height:0,getContext(){return {
     fillStyle:"",direction:"rtl",textAlign:"center",font:"",
-    fillRect(){},fillText(){},drawImage(){}
+    fillRect(){},fillText(text){invitationText.push(text)},drawImage(){}
    }},toDataURL(){return "data:image/jpeg;base64,"+btoa("fake-jpeg-binary")}}
   }};
   const url="https://scientifica007.github.io/Official_report_template_03/qa-titularisation/member/?mission=test&seat=member1#access=EXAMPLE_FAKE";
@@ -84,6 +85,9 @@ test("M5.3: QR local, PDF downloaded with a real clickable link annotation",asyn
   assert.ok(pdfString.includes("#access=EXAMPLE_FAKE"));
   assert.match(pdfString,/\/Subtype \/Image/);
   assert.match(pdfString,/startxref/);
+  assert.ok(invitationText.includes("امسح رمز QR لفتح مساهمتك مباشرة"));
+  assert.ok(invitationText.some(x=>x.startsWith("تنتهي الصلاحية: ")));
+  assert.ok(!invitationText.includes("دون اسم مستخدم أو كلمة مرور"),"The old caption must not be drawn into the PDF");
  }finally{
   globalThis.document=oldDocument;globalThis.qrcodegen=oldQr;
  }
