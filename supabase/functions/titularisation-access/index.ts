@@ -123,6 +123,79 @@ const freshLinkToken=()=>{
  const bytes=randomBytes(32);
  return btoa(String.fromCharCode(...bytes)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
 };
+// M5.5 — A recoverable invitation remains a credential. Encrypt the raw
+// token on the server; never send the sealed fields to authenticated REST
+// clients, the public site, access logs or any downloadable JSON report.
+// A dedicated COMMITTEE_LINK_VAULT_SECRET is preferable in production;
+// QA falls back to the existing server-only service key. Rotating that
+// underlying key without migrating the vault makes old links unrecoverable.
+const bytesToBase64=(bytes:Uint8Array)=>
+ btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(""));
+const base64ToBytes=(value:string)=>
+ Uint8Array.from(atob(value),char=>char.charCodeAt(0));
+async function inviteVaultKey(){
+ const material=Deno.env.get("COMMITTEE_LINK_VAULT_SECRET")||SERVICE_KEY;
+ if(material.length<30)throw new Error("VAULT_NOT_CONFIGURED");
+ const kdfKey=await crypto.subtle.importKey("raw",new TextEncoder().encode(material),
+  "HKDF",false,["deriveKey"]);
+ return crypto.subtle.deriveKey({
+  name:"HKDF",hash:"SHA-256",
+  salt:new TextEncoder().encode("Scientifica titularisation invitation vault v1"),
+  info:new TextEncoder().encode("server-only AES-GCM access-link token encryption")
+ },kdfKey,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function sealInvite(rawToken:string){
+ const nonce=randomBytes(12),key=await inviteVaultKey();
+ const sealed=new Uint8Array(await crypto.subtle.encrypt({
+  name:"AES-GCM",iv:nonce,
+ },key,new TextEncoder().encode(rawToken)));
+ return {sealed_token:bytesToBase64(sealed),sealed_token_nonce:bytesToBase64(nonce)};
+}
+async function unsealInvite(sealed:string,nonce:string){
+ const iv=base64ToBytes(nonce),bytes=base64ToBytes(sealed);
+ if(iv.length!==12)throw new Error("INVALID_NONCE");
+ const result=await crypto.subtle.decrypt({name:"AES-GCM",iv},
+  await inviteVaultKey(),bytes);
+ return new TextDecoder().decode(result);
+}
+function seatDirectUrl(missionId:string,seatCode:string,secret:string){
+ return ALLOWED_ORIGIN+"/Official_report_template_03/qa-titularisation/member/?mission="+
+  encodeURIComponent(missionId)+"&seat="+encodeURIComponent(seatCode)+
+  "#access="+encodeURIComponent(secret);
+}
+async function retrieveLink(db:ReturnType<typeof admin>,mission:{
+ id:string;status:string;expires_at:string},seatCode:string){
+ if(mission.status!=="draft"||Date.parse(mission.expires_at)<=Date.now())
+  return error("المهمة مغلقة؛ روابط الدخول لم تعد صالحة.",409);
+ const {data:seat,error:se}=await db.from("titularisation_seats")
+  .select("status,expires_at,revoked_at")
+  .eq("mission_id",mission.id).eq("seat_code",seatCode).maybeSingle();
+ if(se||!seat||seat.status!=="active"||seat.revoked_at||
+  Date.parse(seat.expires_at)<=Date.now())
+  return error("حساب العضو ملغى أو منتهي الصلاحية.",409);
+ const {data:link,error:le}=await db.from("titularisation_member_links")
+  .select("token_hash,sealed_token,sealed_token_nonce,expires_at,revoked_at")
+  .eq("mission_id",mission.id).eq("seat_code",seatCode).maybeSingle();
+ if(le)return error("تعذر قراءة بيانات الدعوة.",503);
+ if(!link)return error("لم يُنشأ رابط مباشر لهذا العضو بعد.",404);
+ if(link.revoked_at||Date.parse(link.expires_at)<=Date.now())
+  return error("انتهت صلاحية الرابط أو أُلغي. أنشئ رابطًا جديدًا.",410);
+ if(!link.sealed_token||!link.sealed_token_nonce)
+  return error("الرابط القديم محفوظ كبصمة أمنية فقط ولا يمكن استعادته. أنشئ رابطًا جديدًا مرة واحدة.",409);
+ try{
+  const raw=await unsealInvite(link.sealed_token,link.sealed_token_nonce);
+  if(await hex(raw)!==link.token_hash)throw new Error("INTEGRITY");
+  return json({
+   mission_id:mission.id,seat_code:seatCode,
+   link:seatDirectUrl(mission.id,seatCode,raw),
+   expires_at:link.expires_at,recovered:true,
+   warning:"رابط دخول حساس. لا تشاركه إلا مع العضو المعني."
+  });
+ }catch(_){
+  return error("تعذّر فك تشفير الدعوة. أصدر رابطًا جديدًا؛ لا تتغير مساهمة العضو.",503);
+ }
+}
+
 async function issueLink(db:ReturnType<typeof admin>,actor:string,
  mission:{id:string;expires_at:string},seatCode:string){
  const {data:seat,error:e}=await db.from("titularisation_seats")
@@ -132,17 +205,16 @@ async function issueLink(db:ReturnType<typeof admin>,actor:string,
   return error("يجب إنشاء حساب العضو أولًا.",409);
  const secret=freshLinkToken();
  const digest=await hex(secret);
+ const sealed=await sealInvite(secret);
  const expiry=new Date(Math.min(Date.parse(mission.expires_at),Date.now()+24*60*60*1000)).toISOString();
  const {error:saveError}=await db.from("titularisation_member_links").upsert({
   mission_id:mission.id,seat_code:seatCode,token_hash:digest,
-  expires_at:expiry,revoked_at:null,created_at:new Date().toISOString()
+  ...sealed,expires_at:expiry,revoked_at:null,created_at:new Date().toISOString()
  },{onConflict:"mission_id,seat_code"});
  if(saveError)return error("تعذر إصدار الرابط. راجع إعدادات قاعدة البيانات.",503);
  // Deliberately no password or username in this bearer link. The fragment
  // is stripped by the member browser before contacting the Edge function.
- const link=ALLOWED_ORIGIN+"/Official_report_template_03/qa-titularisation/member/?mission="+
-  encodeURIComponent(mission.id)+"&seat="+encodeURIComponent(seatCode)+
-  "#access="+encodeURIComponent(secret);
+ const link=seatDirectUrl(mission.id,seatCode,secret);
  await record(db,mission.id,seatCode,actor,"link_issued");
  return json({mission_id:mission.id,seat_code:seatCode,link,expires_at:expiry,
   warning:"الرابط يمنح وصولًا لمن يحمله حتى انتهاء صلاحيته أو إلغائه. أرسله مباشرة إلى العضو ولا تنشره علنًا."});
@@ -347,6 +419,7 @@ Deno.serve(async req=>{
    if(name.length>160)return error("اسم العرض طويل.",400);
    return await issueDirect(db,id,mission,seatCode,name);
   }
+  if(action==="get_saved_link")return await retrieveLink(db,mission,seatCode);
   if(action==="issue_link")return await issueLink(db,id,mission,seatCode);
   if(action==="rotate")return await rotate(db,id,missionId,seatCode);
   if(action==="revoke")return await revoke(db,id,missionId,seatCode);
