@@ -19,7 +19,7 @@ alter table public.titularisation_missions
 -- score engine exactly. Each group sums to its existing group cap.
 create or replace function public.freeze_titularisation_analytical_weights(
  p_mission_id uuid,p_weights jsonb
-) returns jsonb language plpgsql security definer set search_path='' as $$
+) returns jsonb language plpgsql security definer set search_path='' as $rubric14$
 declare m public.titularisation_missions%rowtype;
  v text;w jsonb;v_value jsonb;v_number numeric;
  group_cap numeric;group_sum numeric;item_count integer;
@@ -76,7 +76,7 @@ begin
  w:=jsonb_build_object('weights',p_weights,'frozen',true);
  update public.titularisation_missions set rubric_profile=w where id=m.id;
  return w;
-end; $$;
+end; $rubric14$;
 revoke all on function public.freeze_titularisation_analytical_weights(uuid,jsonb)
  from public,anon,authenticated;
 grant execute on function public.freeze_titularisation_analytical_weights(uuid,jsonb)
@@ -84,7 +84,7 @@ grant execute on function public.freeze_titularisation_analytical_weights(uuid,j
 
 create or replace function public.create_titularisation_mission(
  p_title text,p_rubric_id text,p_expiry_hours integer default 168
-) returns uuid language plpgsql security definer set search_path='' as $$
+) returns uuid language plpgsql security definer set search_path='' as $rubric14$
 declare v_id uuid;
 begin
  if (select auth.uid()) is null or not public.is_approved_inspector() then
@@ -104,7 +104,7 @@ begin
  insert into public.titularisation_access_events(mission_id,actor_id,kind)
  values(v_id,(select auth.uid()),'mission_created');
  return v_id;
-end; $$;
+end; $rubric14$;
 revoke all on function public.create_titularisation_mission(text,text,integer)
  from public,anon,authenticated;
 grant execute on function public.create_titularisation_mission(text,text,integer)
@@ -114,7 +114,7 @@ grant execute on function public.create_titularisation_mission(text,text,integer
 -- frozen server-side profile and exact nested JSON shape.
 create or replace function public.validate_titularisation_analytical_payload(
  p_mission uuid,p jsonb
-) returns void language plpgsql security definer set search_path='' as $$
+) returns void language plpgsql security definer set search_path='' as $rubric14$
 declare v_profile jsonb;g jsonb;n jsonb;v_scores jsonb;
  phase text;key text;val jsonb;cap numeric;num numeric;
 begin
@@ -189,7 +189,7 @@ begin
    raise exception 'Invalid prose field' using errcode='22023';
   end if;
  end loop;
-end; $$;
+end; $rubric14$;
 revoke all on function public.validate_titularisation_analytical_payload(uuid,jsonb)
  from public,anon,authenticated;
 
@@ -197,7 +197,7 @@ revoke all on function public.validate_titularisation_analytical_payload(uuid,js
 -- only the selection of validation by the mission's rubric changes.
 create or replace function public.save_titularisation_member_contribution(
  p_mission_id uuid,p_seat_code text,p_payload jsonb,p_submit boolean default false
-) returns bigint language plpgsql security definer set search_path='' as $$
+) returns bigint language plpgsql security definer set search_path='' as $rubric14$
 declare v_rubric text;v_revision bigint;v_prev_status text;
 begin
  select rubric_id into v_rubric from public.titularisation_missions
@@ -236,7 +236,7 @@ begin
  case when v_prev_status='submitted' then 'Corrected after submission; previous revision archived'
  else '' end);
  return v_revision;
-end; $$;
+end; $rubric14$;
 revoke all on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean)
  from public,anon,authenticated;
 grant execute on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean)
