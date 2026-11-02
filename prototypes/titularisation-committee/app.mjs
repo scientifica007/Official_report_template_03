@@ -15,6 +15,7 @@ import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
 import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers} from "./committee-cloud-bridge.mjs";
 let state=freshCommittee(),who="final";
+const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
 const labels={institution:"المؤسسة",candidate:"الأستاذ/المترشح",rank:"الرتبة",
@@ -28,6 +29,8 @@ function render(){
  dismissVoiceDictation();
  $("mode").value=state.mode;
  $("rubric").value=Object.keys(RUBRICS).find(k=>RUBRICS[k].id===state.rubricId);
+ // The mission, not a second independent editor, owns the rubric in QA.
+ $("rubric").disabled=qaReport;
  const seats=clear($("who"));
  for(const [key,label] of [["final","المفتش — الصيغة النهائية"],...(
   state.mode==="individual"?SEATS.map(s=>[s.id,"محاكاة "+s.label]):[]) ]){
@@ -72,7 +75,15 @@ function render(){
   }
   details.append(grid);meta.append(details);
  }
- renderWeights($("weights"),state,commit);
+ if(qaReport){
+  const weightsBox=clear($("weights"));
+  if(state.rubricId===RUBRICS.analytical14.id){
+   weightsBox.append(node("h2","أوزان المؤشرات الأربعة عشر"));
+   weightsBox.append(node("p",state.final.grading.profile?.frozen?
+    "الأوزان مأخوذة تلقائيًا من ملف المهمة المثبت لدى رئيس اللجنة. لا يلزم إدخالها مرة ثانية.":
+    "لا تُدخل الأوزان هنا. افتح هذه الصفحة من المهمة السحابية لتحميل الأوزان المثبتة.","good"));
+  }
+ }else renderWeights($("weights"),state,commit);
  renderForm($("editor"),state,who,commit);
  attachVoiceDictation($("editor"));
  renderMembers($("members"),state);
@@ -168,7 +179,25 @@ if(committeeCloudEnabled()){
     info("استُوردت "+next.seats.length+" مساهمة مرسلة بعد التحقق. بقيت بيانات المفتش النهائية كما هي.");
    }catch(err){info(err.message)}
   });
-  if(window.REPORT03_CLOUD_CONFIG?.qaOnly===true) $("committee-cloud-refresh").click();
+  if(qaReport){
+   $("committee-cloud-refresh").click();
+   // When launched from an inspector's mission, make the saved mission
+   // the single source of truth even BEFORE the user clicks import. The
+   // initial empty grouped-five draft must not ask for duplicate weights.
+   // Do not overwrite a local JSON draft or user edits made while loading.
+   const linked=new URLSearchParams(location.search).get("mission");
+   if(linked){
+    const untouched=state;
+    loadCloudCommitteeSubmissions(linked).then(({mission})=>{
+     if(state!==untouched)return;
+     const target=prepareCloudCommitteeDraft(mission);
+     clearVoiceDrafts();
+     state=target;who="final";render();
+     picker.value=linked;
+     info("تم تحميل شبكة المهمة وأوزانها المثبتة تلقائيًا من رئيس اللجنة. اضغط «استيراد المساهمات المرسلة» لإضافة تقييمات الأعضاء دون إدخال الأوزان مرة ثانية.");
+    }).catch(err=>info("تعذر تحميل أوزان المهمة تلقائيًا: "+err.message));
+   }
+  }
  }
 }
 // PDF keeps the browser's native print/save-as-PDF workflow; selection applies
