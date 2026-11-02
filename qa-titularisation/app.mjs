@@ -2,6 +2,7 @@
  * All access is restricted by Supabase Auth and database RLS.
  * Public publishable key only; no browser service-role key and no password persistence.
  */
+import {qrCanvas,downloadInvitationPdf} from "./invitation-pdf.mjs";
 const config=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(config.supabaseUrl||"").replace(/\/+$/,"");
 const publicKey=String(config.publishableKey||"");
@@ -216,6 +217,11 @@ function renderDashboard(){
     },"primary"));
    }
    if(active&&data.status==="active"){
+    actions.append(button("إنشاء رابط دخول مباشر (دون كلمة مرور)",async()=>{
+     if(!confirm("سيُنشأ رابط مباشر خاص بهذا العضو، ويُلغى تلقائيًا أي رابط مباشر سابق لهذا المقعد. هل تتابع؟"))return;
+     issued=await edge("issue_link",{mission_id:selected,seat_code:code});
+     await refreshData();announce("أُصدر رابط مباشر قابل للإلغاء للمقعد "+seatNames[code]+".");
+    },"primary"));
     actions.append(button("تغيير كلمة المرور",async()=>{
      if(!confirm("هل تؤكد تغيير كلمة مرور هذا العضو؟"))return;
      issued=await edge("rotate",{mission_id:selected,seat_code:code});
@@ -244,32 +250,47 @@ function renderDashboard(){
 }
 function renderIssued(parent){
  const box=element("div","","secret");box.setAttribute("role","status");
- box.append(element("strong","بيانات دخول ظهرت مرة واحدة — سلّمها لعضو اللجنة"));
- const code=issued.seat_code;
- box.append(element("p","المقعد: "+(seatNames[code]||code)));
- const username=element("code",issued.username||"","code");
- box.append(element("p","اسم المستخدم: "),username);
- const password=element("code",issued.password||"","code");
- box.append(element("p","كلمة المرور: "),password);
- const url=new URL("./member/?mission="+encodeURIComponent(selected)+"&seat="+encodeURIComponent(code),location.href).href;
- const link=element("a","رابط دخول العضو");link.href=url;link.target="_blank";link.rel="noopener noreferrer";
- box.append(element("p","الرابط: "),link);
+ const code=issued.seat_code,seat=seatNames[code]||code;
+ const isDirect=!!issued.link&&!issued.password;
+ box.append(element("strong",isDirect?
+  "رابط مباشر خاص بالعضو — لا يحتاج اسم مستخدم أو كلمة مرور":
+  "بيانات دخول تظهر مرة واحدة — سلّمها للعضو"));
+ box.append(element("p","المقعد: "+seat));
+ let url;
+ if(isDirect){
+  url=issued.link;
+  box.append(notice("من يمتلك هذا الرابط يستطيع فتح المساهمة. أرسله للعضو مباشرة، ولا تنشره علنًا. يمكن إصدار رابط جديد لإبطال القديم، كما يتوقف الوصول عند إلغاء الحساب أو إغلاق المهمة.","notice"));
+  box.append(element("p","ينتهي الرابط: "+new Date(issued.expires_at).toLocaleString("ar-DZ")));
+ }else{
+  url=new URL("./member/?mission="+encodeURIComponent(selected)+"&seat="+encodeURIComponent(code),location.href).href;
+  box.append(element("p","اسم المستخدم: "+(issued.username||"")));
+  box.append(element("p","كلمة المرور: "+(issued.password||"")));
+ }
+ const link=element("a","افتح رابط مساهمة العضو");
+ link.href=url;link.target="_blank";link.rel="noopener noreferrer";
+ box.append(element("p","الرابط المكتوب: "),link);
+ if(isDirect){
+  const text=element("p",url,"code");text.dir="ltr";box.append(text);
+  const qr=qrCanvas(url,360);
+  qr.setAttribute("role","img");qr.setAttribute("aria-label","رمز QR للدخول المباشر إلى المقعد");
+  qr.style.cssText="display:block;max-width:100%;height:auto;margin:12px auto;background:white;border:8px solid white";
+  box.append(qr);
+ }
  const actions=element("div","","actions");
- actions.append(button("نسخ بيانات الدخول",async()=>{
-  const content="رابط العضو: "+url+"\nاسم المستخدم: "+issued.username+"\nكلمة المرور: "+issued.password;
-  if(!navigator.clipboard?.writeText)throw Error("النسخ غير مدعوم بهذا المتصفح.");
-  await navigator.clipboard.writeText(content);announce("نُسخت بيانات الاختبار. لا تحتفظ بها بعد انتهاء المهمة.");
- }),button("إخفاء كلمة المرور الآن",async()=>{issued=null;announce("أُخفيت بيانات الدخول.");}));
+ actions.append(button(isDirect?"نسخ الرابط المباشر":"نسخ بيانات الدخول",async()=>{
+  const clipboard=isDirect?url:
+   "رابط العضو: "+url+"\nاسم المستخدم: "+issued.username+"\nكلمة المرور: "+issued.password;
+  if(!navigator.clipboard?.writeText)throw Error("النسخ غير مدعوم.");
+  await navigator.clipboard.writeText(clipboard);
+  announce("تم نسخ بيانات العضو.");
+ }));
+ if(isDirect)actions.append(button("تنزيل بطاقة PDF (QR + رابط قابل للنقر)",async()=>{
+  const title=missions.find(m=>m.id===selected)?.title||"لجنة الترسيم";
+  downloadInvitationPdf({url,title,seat,expiresAt:issued.expires_at});
+  announce("تم إعداد بطاقة الدعوة PDF محليًا في متصفحك.");
+ },"primary"));
+ actions.append(button("إخفاء بيانات الدعوة من الشاشة",async()=>{
+  issued=null;announce("أُخفيت بيانات الدعوة من الواجهة.");
+ }));
  box.append(actions);parent.append(box);
 }
-try{
- const saved=JSON.parse(sessionStorage.getItem(TOKEN_KEY)||"null");
- if(saved?.access_token&&saved?.refresh_token&&saved?.userId)session=saved;
-}catch(_){}
-if(session){
- try{await refreshProfile();if(!profile?.approved||profile.account_status!=="approved")
-  throw Error("حساب المفتش غير معتمد في بيئة الاختبار.");
-  await refreshData();
- }catch(err){saveSession(null);profile=null;announce("سجل الدخول مجددًا: "+err.message,true)}
-}
-render();
