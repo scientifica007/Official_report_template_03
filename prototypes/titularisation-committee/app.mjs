@@ -13,7 +13,7 @@ import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
-import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,mergeSubmittedCloudMembers} from "./committee-cloud-bridge.mjs";
+import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers} from "./committee-cloud-bridge.mjs";
 let state=freshCommittee(),who="final";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
@@ -140,7 +140,9 @@ if(committeeCloudEnabled()){
      const item=node("option",m.title+" — "+(m.status==="draft"?"جارية":"مغلقة"));
      item.value=m.id;picker.append(item);
     }
-    info("تم تحميل "+missions.length+" مهمة. اختر المهمة المطابقة لشبكة التقييم الحالية.");
+    const preferred=new URLSearchParams(location.search).get("mission");
+    if(missions.some(m=>m.id===preferred))picker.value=preferred;
+    info("تم تحميل "+missions.length+" مهمة. يمكنك استيراد المساهمات المرسلة حتى بعد إغلاق المهمة وحذف الحسابات.");
    }catch(err){info(err.message)}
   });
   $("committee-cloud-import").addEventListener("click",async()=>{
@@ -149,9 +151,16 @@ if(committeeCloudEnabled()){
    info("جارٍ قراءة المساهمات المرسلة والتحقق منها...");
    try{
     const {mission,rows}=await loadCloudCommitteeSubmissions(id);
-    const next=mergeSubmittedCloudMembers(state,mission,rows);
+    const matches=state.rubricId===mission.rubric_id &&
+     (mission.rubric_id!==RUBRICS.analytical14.id||
+      JSON.stringify(state.final.grading.profile)===JSON.stringify(mission.rubric_profile));
+    if(!matches&&!confirm("شبكة المسودة أو أوزانها تختلف عن المهمة. سيُنشأ محرر جديد مطابق للأوزان المثبتة وتضيع تعديلات المسودة الحالية. صدّر JSON احتياطيًا أولًا. هل توافق؟")){
+     info("لم تتغير المسودة.");return;
+    }
+    const input=matches?state:prepareCloudCommitteeDraft(mission);
+    const next=mergeSubmittedCloudMembers(input,mission,rows);
     const labels=next.seats.join("، ");
-    if(!confirm("استيراد مساهمات "+labels+" سيستبدل محتوى هذه المقاعد في المسودة الحالية. لن يتغير تحرير المفتش النهائي. صدّر ملف JSON احتياطيًا أولًا. موافق؟")){
+    if(!confirm("استيراد مساهمات "+labels+" المرسلة فقط؟ لن تتغير علامات المفتش النهائية ولا نصوصه المحررة.")){
      info("لم تتغير المسودة.");return;
     }
     clearVoiceDrafts();
@@ -159,6 +168,7 @@ if(committeeCloudEnabled()){
     info("استُوردت "+next.seats.length+" مساهمة مرسلة بعد التحقق. بقيت بيانات المفتش النهائية كما هي.");
    }catch(err){info(err.message)}
   });
+  if(window.REPORT03_CLOUD_CONFIG?.qaOnly===true) $("committee-cloud-refresh").click();
  }
 }
 // PDF keeps the browser's native print/save-as-PDF workflow; selection applies

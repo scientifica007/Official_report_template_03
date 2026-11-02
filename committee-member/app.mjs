@@ -121,10 +121,11 @@ function addScoreField(area,phase,item){
  score.step="0.5";score.inputMode="decimal";
  score.value=payload.grading.scores[phase][item.id]??"";
  score.setAttribute("aria-label","علامة: "+item.label);
- const note=el("textarea");note.rows=3;note.maxLength=5000;
+ const note=el("textarea");note.rows=3;note.maxLength=4000;
  note.placeholder="تقدير مختصر يتعلق بهذا المؤشر";
  note.dataset.voiceKey=[requestedMission,requestedSeat,phase,item.id].join("|");
  note.value=payload.notes[phase][item.id]||"";
+ if(item.cap===0)score.disabled=true;
  score.addEventListener("change",()=>{
   try{
    payload.grading=withScore(payload.grading,phase,item.id,score.value);
@@ -146,6 +147,8 @@ function renderEditor(){
  const card=el("section");card.className="card";
  card.append(el("h2","تقدير الأداء المهني"),
   el("p","هذه مساهمتك أنت فقط. يستطيع رئيس اللجنة الاطلاع عليها بعد حفظها. لا تتغير مساهمات بقية الأعضاء."));
+ if(mission.rubric_id===RUBRICS.analytical14.id)
+  card.append(message("الشبكة التحليلية: 14 مؤشرًا بأوزان ثبتها رئيس اللجنة، ومجموع الحصة 40 والمناقشة 20."));
  if(submitted){
   card.append(message("مساهمتك مرسلة بالفعل. يمكنك تصحيح العلامات أو التقديرات وإعادة إرسال النسخة المصححة ما دامت المهمة مفتوحة؛ تُحفظ النسخة السابقة في سجل التعديلات."));
  }
@@ -213,7 +216,7 @@ async function persist(finalize){
 }
 async function load(){
  const [missions,seats,submissions]=await Promise.all([
-  list("titularisation_missions",{id:"eq."+requestedMission},"id,title,rubric_id,status,expires_at"),
+  list("titularisation_missions",{id:"eq."+requestedMission},"id,title,rubric_id,rubric_profile,status,expires_at"),
   list("titularisation_seats",{mission_id:"eq."+requestedMission,seat_code:"eq."+requestedSeat},
    "seat_code,display_name,status,expires_at"),
   list("titularisation_contributions",{mission_id:"eq."+requestedMission,seat_code:"eq."+requestedSeat},
@@ -223,7 +226,15 @@ async function load(){
  if(!mission||!seat||mission.status!=="draft"||seat.status!=="active")
   throw Error("لا توجد مهمة نشطة أو انتهت صلاحية الحساب.");
  const saved=submissions?.[0]||null;
- payload=saved?.payload||{grading:newDraft(mission.rubric_id),notes:newNotes()};
+ if(mission.rubric_id===RUBRICS.analytical14.id&&mission.rubric_profile?.frozen!==true)
+  throw Error("رئيس اللجنة لم يثبت أوزان المؤشرات الأربعة عشر بعد.");
+ const grading=newDraft(mission.rubric_id);
+ if(mission.rubric_id===RUBRICS.analytical14.id)
+  grading.profile=structuredClone(mission.rubric_profile);
+ payload=saved?.payload||{grading,notes:newNotes()};
+ if(mission.rubric_id===RUBRICS.analytical14.id&&
+  JSON.stringify(payload.grading.profile)!==JSON.stringify(mission.rubric_profile))
+  throw Error("ملف أوزان المساهمة يختلف عن الملف المثبت للمهمة.");
  submitted=saved?.status==="submitted";dirty=false;
  renderEditor();
 }
