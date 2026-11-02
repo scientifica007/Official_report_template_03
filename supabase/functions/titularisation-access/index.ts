@@ -18,7 +18,7 @@ function randomCode(length:number){
  const bytes=randomBytes(length);return Array.from(bytes,b=>alphabet[b%alphabet.length]).join("");
 }
 const PASSWORD_ALPHABET="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#$%+-_";
-const password=()=>Array.from(randomBytes(32),b=>
+const password=()=>Array.from(randomBytes(16),b=>
  PASSWORD_ALPHABET[b%PASSWORD_ALPHABET.length]).join("");
 function json(value:unknown,status=200,origin=ALLOWED_ORIGIN){
  return new Response(JSON.stringify(value),{
@@ -73,7 +73,7 @@ async function record(db:ReturnType<typeof admin>,missionId:string,seat:string|n
  });
  if(e)throw new Error("AUDIT");
 }
-function makeUsername(){return "cm-"+randomCode(18)}
+function makeUsername(){return "cm-"+randomCode(12)}
 function loginEmail(username:string){return username+"@"+DOMAIN}
 function authenticating(req:Request){
  const header=req.headers.get("Authorization")||"";
@@ -110,6 +110,80 @@ async function login(username:string,secret:string){
   expires_in:data.session.expires_in,
   mission_id:seat.mission_id,seat_code:seat.seat_code
  });
+}
+// An invite URL is a short-lived, scoped bearer capability. Only its SHA-256
+// digest is stored in the database; the raw token never appears in SQL, logs,
+// analytics, an Auth user record, or a conventional query string.
+const hex=async (source:string)=>{
+ const bytes=new TextEncoder().encode(source);
+ return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),
+  b=>b.toString(16).padStart(2,"0")).join("");
+};
+const freshLinkToken=()=>{
+ const bytes=randomBytes(32);
+ return btoa(String.fromCharCode(...bytes)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+};
+async function issueLink(db:ReturnType<typeof admin>,actor:string,
+ mission:{id:string;expires_at:string},seatCode:string){
+ const {data:seat,error:e}=await db.from("titularisation_seats")
+  .select("status,auth_user_id,username,expires_at")
+  .eq("mission_id",mission.id).eq("seat_code",seatCode).maybeSingle();
+ if(e||!seat||seat.status!=="active"||!seat.auth_user_id||!seat.username)
+  return error("يجب إنشاء حساب العضو أولًا.",409);
+ const secret=freshLinkToken();
+ const digest=await hex(secret);
+ const expiry=new Date(Math.min(Date.parse(mission.expires_at),Date.now()+24*60*60*1000)).toISOString();
+ const {error:saveError}=await db.from("titularisation_member_links").upsert({
+  mission_id:mission.id,seat_code:seatCode,token_hash:digest,
+  expires_at:expiry,revoked_at:null,created_at:new Date().toISOString()
+ },{onConflict:"mission_id,seat_code"});
+ if(saveError)return error("تعذر إصدار الرابط. راجع إعدادات قاعدة البيانات.",503);
+ // Deliberately no password or username in this bearer link. The fragment
+ // is stripped by the member browser before contacting the Edge function.
+ const link=ALLOWED_ORIGIN+"/Official_report_template_03/qa-titularisation/member/?mission="+
+  encodeURIComponent(mission.id)+"&seat="+encodeURIComponent(seatCode)+
+  "#access="+encodeURIComponent(secret);
+ await record(db,mission.id,seatCode,actor,"password_rotated");
+ return json({mission_id:mission.id,seat_code:seatCode,link,expires_at:expiry,
+  warning:"الرابط يمنح وصولًا لمن يحمله حتى انتهاء صلاحيته أو إلغائه. أرسله مباشرة إلى العضو ولا تنشره علنًا."});
+}
+async function loginLink(raw:string,claimedMission:string,claimedSeat:string){
+ if(!/^[A-Za-z0-9_-]{40,48}$/.test(raw)||
+   !/^[a-f0-9-]{36}$/i.test(claimedMission)||!seats.has(claimedSeat))
+  return error("الرابط غير صالح أو انتهت صلاحيته.",401);
+ const db=admin();const digest=await hex(raw);
+ const {data:link,error:le}=await db.from("titularisation_member_links")
+  .select("mission_id,seat_code,expires_at,revoked_at")
+  .eq("token_hash",digest).eq("mission_id",claimedMission)
+  .eq("seat_code",claimedSeat).maybeSingle();
+ if(le||!link||link.revoked_at||Date.parse(link.expires_at)<=Date.now())
+  return error("الرابط غير صالح أو انتهت صلاحيته.",401);
+ const {data:seat,error:se}=await db.from("titularisation_seats")
+  .select("auth_user_id,username,status,expires_at,revoked_at")
+  .eq("mission_id",claimedMission).eq("seat_code",claimedSeat).maybeSingle();
+ const {data:mission,error:me}=await db.from("titularisation_missions")
+  .select("status,expires_at").eq("id",claimedMission).maybeSingle();
+ if(se||me||!seat?.auth_user_id||seat.status!=="active"||seat.revoked_at||
+  Date.parse(seat.expires_at)<=Date.now()||mission?.status!=="draft"||
+  Date.parse(mission.expires_at)<=Date.now())
+  return error("انتهت صلاحية حساب هذا العضو أو المهمة.",403);
+ // Mint a standard scoped Supabase Auth session without ever disclosing
+ // credentials; RLS verifies the exact seat and mission on every request.
+ const {data:magic,error:ge}=await db.auth.admin.generateLink({
+  type:"magiclink",email:loginEmail(seat.username)
+ });
+ const otp=magic?.properties?.hashed_token;
+ if(ge||!otp)return error("تعذر تجهيز جلسة دخول العضو.",503);
+ const auth=userClient();
+ const {data:result,error:ve}=await auth.auth.verifyOtp({
+  token_hash:otp,type:"magiclink"
+ });
+ if(ve||!result.session||result.user?.id!==seat.auth_user_id)
+  return error("تعذر استكمال دخول العضو.",503);
+ return json({access_token:result.session.access_token,
+  refresh_token:result.session.refresh_token,
+  expires_in:result.session.expires_in,
+  mission_id:claimedMission,seat_code:claimedSeat});
 }
 async function provision(db:ReturnType<typeof admin>,actor:string,
  mission:{id:string;expires_at:string},seatCode:string,displayName:string){
@@ -211,6 +285,8 @@ Deno.serve(async req=>{
  catch(_){return error("Invalid JSON",400)}
  const action=String(body.action||"");
  if(action==="login")return login(String(body.username||""),String(body.password||""));
+ if(action==="login_link")return loginLink(String(body.token||""),
+  String(body.mission_id||""),String(body.seat_code||""));
  const missionId=String(body.mission_id||"");
  const seatCode=String(body.seat_code||"");
  if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(missionId)||!seats.has(seatCode))
@@ -219,7 +295,7 @@ Deno.serve(async req=>{
  if(!token)return error("Authentication required",401);
  try{
   const {db,id,mission}=await requireOwner(token,missionId);
-  if((action==="issue"||action==="rotate")&&
+  if((action==="issue"||action==="rotate"||action==="issue_link")&&
    (mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now()))
    return error("هذه المهمة مغلقة أو انتهت صلاحيتها.",409);
   // Revocation remains permitted AFTER closure, so the inspector can remove
@@ -229,6 +305,7 @@ Deno.serve(async req=>{
    if(name.length>160)return error("اسم العرض طويل.",400);
    return await provision(db,id,mission,seatCode,name);
   }
+  if(action==="issue_link")return await issueLink(db,id,mission,seatCode);
   if(action==="rotate")return await rotate(db,id,missionId,seatCode);
   if(action==="revoke")return await revoke(db,id,missionId,seatCode);
   return error("Unsupported action",400);
