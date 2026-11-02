@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
+import {execFileSync} from "node:child_process";
 const read=p=>readFileSync(p,"utf8");
 const html=read("qa-titularisation/index.html");
 const js=read("qa-titularisation/app.mjs");
@@ -26,6 +27,20 @@ test("M5-QA: public config points only at the separate QA Supabase, with default
  assert.doesNotMatch(config,/SUPABASE_SERVICE_ROLE_KEY|sb_secret_|uxtsyzyotnohxvopgcmh/i);
  assert.match(production,/uxtsyzyotnohxvopgcmh\.supabase\.co/);
  assert.match(production,/temporaryCommitteeEnabled: false/);
+});
+test("M5-QA: scripts have valid JavaScript module syntax",()=>{
+ for(const path of ["qa-titularisation/app.mjs","qa-titularisation/invitation-pdf.mjs",
+  "committee-member/app.mjs"]){
+  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path],{stdio:"pipe"}));
+ }
+});
+test("M5-QA: startup restores the approved session and ALWAYS renders a screen",()=>{
+ assert.match(js,/async function startQAPortal\(\)/);
+ assert.match(js,/await startQAPortal\(\);/);
+ assert.match(js,/await refreshProfile\(\)/);
+ assert.match(js,/await refreshData\(\)/);
+ assert.match(js,/try\{\s*render\(\);\s*\}catch\(err\)/);
+ assert.match(js,/root\.replaceChildren\(notice\("تعذر تحميل واجهة المختبر/);
 });
 test("M5-QA: owner login checks approved professional inspector via JWT and RLS",()=>{
  assert.match(js,/\/auth\/v1\/token\?grant_type=password/);

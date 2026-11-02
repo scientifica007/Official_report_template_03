@@ -303,3 +303,37 @@ function renderIssued(parent){
  }));
  box.append(actions);parent.append(box);
 }
+
+/* M5.3.1 — boot must run after declaring the invitation renderer.
+ * A previous edit replaced the tail of this module and accidentally removed
+ * session restoration and the initial render(), leaving a permanent
+ * "initializing" placeholder with no visible JavaScript exception.
+ */
+async function startQAPortal(){
+ try{
+  const saved=JSON.parse(sessionStorage.getItem(TOKEN_KEY)||"null");
+  if(saved?.access_token&&saved?.refresh_token&&saved?.userId){
+   session=saved;
+   try{
+    await refreshProfile();
+    if(!profile?.approved||profile.account_status!=="approved")
+     throw Error("حساب المفتش غير معتمد في بيئة الاختبار.");
+    await refreshData();
+  }catch(err){
+   saveSession(null);profile=null;
+   announce("سجل الدخول مجددًا: "+(err?.message||"تعذر استعادة الجلسة."),true);
+  }
+  }
+ }catch(err){
+  saveSession(null);profile=null;
+  announce("تعذر استعادة جلسة المختبر. سجّل الدخول مجددًا.",true);
+ }
+ try{
+  render();
+ }catch(err){
+  // Display a recoverable error instead of leaving an inert loading screen.
+  root.replaceChildren(notice("تعذر تحميل واجهة المختبر. حدّث الصفحة، وإذا تكرر الخطأ أبلغني به.", "notice error"));
+  console.error("QA portal startup failed",err);
+ }
+}
+await startQAPortal();
