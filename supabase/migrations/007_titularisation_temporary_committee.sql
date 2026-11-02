@@ -232,6 +232,7 @@ insert into public.titularisation_score_caps(rubric_id,phase,item_id,cap) values
  ('lesson_inspector_10_v1','discussion','d6',3),
  ('lesson_inspector_10_v1','discussion','d7',2)
 on conflict do nothing;
+alter table public.titularisation_score_caps enable row level security;
 revoke all on public.titularisation_score_caps from public,anon,authenticated;
 
 -- Strict validation of all submitted fields, including against the exact
