@@ -104,7 +104,7 @@ export function mergeSubmittedCloudMembers(original,mission,rows){
   if(!["member1","member2","member3"].includes(row.seat_code)||
    applied.has(row.seat_code)||row.status!=="submitted"||
    !row.payload||typeof row.payload!=="object")
-   throw Error("مساهمة غير صالحة أو مكررة.");
+   throw Error("بيانات مساهمة غير موثوقة أو مكررة.");
   const {grading,notes}=row.payload;
   if(original.rubricId===RUBRICS.analytical14.id&&
    JSON.stringify(grading?.profile)!==JSON.stringify(mission.rubric_profile))
