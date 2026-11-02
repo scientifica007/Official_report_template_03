@@ -194,7 +194,7 @@ function renderDashboard(){
  greeting.append(row);root.append(greeting);
 
  const create=wrapper("إنشاء مهمة ترسيم تجريبية");
- create.append(notice("يختبر هذا الإصدار شبكتي 5 معايير و10 عناصر فقط. الشبكة الميدانية المقبولة ذات 14 مؤشرًا لم تربط بعد بالخادم؛ لا تستخدم بيانات ترسيم حقيقية."));
+ create.append(notice("يدعم المختبر شبكات 5 معايير و10 عناصر و14 مؤشرًا. الأوزان للـ14 مؤشرًا يحددها المفتش ويثبتها قبل الدعوات. هذه تجربة تقنية وليست اعتمادًا رسميًا؛ لا تستخدم بيانات ترسيم حقيقية."));
  const form=element("form"),fields=element("div","","fields");
  const title=input("text","مثال: اختبار لجنة رقم 01");title.required=true;title.minLength=3;title.maxLength=200;
  const rubric=element("select");for(const [value,label] of [
