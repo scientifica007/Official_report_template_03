@@ -211,13 +211,17 @@ function renderDashboard(){
    if(active&&data.status!=="active"&&c?.status!=="submitted"){
     const name=input("text","اسم اختباري اختياري");name.maxLength=160;
     card.append(field("اسم العرض",name));
-    actions.append(button("إصدار حساب العضو",async()=>{
-     issued=await edge("issue",{mission_id:selected,seat_code:code,display_name:name.value.trim()});
-     await refreshData();announce("صدرت بيانات دخول "+seatNames[code]+". تظهر مرة واحدة فقط.");
+    actions.append(button("إنشاء رابط مباشر للعضو (دون كلمة مرور)",async()=>{
+     issued=await edge("issue_direct",{mission_id:selected,seat_code:code,display_name:name.value.trim()});
+     await refreshData();announce("صدر رابط مباشر للعضو دون اسم مستخدم أو كلمة مرور.");
     },"primary"));
+    actions.append(button("إصدار حساب بكلمة مرور (بديل اختياري)",async()=>{
+     issued=await edge("issue",{mission_id:selected,seat_code:code,display_name:name.value.trim()});
+     await refreshData();announce("صدرت بيانات دخول مختصرة للعضو.");
+    }));
    }
    if(active&&data.status==="active"){
-    actions.append(button("إنشاء رابط دخول مباشر (دون كلمة مرور)",async()=>{
+    actions.append(button("توليد رابط مباشر جديد (يلغي السابق)",async()=>{
      if(!confirm("سيُنشأ رابط مباشر خاص بهذا العضو، ويُلغى تلقائيًا أي رابط مباشر سابق لهذا المقعد. هل تتابع؟"))return;
      issued=await edge("issue_link",{mission_id:selected,seat_code:code});
      await refreshData();announce("أُصدر رابط مباشر قابل للإلغاء للمقعد "+seatNames[code]+".");
