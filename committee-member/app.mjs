@@ -11,7 +11,7 @@ const params=new URLSearchParams(location.search);
 const requestedMission=params.get("mission")||"";
 const requestedSeat=params.get("seat")||"";
 const allowedSeats=new Set(["member1","member2","member3"]);
-const storageKey="titularisation_member_session_v1";
+const storageKey="titularisation_member_session_v1_"+(base.match(/^https:\/\/([^.]+)/)?.[1]||"unconfigured");
 let session=null,mission=null,seat=null,payload=null,submitted=false,dirty=false,busy=false;
 const el=(tag,content="")=>{const e=document.createElement(tag);e.textContent=content;return e};
 const label=(title,node)=>{const wrap=el("label");wrap.append(el("span",title),node);return wrap};
