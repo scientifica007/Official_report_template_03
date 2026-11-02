@@ -10,7 +10,7 @@ create extension if not exists pgcrypto;
 -- identifies these accounts. User-editable user_metadata is not trusted here.
 -- Existing inspector signup retains exactly its original behavior.
 create or replace function public.create_inspector_profile()
-returns trigger language plpgsql security definer set search_path = '' as $
+returns trigger language plpgsql security definer set search_path = '' as $$
 declare raw_prof text;
 begin
  if new.raw_app_meta_data->>'account_type' = 'titularisation_temporary' then
@@ -25,7 +25,7 @@ begin
    left(coalesce(new.raw_user_meta_data->>'district',''),120),false,false)
  on conflict(id) do nothing;
  return new;
-end; $;
+end; $$;
 revoke all on function public.create_inspector_profile() from public,anon,authenticated;
 
 
@@ -353,7 +353,7 @@ create table if not exists public.titularisation_login_attempts (
 alter table public.titularisation_login_attempts enable row level security;
 revoke all on public.titularisation_login_attempts from public,anon,authenticated;
 create or replace function public.guard_titularisation_login(p_username text)
-returns void language plpgsql security definer set search_path='' as $
+returns void language plpgsql security definer set search_path='' as $$
 declare v_count integer;
 begin
  if p_username is null or p_username !~ '^cm-[a-z0-9]{12,32}
@@ -386,7 +386,7 @@ commit;
  if v_count>10 then
   raise exception 'Too many login attempts' using errcode='P0001';
  end if;
-end; $;
+end; $$;
 revoke all on function public.guard_titularisation_login(text) from public,anon,authenticated;
 grant execute on function public.guard_titularisation_login(text) to service_role;
 
