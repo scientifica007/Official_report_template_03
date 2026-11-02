@@ -3,6 +3,7 @@
  * Public publishable key only; no browser service-role key and no password persistence.
  */
 import {qrCanvas,downloadInvitationPdf} from "./invitation-pdf.mjs";
+import {GROUPS,suggestedWeights,validateWeights} from "../prototypes/titularisation-workbench/engine.mjs";
 const config=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(config.supabaseUrl||"").replace(/\/+$/,"");
 const publicKey=String(config.publishableKey||"");
@@ -123,7 +124,7 @@ async function refreshProfile(){
 }
 async function refreshData(){
  missions=await rows("titularisation_missions",{
-  select:"id,title,rubric_id,status,expires_at,created_at",order:"created_at.desc",limit:"100"
+  select:"id,title,rubric_id,rubric_profile,status,expires_at,created_at",order:"created_at.desc",limit:"100"
  });
  if(!missions.some(m=>m.id===selected))selected=missions[0]?.id||"";
  await refreshDetails();
@@ -138,6 +139,46 @@ async function refreshDetails(){
    mission_id:"eq."+selected,order:"seat_code.asc"})
  ]);
  seatRows=sr||[];contributions=cr||[];
+}
+function renderAnalyticalWeights(parent,mission){
+ const card=element("section","","card");
+ card.append(element("h3","ملف أوزان المؤشرات الأربعة عشر"));
+ if(mission.rubric_profile?.frozen){
+  card.append(notice("أوزان المهمة مثبتة نهائيًا قبل إصدار دعوات الأعضاء. تُستخدم هذه الأوزان نفسها للتنقيط والتحقق الخادمي.","notice success"));
+  for(const group of GROUPS){
+   const weights=group.items.map(i=>i.label+": "+mission.rubric_profile.weights[i.id]).join(" · ");
+   card.append(element("p",group.label+" ("+group.cap+" نقاط): "+weights,"hint"));
+  }
+  parent.append(card);return;
+ }
+ card.append(notice("ثبت الأوزان مرة واحدة قبل منح أي رابط. مجموع كل مجموعة يجب أن يطابق سقفها (12، 8، 8، 6، 6). الأوزان الافتراضية مقترحة وليست اعتمادًا رسميًا."));
+ const defaults=suggestedWeights(),inputs={};
+ for(const group of GROUPS){
+  const details=element("details");details.open=true;
+  details.append(element("summary",group.label+" — المجموع "+group.cap));
+  const grid=element("div","","fields");
+  for(const item of group.items){
+   const fieldInput=input("number");fieldInput.min="0";fieldInput.max=String(group.cap);
+   fieldInput.step="0.5";fieldInput.value=String(defaults[item.id]);
+   inputs[item.id]=fieldInput;
+   grid.append(field(item.label,fieldInput));
+  }
+  details.append(grid);card.append(details);
+ }
+ card.append(button("تثبيت أوزان المهمة وفتح إصدار دعوات الأعضاء",async()=>{
+  const weights={};for(const [id,inp] of Object.entries(inputs)){
+   if(inp.value.trim()==="")throw Error("يجب إدخال وزن لكل مؤشر.");
+   weights[id]=Number(inp.value);
+  }
+  const result=validateWeights(weights);
+  if(!result.valid)throw Error(result.errors.join("؛ "));
+  if(!confirm("بعد التثبيت لن تتمكن من تغيير الأوزان في هذه المهمة. هل تؤكد؟"))return;
+  await rpc("freeze_titularisation_analytical_weights",{
+   p_mission_id:mission.id,p_weights:weights
+  });
+  issued=null;await refreshData();announce("ثُبتت الأوزان على الخادم؛ يمكن الآن إصدار الحسابات.");
+ },"primary"));
+ parent.append(card);
 }
 function renderDashboard(){
  const greeting=wrapper("رئيس اللجنة — مختبر الحسابات المؤقتة");
@@ -158,7 +199,8 @@ function renderDashboard(){
  const title=input("text","مثال: اختبار لجنة رقم 01");title.required=true;title.minLength=3;title.maxLength=200;
  const rubric=element("select");for(const [value,label] of [
   ["lesson_grouped_5_v1","الخمسة معايير — اختبار تقني"],
-  ["lesson_inspector_10_v1","العشرة عناصر — اختبار تقني"]]){
+  ["lesson_inspector_10_v1","العشرة عناصر — اختبار تقني"],
+  ["lesson_derived_indicators_v1","المؤشرات الأربعة عشر — ملف أوزان يثبته المفتش"]]){
   const o=element("option",label);o.value=value;rubric.append(o);
  }
  const hours=input("number");hours.min="1";hours.max="720";hours.value="24";hours.required=true;
@@ -197,6 +239,15 @@ function renderDashboard(){
   choose.append(element("p","الحالة: "+(mission.status==="draft"?"جارية":"مغلقة")+
   " · نهاية صلاحية المهمة: "+new Date(mission.expires_at).toLocaleString("ar-DZ")));
   const active=mission.status==="draft"&&new Date(mission.expires_at).getTime()>Date.now();
+  const ready=mission.rubric_id!=="lesson_derived_indicators_v1"||
+    mission.rubric_profile?.frozen===true;
+  if(mission.rubric_id==="lesson_derived_indicators_v1")
+   renderAnalyticalWeights(choose,mission);
+  if(!ready)choose.append(notice("أكمل تثبيت الأوزان أولًا. لن تُنشأ حسابات قبل ذلك.","notice error"));
+  const report=element("a","فتح محرر التقرير والمحضر واستيراد المساهمات المحفوظة");
+  report.href="./report/?mission="+encodeURIComponent(selected);
+  report.className="primary";report.style.cssText="display:inline-block;padding:12px;margin:10px 0";
+  choose.append(report);
   if(issued?.mission_id===selected)renderIssued(choose);
   const seatsWrap=element("div","","seats");
   for(const code of seats){
@@ -214,7 +265,7 @@ function renderDashboard(){
     card.append(details);
    }
    const actions=element("div","","actions");
-   if(active&&data.status!=="active"&&c?.status!=="submitted"){
+   if(active&&ready&&data.status!=="active"&&c?.status!=="submitted"){
     const name=input("text","اسم اختباري اختياري");name.maxLength=160;
     card.append(field("اسم العرض",name));
     actions.append(button("إنشاء رابط مباشر للعضو (دون كلمة مرور)",async()=>{
@@ -226,7 +277,7 @@ function renderDashboard(){
      await refreshData();announce("صدرت بيانات دخول مختصرة للعضو.");
     }));
    }
-   if(active&&data.status==="active"){
+   if(active&&ready&&data.status==="active"){
     actions.append(button("عرض رابط الدخول المحفوظ + QR + PDF",async()=>{
      issued=await edge("get_saved_link",{mission_id:selected,seat_code:code});
      await refreshData();
