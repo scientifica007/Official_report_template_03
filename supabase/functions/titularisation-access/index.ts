@@ -61,7 +61,7 @@ async function requireOwner(token:string,missionId:string){
   .eq("id",id).maybeSingle();
  if(ie||!inspector?.approved||inspector.account_status!=="approved")throw new Error("FORBIDDEN");
  const {data:mission,error:me}=await db.from("titularisation_missions")
-  .select("id,owner_id,status,expires_at,rubric_id")
+  .select("id,owner_id,status,expires_at,rubric_id,rubric_profile")
   .eq("id",missionId).maybeSingle();
  if(me||!mission||mission.owner_id!==id)throw new Error("FORBIDDEN");
  return {db,id,mission};
@@ -407,6 +407,9 @@ Deno.serve(async req=>{
   if((action==="issue"||action==="rotate"||action==="issue_link"||action==="issue_direct")&&
    (mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now()))
    return error("هذه المهمة مغلقة أو انتهت صلاحيتها.",409);
+  if((action==="issue"||action==="issue_direct"||action==="issue_link"||action==="rotate")&&
+    mission.rubric_id==="lesson_derived_indicators_v1"&&mission.rubric_profile?.frozen!==true)
+   return error("ثبّت أوزان المؤشرات الأربعة عشر قبل إصدار حساب أو دعوة.",409);
   // Revocation remains permitted AFTER closure, so the inspector can remove
   // all temporary accounts once the signed paper report has been printed.
   if(action==="issue"){
