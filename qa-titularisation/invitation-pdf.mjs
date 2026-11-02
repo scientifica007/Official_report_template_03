@@ -35,7 +35,6 @@ export function buildInvitationPdf({url,title,seat,expiresAt}){
  ctx.font="28px Tahoma,Arial";ctx.fillText((title||"مهمة لجنة الترسيم").slice(0,54),595,319);
  ctx.drawImage(qrCanvas(url,700),245,390,700,700);
  ctx.font="bold 31px Tahoma,Arial";ctx.fillText("امسح رمز QR لفتح مساهمتك مباشرة",595,1160);
- ctx.font="23px Tahoma,Arial";ctx.fillText("دون اسم مستخدم أو كلمة مرور",595,1215);
  ctx.font="22px Tahoma,Arial";
  ctx.fillText("تنتهي الصلاحية: "+(expiresAt?new Date(expiresAt).toLocaleString("ar-DZ"):"عند إغلاق المهمة"),595,1280);
  ctx.fillStyle="#1b5e86";ctx.fillRect(93,1340,1004,130);
