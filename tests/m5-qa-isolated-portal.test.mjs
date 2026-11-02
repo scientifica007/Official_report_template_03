@@ -34,7 +34,7 @@ test("M5-QA: owner login checks approved professional inspector via JWT and RLS"
  assert.match(js,/if\(!profile\?\.approved\|\|profile\.account_status!=="approved"\)/);
  assert.match(js,/Authorization="Bearer "/);
  assert.match(js,/auth:true/);
- assert.match(js,/\/rest\/v1\/rpc\/create_titularisation_mission/);
+ assert.match(js,/await rpc\("create_titularisation_mission"/);
  assert.match(js,/\/functions\/v1\/titularisation-access/);
 });
 test("M5-QA: three separate seats, no credential tokens in link, secrets only in memory",()=>{
