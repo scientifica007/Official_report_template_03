@@ -208,8 +208,9 @@ function renderDashboard(){
    card.append(element("p","المساهمة: "+(c?.status==="submitted"?"مرسلة نهائيًا":c?.status==="draft"?"مسودة":"غير موجودة")));
    if(data.username){
     const details=element("details");
-    details.append(element("summary","بيانات الدخول البديلة (اختيارية)"),
-      element("p","اسم المستخدم: "+data.username));
+    details.append(element("summary","معلومات حساب العضو (بديل اختياري)"),
+      element("p","اسم المستخدم: "+data.username),
+      element("p","كلمة المرور السابقة لا يمكن استرجاعها لأسباب أمنية؛ استخدم زر تغيير كلمة المرور عند الحاجة."));
     card.append(details);
    }
    const actions=element("div","","actions");
@@ -226,6 +227,11 @@ function renderDashboard(){
     }));
    }
    if(active&&data.status==="active"){
+    actions.append(button("عرض رابط الدخول المحفوظ + QR + PDF",async()=>{
+     issued=await edge("get_saved_link",{mission_id:selected,seat_code:code});
+     await refreshData();
+     announce("استُعيد نفس الرابط المحفوظ لهذا العضو دون تغيير كلمة المرور أو إلغاء الرابط السابق.");
+    },"primary"));
     actions.append(button("توليد رابط مباشر جديد (يلغي السابق)",async()=>{
      if(!confirm("سيُنشأ رابط مباشر خاص بهذا العضو، ويُلغى تلقائيًا أي رابط مباشر سابق لهذا المقعد. هل تتابع؟"))return;
      issued=await edge("issue_link",{mission_id:selected,seat_code:code});
@@ -262,7 +268,7 @@ function renderIssued(parent){
  const code=issued.seat_code,seat=seatNames[code]||code;
  const isDirect=!!issued.link&&!issued.password;
  box.append(element("strong",isDirect?
-  "رابط مباشر خاص بالعضو — لا يحتاج اسم مستخدم أو كلمة مرور":
+  (issued.recovered?"رابط الدخول المحفوظ — مستعاد من الخادم":"رابط مباشر خاص بالعضو — لا يحتاج اسم مستخدم أو كلمة مرور"):
   "بيانات دخول تظهر مرة واحدة — سلّمها للعضو"));
  box.append(element("p","المقعد: "+seat));
  let url;
