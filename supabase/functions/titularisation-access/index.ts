@@ -212,6 +212,25 @@ async function provision(db:ReturnType<typeof admin>,actor:string,
  });
  if(ce||!created.user)return error("تعذر إصدار بيانات الدخول.",503);
  const uid=created.user.id;
+ // Supabase Auth may run auth.users AFTER INSERT triggers before app_metadata
+ // is available to the trigger. Remove any unapproved professional profile
+ // inadvertently created by the pre-existing inspector-signup trigger.
+ // Never remove or alter an approved/administrative professional profile.
+ const {data:unexpected,error:profileCheckError}=await db.from("inspector_profiles")
+  .select("id,approved,is_admin").eq("id",uid).maybeSingle();
+ if(profileCheckError||unexpected?.approved||unexpected?.is_admin){
+  await db.auth.admin.deleteUser(uid);
+  return error("تعذر عزل الحساب المؤقت عن حسابات المفتشين.",503);
+ }
+ if(unexpected){
+  const {data:deleted,error:cleanupError}=await db.from("inspector_profiles")
+   .delete().eq("id",uid).eq("approved",false).eq("is_admin",false)
+   .select("id").maybeSingle();
+  if(cleanupError||!deleted){
+   await db.auth.admin.deleteUser(uid);
+   return error("تعذر تنظيف سجل المفتش غير المقصود للحساب المؤقت.",503);
+  }
+ }
  const {data:changed,error:ue}=await db.from("titularisation_seats").update({
   username,auth_user_id:uid,display_name:displayName,status:"active",
   activated_at:new Date().toISOString(),revoked_at:null,expires_at:mission.expires_at
@@ -274,6 +293,13 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
   if(e)return error("تعذر إلغاء الوصول.",503);
   await record(db,missionId,seatCode,actor,"seat_revoked");
  }
+ // Discard the invitation capability as well as revoking the seat, even
+ // though the seat check alone already rejects attempts to use the link.
+ const {error:linkError}=await db.from("titularisation_member_links")
+  .update({revoked_at:new Date().toISOString()})
+  .eq("mission_id",missionId).eq("seat_code",seatCode)
+  .is("revoked_at",null);
+ if(linkError)return error("سُحب وصول العضو ولكن تعذر إبطال رابط الدعوة.",503);
  let deleted=true;
  if(seat.auth_user_id){
   const {error:e}=await db.auth.admin.deleteUser(seat.auth_user_id);
