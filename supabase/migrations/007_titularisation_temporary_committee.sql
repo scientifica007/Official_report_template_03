@@ -10,7 +10,7 @@ create extension if not exists pgcrypto;
 -- identifies these accounts. User-editable user_metadata is not trusted here.
 -- Existing inspector signup retains exactly its original behavior.
 create or replace function public.create_inspector_profile()
-returns trigger language plpgsql security definer set search_path = '' as $
+returns trigger language plpgsql security definer set search_path = '' as $$
 declare raw_prof text;
 begin
  if new.raw_app_meta_data->>'account_type' = 'titularisation_temporary' then
@@ -25,7 +25,7 @@ begin
    left(coalesce(new.raw_user_meta_data->>'district',''),120),false,false)
  on conflict(id) do nothing;
  return new;
-end; $;
+end; $$;
 revoke all on function public.create_inspector_profile() from public,anon,authenticated;
 
 
@@ -232,6 +232,7 @@ insert into public.titularisation_score_caps(rubric_id,phase,item_id,cap) values
  ('lesson_inspector_10_v1','discussion','d6',3),
  ('lesson_inspector_10_v1','discussion','d7',2)
 on conflict do nothing;
+alter table public.titularisation_score_caps enable row level security;
 revoke all on public.titularisation_score_caps from public,anon,authenticated;
 
 -- Strict validation of all submitted fields, including against the exact
@@ -353,26 +354,10 @@ create table if not exists public.titularisation_login_attempts (
 alter table public.titularisation_login_attempts enable row level security;
 revoke all on public.titularisation_login_attempts from public,anon,authenticated;
 create or replace function public.guard_titularisation_login(p_username text)
-returns void language plpgsql security definer set search_path='' as $
+returns void language plpgsql security definer set search_path='' as $$
 declare v_count integer;
 begin
- if p_username is null or p_username !~ '^cm-[a-z0-9]{12,32}
-revoke all on function public.is_active_titularisation_seat(uuid,text) from public,anon,authenticated;
-revoke all on function public.create_titularisation_mission(text,text,integer) from public,anon,authenticated;
-revoke all on function public.close_titularisation_mission(uuid) from public,anon,authenticated;
-revoke all on function public.validate_titularisation_member_payload(text,jsonb) from public,anon,authenticated;
-revoke all on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean) from public,anon,authenticated;
-grant execute on function public.is_titularisation_owner(uuid) to authenticated;
-grant execute on function public.is_active_titularisation_seat(uuid,text) to authenticated;
-grant execute on function public.create_titularisation_mission(text,text,integer) to authenticated;
-grant execute on function public.close_titularisation_mission(uuid) to authenticated;
-grant execute on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean) to authenticated;
-commit;
-
--- IMPORTANT: Supabase migration alone does NOT create logins. Provision
--- Supabase Auth users only through the Edge Function with SERVER secrets.
--- Run RLS negative tests before the production migration.
- then
+ if p_username is null or p_username !~ '^cm-[a-z0-9]{12,32}$' then
   raise exception 'Invalid username' using errcode='22023';
  end if;
  insert into public.titularisation_login_attempts(username,window_started_at,attempts)
@@ -386,7 +371,7 @@ commit;
  if v_count>10 then
   raise exception 'Too many login attempts' using errcode='P0001';
  end if;
-end; $;
+end; $$;
 revoke all on function public.guard_titularisation_login(text) from public,anon,authenticated;
 grant execute on function public.guard_titularisation_login(text) to service_role;
 
