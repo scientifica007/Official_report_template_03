@@ -152,7 +152,8 @@ test("M5.1: member portal uses only explicit session tokens and respects current
  assert.match(member,/requestedSeat=params\.get\("seat"\)/);
  assert.match(member,/sessionStorage\.removeItem/);
  assert.match(member,/if\(dirty\)/);
- assert.match(member,/confirm\("هل تؤكد إرسال المساهمة نهائيًا/);
+ assert.match(member,/confirm\(submitted\?/);
+ assert.match(member,/ستُحفظ النسخة السابقة/);
  assert.match(portal,/committeeIssuedOnce=null/);
  assert.match(portal,/لا تُحفظ مسوداته على Supabase/);
 });
