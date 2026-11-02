@@ -143,7 +143,7 @@ async function issueLink(db:ReturnType<typeof admin>,actor:string,
  const link=ALLOWED_ORIGIN+"/Official_report_template_03/qa-titularisation/member/?mission="+
   encodeURIComponent(mission.id)+"&seat="+encodeURIComponent(seatCode)+
   "#access="+encodeURIComponent(secret);
- await record(db,mission.id,seatCode,actor,"password_rotated");
+ await record(db,mission.id,seatCode,actor,"link_issued");
  return json({mission_id:mission.id,seat_code:seatCode,link,expires_at:expiry,
   warning:"الرابط يمنح وصولًا لمن يحمله حتى انتهاء صلاحيته أو إلغائه. أرسله مباشرة إلى العضو ولا تنشره علنًا."});
 }
@@ -237,6 +237,17 @@ async function provision(db:ReturnType<typeof admin>,actor:string,
   warning:"اعرض كلمة المرور مرة واحدة، ولا تدرجها في الرابط أو التقرير أو ملف JSON."
  });
 }
+async function issueDirect(db:ReturnType<typeof admin>,actor:string,
+ mission:{id:string;expires_at:string},seatCode:string,displayName:string){
+ const {data:seat,error:e}=await db.from("titularisation_seats")
+ .select("status").eq("mission_id",mission.id).eq("seat_code",seatCode).maybeSingle();
+ if(e||!seat)return error("لا يوجد هذا المقعد.",404);
+ if(seat.status!=="active"){
+  const response=await provision(db,actor,mission,seatCode,displayName);
+  if(!response.ok)return response;
+ }
+ return issueLink(db,actor,mission,seatCode);
+}
 async function rotate(db:ReturnType<typeof admin>,actor:string,missionId:string,seatCode:string){
  const {data:seat,error:se}=await db.from("titularisation_seats")
   .select("status,auth_user_id,username").eq("mission_id",missionId)
@@ -295,7 +306,7 @@ Deno.serve(async req=>{
  if(!token)return error("Authentication required",401);
  try{
   const {db,id,mission}=await requireOwner(token,missionId);
-  if((action==="issue"||action==="rotate"||action==="issue_link")&&
+  if((action==="issue"||action==="rotate"||action==="issue_link"||action==="issue_direct")&&
    (mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now()))
    return error("هذه المهمة مغلقة أو انتهت صلاحيتها.",409);
   // Revocation remains permitted AFTER closure, so the inspector can remove
@@ -304,6 +315,11 @@ Deno.serve(async req=>{
    const name=String(body.display_name||"").trim();
    if(name.length>160)return error("اسم العرض طويل.",400);
    return await provision(db,id,mission,seatCode,name);
+  }
+  if(action==="issue_direct"){
+   const name=String(body.display_name||"").trim();
+   if(name.length>160)return error("اسم العرض طويل.",400);
+   return await issueDirect(db,id,mission,seatCode,name);
   }
   if(action==="issue_link")return await issueLink(db,id,mission,seatCode);
   if(action==="rotate")return await rotate(db,id,missionId,seatCode);
