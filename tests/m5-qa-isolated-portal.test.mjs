@@ -27,6 +27,14 @@ test("M5-QA: public config points only at the separate QA Supabase, with default
  assert.match(production,/uxtsyzyotnohxvopgcmh\.supabase\.co/);
  assert.match(production,/temporaryCommitteeEnabled: false/);
 });
+test("M5-QA: startup restores the approved session and ALWAYS renders a screen",()=>{
+ assert.match(js,/async function startQAPortal\(\)/);
+ assert.match(js,/await startQAPortal\(\);/);
+ assert.match(js,/await refreshProfile\(\)/);
+ assert.match(js,/await refreshData\(\)/);
+ assert.match(js,/try\{\s*render\(\);\s*\}catch\(err\)/);
+ assert.match(js,/root\.replaceChildren\(notice\("تعذر تحميل واجهة المختبر/);
+});
 test("M5-QA: owner login checks approved professional inspector via JWT and RLS",()=>{
  assert.match(js,/\/auth\/v1\/token\?grant_type=password/);
  assert.match(js,/\/auth\/v1\/token\?grant_type=refresh_token/);
