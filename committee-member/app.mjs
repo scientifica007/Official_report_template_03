@@ -147,7 +147,7 @@ function renderEditor(){
  card.append(el("h2","تقدير الأداء المهني"),
   el("p","هذه مساهمتك أنت فقط. يستطيع رئيس اللجنة الاطلاع عليها بعد حفظها. لا تتغير مساهمات بقية الأعضاء."));
  if(submitted){
-  card.append(message("أُرسلت مساهمتك بنجاح. النص والعلامات للقراءة فقط، ولا يمكنك تعديلها من هذا الحساب."));
+  card.append(message("مساهمتك مرسلة بالفعل. يمكنك تصحيح العلامات أو التقديرات وإعادة إرسال النسخة المصححة ما دامت المهمة مفتوحة؛ تُحفظ النسخة السابقة في سجل التعديلات."));
  }
  for(const [phase,title,rows] of [
   ["lesson","تقييم الحصة التدريسية",lessonItems(payload.grading)],
@@ -174,21 +174,19 @@ function renderEditor(){
  }
  const bar=el("div");bar.className="actions";
  const save=el("button","حفظ مساهمتي");save.type="button";
- const send=el("button","إرسال المساهمة نهائيًا");send.type="button";
+ const send=el("button",submitted?"حفظ التصحيح وإعادة إرساله":"إرسال المساهمة");send.type="button";
  send.className="primary";
  const logout=el("button","تسجيل الخروج");logout.type="button";
  bar.append(save,send,logout);
  card.append(bar,message("احتفظ بمسودتك محفوظة قبل مغادرة الصفحة."));
  shell.append(card);
- for(const area of shell.querySelectorAll("textarea")){
-  if(submitted)area.disabled=true;
- }
- for(const input of shell.querySelectorAll('input[type="number"]'))if(submitted)input.disabled=true;
- save.disabled=submitted;send.disabled=submitted;
+ // An already-submitted seat stays editable until mission close; the
+ // previous version is archived server-side on each explicit correction.
+ save.disabled=submitted;send.disabled=false;
  attachVoiceDictation(card);
  save.addEventListener("click",()=>persist(false));
  send.addEventListener("click",()=>{
-  if(confirm("هل تؤكد إرسال المساهمة نهائيًا؟ لن تتمكن من تعديلها بعد ذلك."))persist(true);
+  if(confirm(submitted?"سيُسجل هذا كتعديل جديد على المساهمة المرسلة، وستُحفظ النسخة السابقة. هل تؤكد؟":"هل تؤكد إرسال مساهمتك؟ يمكنك تصحيحها لاحقًا قبل إغلاق المهمة."))persist(true);
  });
  logout.addEventListener("click",()=>{
   if(dirty&&!confirm("توجد تعديلات لم تُحفظ. هل تريد تسجيل الخروج؟"))return;
@@ -197,7 +195,7 @@ function renderEditor(){
  });
 }
 async function persist(finalize){
- if(busy||submitted)return;
+ if(busy)return;
  busy=true;statusText("جارٍ الحفظ على الخادم...");
  try{
   // Re-check native input range validation before requesting the RPC.
@@ -232,12 +230,41 @@ async function load(){
 window.addEventListener("beforeunload",e=>{
  if(dirty){e.preventDefault();e.returnValue="";}
 });
-if(!configured()){
- shell.replaceChildren(message("الرابط أو إعدادات خدمة اللجنة غير صحيحة. اتصل برئيس اللجنة.",true));
-}else{
- restoreSession();
- if(session)load().catch(error=>{
-  saveSession(null);renderLogin();statusText(error.message);
- });
- else renderLogin();
+// Access key is in a URL fragment, never HTTP query/path/referrer.
+// Remove it from visible browser history before any network request.
+const fragment=new URLSearchParams(location.hash.replace(/^#/,""));
+const inviteKey=fragment.get("access")||"";
+if(inviteKey){
+ history.replaceState(null,"",location.pathname+location.search);
 }
+async function begin(){
+ if(!configured()){
+  shell.replaceChildren(message("الرابط أو إعدادات خدمة اللجنة غير صحيحة. اتصل برئيس اللجنة.",true));
+  return;
+ }
+ restoreSession();
+ if(session){
+  try{await load();return;}catch(_){saveSession(null)}
+ }
+ if(inviteKey){
+  shell.replaceChildren(message("جارٍ تسجيل الدخول من رابط الدعوة المباشر..."));
+  try{
+   const result=await request("/functions/v1/titularisation-access",{
+    method:"POST",body:{
+     action:"login_link",token:inviteKey,
+     mission_id:requestedMission,seat_code:requestedSeat
+    }});
+   if(result.mission_id!==requestedMission||result.seat_code!==requestedSeat)
+    throw Error("رابط الدعوة لا يخص هذا المقعد.");
+   saveSession({...result,expires_at_ms:Date.now()+1000*(Number(result.expires_in)||3600)});
+   await load();return;
+  }catch(error){
+   saveSession(null);renderLogin();
+   statusText("تعذر الدخول من الرابط المباشر: "+error.message+
+    ". اطلب من رئيس اللجنة إصدار رابط جديد أو استخدم بيانات الدخول.");
+   return;
+  }
+ }
+ renderLogin();
+}
+begin();
