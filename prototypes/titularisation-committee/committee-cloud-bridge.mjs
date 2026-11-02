@@ -2,7 +2,7 @@
 // QA sessions remain isolated from production, including after closing and
 // deleting all temporary member Auth accounts.
 import {restoreCommittee,freshCommittee} from "./committee-engine.mjs";
-import {RUBRICS,validateWeights} from "../titularisation-workbench/engine.mjs";
+import {RUBRICS,validateWeights,sameWeightProfile} from "../titularisation-workbench/engine.mjs";
 const cfg=()=>typeof window==="undefined"?{}:(window.REPORT03_CLOUD_CONFIG||{});
 export const committeeCloudEnabled=()=>cfg().temporaryCommitteeEnabled===true;
 const QA_SESSION="scientifica_committee_qa_session_v1";
@@ -94,7 +94,7 @@ export function mergeSubmittedCloudMembers(original,mission,rows){
  if(original.rubricId===RUBRICS.analytical14.id){
   if(mission.rubric_profile?.frozen!==true||
     !validateWeights(mission.rubric_profile.weights).valid||
-    JSON.stringify(original.final.grading.profile)!==JSON.stringify(mission.rubric_profile))
+    !sameWeightProfile(original.final.grading.profile,mission.rubric_profile))
    throw Error("ملف الأوزان الحالي لا يطابق الملف المثبت في المهمة.");
  }
  const copy=deepClone(original);
@@ -107,7 +107,7 @@ export function mergeSubmittedCloudMembers(original,mission,rows){
    throw Error("بيانات مساهمة غير موثوقة أو مكررة.");
   const {grading,notes}=row.payload;
   if(original.rubricId===RUBRICS.analytical14.id&&
-   JSON.stringify(grading?.profile)!==JSON.stringify(mission.rubric_profile))
+   !sameWeightProfile(grading?.profile,mission.rubric_profile))
    throw Error("مساهمة تستخدم أوزانًا مختلفة عن المهمة.");
   // Member contributions do not overwrite chair's authored grades or prose.
   copy.members[row.seat_code]={grading,notes,submitted:true};

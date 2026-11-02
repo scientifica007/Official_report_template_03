@@ -1,7 +1,7 @@
 // M5.1 — separate, seat-scoped inspector-committee contributor interface.
 // Public HTML is not an authorization boundary; Supabase RLS and authenticated
 // RPC enforce the permission for EACH contribution and read.
-import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore} from "../prototypes/titularisation-workbench/engine.mjs";
+import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../shared/voice-dictation.mjs";
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(cfg.supabaseUrl||"").replace(/\/+$/,"");
@@ -233,7 +233,7 @@ async function load(){
   grading.profile=structuredClone(mission.rubric_profile);
  payload=saved?.payload||{grading,notes:newNotes()};
  if(mission.rubric_id===RUBRICS.analytical14.id&&
-  JSON.stringify(payload.grading.profile)!==JSON.stringify(mission.rubric_profile))
+  !sameWeightProfile(payload.grading.profile,mission.rubric_profile))
   throw Error("ملف أوزان المساهمة يختلف عن الملف المثبت للمهمة.");
  submitted=saved?.status==="submitted";dirty=false;
  renderEditor();

@@ -3,7 +3,7 @@
  * It reuses the accepted scoring engine without altering its existing interface. */
 import {
  SCHEMA as SCORE_SCHEMA, RUBRICS, DISCUSSION, GROUPS, newDraft, lessonItems,
- withScore, withWeight, withSuggestions, freezeWeights, validateWeights,
+ withScore, withWeight, withSuggestions, freezeWeights, validateWeights, sameWeightProfile,
  validateImport as importScores, totals
 } from "../titularisation-workbench/engine.mjs";
 
@@ -349,7 +349,7 @@ function checkContribution(raw,expectedRubric,lockedProfile,allowSubmitted){
  if(!plain(raw)||!plain(raw.notes))throw Error("مساهمة غير صالحة");
  const grading=importScores(raw.grading);
  if(grading.schema!==SCORE_SCHEMA||grading.rubricId!==expectedRubric)throw Error("شبكة تقييم مختلفة");
- if(lockedProfile!==null&&JSON.stringify(grading.profile)!==JSON.stringify(lockedProfile))
+ if(lockedProfile!==null&&!sameWeightProfile(grading.profile,lockedProfile))
    throw Error("ملف أوزان غير موحد بين المساهمين");
  validNotes(raw.notes,grading);
  if(typeof raw.submitted!=="boolean"||(!allowSubmitted&&raw.submitted))throw Error("حالة إرسال غير صالحة");
