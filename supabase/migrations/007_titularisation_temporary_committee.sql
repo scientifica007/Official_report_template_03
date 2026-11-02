@@ -356,23 +356,7 @@ create or replace function public.guard_titularisation_login(p_username text)
 returns void language plpgsql security definer set search_path='' as $$
 declare v_count integer;
 begin
- if p_username is null or p_username !~ '^cm-[a-z0-9]{12,32}
-revoke all on function public.is_active_titularisation_seat(uuid,text) from public,anon,authenticated;
-revoke all on function public.create_titularisation_mission(text,text,integer) from public,anon,authenticated;
-revoke all on function public.close_titularisation_mission(uuid) from public,anon,authenticated;
-revoke all on function public.validate_titularisation_member_payload(text,jsonb) from public,anon,authenticated;
-revoke all on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean) from public,anon,authenticated;
-grant execute on function public.is_titularisation_owner(uuid) to authenticated;
-grant execute on function public.is_active_titularisation_seat(uuid,text) to authenticated;
-grant execute on function public.create_titularisation_mission(text,text,integer) to authenticated;
-grant execute on function public.close_titularisation_mission(uuid) to authenticated;
-grant execute on function public.save_titularisation_member_contribution(uuid,text,jsonb,boolean) to authenticated;
-commit;
-
--- IMPORTANT: Supabase migration alone does NOT create logins. Provision
--- Supabase Auth users only through the Edge Function with SERVER secrets.
--- Run RLS negative tests before the production migration.
- then
+ if p_username is null or p_username !~ '^cm-[a-z0-9]{12,32}$' then
   raise exception 'Invalid username' using errcode='22023';
  end if;
  insert into public.titularisation_login_attempts(username,window_started_at,attempts)
