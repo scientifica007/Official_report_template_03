@@ -1,4 +1,4 @@
-import {RUBRICS} from "../titularisation-workbench/engine.mjs";
+import {RUBRICS,sameWeightProfile} from "../titularisation-workbench/engine.mjs";
 import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,changeMode,restoreCommittee,stringifyCommittee} from "./committee-engine.mjs";
 import {DECISIONS} from "./document-model.mjs";
 import {MINUTES_SCOPES} from "./document-language.mjs";
@@ -153,7 +153,7 @@ if(committeeCloudEnabled()){
     const {mission,rows}=await loadCloudCommitteeSubmissions(id);
     const matches=state.rubricId===mission.rubric_id &&
      (mission.rubric_id!==RUBRICS.analytical14.id||
-      JSON.stringify(state.final.grading.profile)===JSON.stringify(mission.rubric_profile));
+      sameWeightProfile(state.final.grading.profile,mission.rubric_profile));
     if(!matches&&!confirm("شبكة المسودة أو أوزانها تختلف عن المهمة. سيُنشأ محرر جديد مطابق للأوزان المثبتة وتضيع تعديلات المسودة الحالية. صدّر JSON احتياطيًا أولًا. هل توافق؟")){
      info("لم تتغير المسودة.");return;
     }
