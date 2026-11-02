@@ -15,6 +15,16 @@ create table public.titularisation_member_links (
 alter table public.titularisation_member_links enable row level security;
 revoke all on public.titularisation_member_links from public,anon,authenticated;
 
+-- Explicit audit label for generating a direct-login capability.
+alter table public.titularisation_access_events
+ drop constraint if exists titularisation_access_events_kind_check;
+alter table public.titularisation_access_events
+ add constraint titularisation_access_events_kind_check check(kind in (
+ 'mission_created','seat_issued','password_rotated','seat_revoked',
+ 'contribution_saved','contribution_submitted','mission_closed',
+ 'account_deleted','link_issued'
+ ));
+
 -- Historic version prior to each correction, including the initial submission.
 -- No authenticated role can modify, delete, or insert these records directly.
 create table public.titularisation_contribution_revisions (
