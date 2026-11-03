@@ -14,6 +14,14 @@ summary{cursor:pointer;font-weight:700;padding:6px}.assessments{display:grid;gap
 .assessment{border:1px solid #e5ebeb;padding:12px;border-radius:8px;display:grid;grid-template-columns:minmax(140px,1.2fr) minmax(90px,.4fr) minmax(170px,1.5fr);align-items:start;gap:12px}
 .assessment strong{font-size:13px;margin:14px 0}.assessment label{margin:0}
 .assessment input{max-width:110px}.assessment textarea{min-height:68px}
+/* M5.8: Highlight required scoring omissions; never color optional prose. */
+.assessment.score-needs-attention{background:#fff8e7;border-color:#d2a041;border-inline-start:4px solid #bf8323}
+.assessment input.score-needs-attention{background:#fff3d4;border:2px solid #b46b18;color:#442b08}
+.assessment input.score-needs-attention:focus-visible{outline:3px solid #b46b18;outline-offset:3px}
+.score-required-hint{display:block;color:#834307;font-size:12px;font-weight:700;line-height:1.5}
+.score-required-hint[hidden],.jump-to-missing[hidden]{display:none}
+.jump-to-missing{background:#fff2d5;color:#5e370a;border:1px solid #bb822f;margin-bottom:12px;font-weight:700}
+.jump-to-missing:focus-visible{outline:3px solid #b46b18;outline-offset:2px}
 .login{max-width:520px;margin:auto}.notice{color:#1f6253;background:#eef8f4;padding:10px;border-radius:7px}
 .alert{color:#91321e;background:#fff0ea;padding:10px;border-radius:7px}
 footer{text-align:center;padding:24px;color:#60736d;font-size:12px}

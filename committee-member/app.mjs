@@ -115,12 +115,18 @@ function renderLogin(){
  });
  box.append(form,feedback);shell.append(box);
 }
-function addScoreField(area,phase,item,onScoreChange){
+function addScoreField(area,phase,item,onScoreChange,scoreFields){
  const row=el("div");row.className="assessment";
  const score=el("input");score.type="number";score.min="0";score.max=String(item.cap);
  score.step="0.5";score.inputMode="decimal";
  score.value=payload.grading.scores[phase][item.id]??"";
  score.setAttribute("aria-label","علامة: "+item.label);
+ const hint=el("span","علامة مطلوبة");
+ hint.className="score-required-hint";hint.hidden=true;
+ hint.id="missing-score-"+phase+"-"+item.id;
+ score.setAttribute("aria-describedby",hint.id);
+ const gradeLabel=label("العلامة",score);
+ gradeLabel.append(hint);
  const note=el("textarea");note.rows=3;note.maxLength=4000;
  note.placeholder="تقدير مختصر يتعلق بهذا المؤشر";
  note.dataset.voiceKey=[requestedMission,requestedSeat,phase,item.id].join("|");
@@ -143,8 +149,9 @@ function addScoreField(area,phase,item,onScoreChange){
   payload.notes[phase][item.id]=note.value;dirty=true;
   statusText("توجد تعديلات غير محفوظة.");
  });
- row.append(el("strong",item.label+" (من "+item.cap+")"),label("العلامة",score),
+ row.append(el("strong",item.label+" (من "+item.cap+")"),gradeLabel,
   label("الملاحظة",note));
+ scoreFields.set(phase+":"+item.id,{score,row,hint});
  area.append(row);
 }
 function renderEditor(){
@@ -160,7 +167,20 @@ function renderEditor(){
  }
  card.append(message("كل علامات الحصة والمناقشة إلزامية عند الإرسال النهائي، أما التقديرات والملاحظات النصية فاختيارية. العلامة 0 مقبولة، والمؤشر ذو الوزن 0 غير منقّط."));
  const progress=el("p");progress.setAttribute("aria-live","polite");
- card.append(progress);
+ const jumpToMissing=el("button","الانتقال إلى أول علامة ناقصة");
+ jumpToMissing.type="button";
+ jumpToMissing.className="jump-to-missing";
+ jumpToMissing.hidden=true;
+ const scoreFields=new Map();
+ card.append(progress,jumpToMissing);
+ jumpToMissing.addEventListener("click",()=>{
+  const field=[...scoreFields.values()].find(({row})=>
+   row.classList.contains("score-needs-attention"))?.score;
+  if(field){
+   field.scrollIntoView({behavior:"smooth",block:"center"});
+   field.focus({preventScroll:true});
+  }
+ });
  let updateScoreProgress=()=>{};
  for(const [phase,title,rows] of [
   ["lesson","تقييم الحصة التدريسية",lessonItems(payload.grading)],
@@ -168,7 +188,7 @@ function renderEditor(){
   const group=el("details");group.open=true;
   group.append(el("summary",title));
   const grid=el("div");grid.className="assessments";
-  for(const item of rows)addScoreField(grid,phase,item,()=>updateScoreProgress());
+  for(const item of rows)addScoreField(grid,phase,item,()=>updateScoreProgress(),scoreFields);
   group.append(grid);card.append(group);
  }
  for(const [key,title] of [
@@ -202,12 +222,29 @@ function renderEditor(){
   const discussionMissing=missing.filter(x=>x.phase==="discussion");
   // An incomplete submitted historic contribution remains inspectable and
   // correctable; it cannot be resubmitted until all grades are present.
-  send.disabled=missing.length>0;
-  if(missing.length){
+  const missingKeys=new Set(missing.map(x=>x.phase+":"+x.id));
+  let invalidCount=0;
+  for(const [key,{score,row,hint}] of scoreFields){
+   // Unscored indicators with a frozen cap of zero are not required.
+   const invalid=!score.disabled&&!score.checkValidity();
+   const absent=missingKeys.has(key);
+   const attention=invalid||absent;
+   if(invalid)invalidCount++;
+   row.classList.toggle("score-needs-attention",attention);
+   score.classList.toggle("score-needs-attention",attention);
+   score.setAttribute("aria-invalid",attention?"true":"false");
+   hint.hidden=!attention;
+   hint.textContent=invalid?"علامة غير صالحة — صحح القيمة":"علامة مطلوبة — أدخل النقطة هنا";
+  }
+  send.disabled=missing.length>0||invalidCount>0;
+  jumpToMissing.hidden=missing.length===0&&invalidCount===0;
+  if(missing.length||invalidCount){
    progress.className="alert";
    progress.textContent="لا يمكن الإرسال النهائي بعد. علامات ناقصة: الحصة "+
     lessonMissing.length+"، المناقشة "+discussionMissing.length+
-    ". أكمل: "+missing.map(x=>x.label).join("، ")+". يمكنك حفظ مسودة غير مكتملة.";
+    (invalidCount?", وعلامات غير صالحة: "+invalidCount:"")+
+    ". الخانات المعنية ملوّنة، ويمكن الانتقال إليها بالزر أدناه. "+
+    "يظل حفظ المسودة الناقصة ممكنًا.";
   }else{
    progress.className="notice";
    progress.textContent="جميع العلامات المطلوبة مكتملة. يمكنك إرسال المساهمة؛ الملاحظات النصية اختيارية.";
