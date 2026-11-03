@@ -1,7 +1,7 @@
 // M5.1 — separate, seat-scoped inspector-committee contributor interface.
 // Public HTML is not an authorization boundary; Supabase RLS and authenticated
 // RPC enforce the permission for EACH contribution and read.
-import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
+import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../shared/voice-dictation.mjs";
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(cfg.supabaseUrl||"").replace(/\/+$/,"");
@@ -115,7 +115,7 @@ function renderLogin(){
  });
  box.append(form,feedback);shell.append(box);
 }
-function addScoreField(area,phase,item){
+function addScoreField(area,phase,item,onScoreChange){
  const row=el("div");row.className="assessment";
  const score=el("input");score.type="number";score.min="0";score.max=String(item.cap);
  score.step="0.5";score.inputMode="decimal";
@@ -126,13 +126,19 @@ function addScoreField(area,phase,item){
  note.dataset.voiceKey=[requestedMission,requestedSeat,phase,item.id].join("|");
  note.value=payload.notes[phase][item.id]||"";
  if(item.cap===0)score.disabled=true;
- score.addEventListener("change",()=>{
+ const changeGrade=()=>{
   try{
    payload.grading=withScore(payload.grading,phase,item.id,score.value);
    dirty=true;statusText("توجد تعديلات غير محفوظة.");
    score.setCustomValidity("");
-  }catch(error){score.setCustomValidity(error.message);score.reportValidity()}
- });
+  }catch(error){
+   score.setCustomValidity(error.message);
+   // An invalid input is never counted as a newly supplied valid score.
+  }
+  onScoreChange();
+ };
+ score.addEventListener("input",changeGrade);
+ score.addEventListener("change",changeGrade);
  note.addEventListener("change",()=>{
   payload.notes[phase][item.id]=note.value;dirty=true;
   statusText("توجد تعديلات غير محفوظة.");
@@ -152,13 +158,17 @@ function renderEditor(){
  if(submitted){
   card.append(message("مساهمتك مرسلة بالفعل. يمكنك تصحيح العلامات أو التقديرات وإعادة إرسال النسخة المصححة ما دامت المهمة مفتوحة؛ تُحفظ النسخة السابقة في سجل التعديلات."));
  }
+ card.append(message("كل علامات الحصة والمناقشة إلزامية عند الإرسال النهائي، أما التقديرات والملاحظات النصية فاختيارية. العلامة 0 مقبولة، والمؤشر ذو الوزن 0 غير منقّط."));
+ const progress=el("p");progress.setAttribute("aria-live","polite");
+ card.append(progress);
+ let updateScoreProgress=()=>{};
  for(const [phase,title,rows] of [
   ["lesson","تقييم الحصة التدريسية",lessonItems(payload.grading)],
   ["discussion","تقييم المناقشة",DISCUSSION]]){
   const group=el("details");group.open=true;
   group.append(el("summary",title));
   const grid=el("div");grid.className="assessments";
-  for(const item of rows)addScoreField(grid,phase,item);
+  for(const item of rows)addScoreField(grid,phase,item,()=>updateScoreProgress());
   group.append(grid);card.append(group);
  }
  for(const [key,title] of [
@@ -185,7 +195,25 @@ function renderEditor(){
  shell.append(card);
  // An already-submitted seat stays editable until mission close; the
  // previous version is archived server-side on each explicit correction.
- save.disabled=submitted;send.disabled=false;
+ save.disabled=submitted;
+ updateScoreProgress=()=>{
+  const missing=missingMandatoryScores(payload.grading);
+  const lessonMissing=missing.filter(x=>x.phase==="lesson");
+  const discussionMissing=missing.filter(x=>x.phase==="discussion");
+  // An incomplete submitted historic contribution remains inspectable and
+  // correctable; it cannot be resubmitted until all grades are present.
+  send.disabled=missing.length>0;
+  if(missing.length){
+   progress.className="alert";
+   progress.textContent="لا يمكن الإرسال النهائي بعد. علامات ناقصة: الحصة "+
+    lessonMissing.length+"، المناقشة "+discussionMissing.length+
+    ". أكمل: "+missing.map(x=>x.label).join("، ")+". يمكنك حفظ مسودة غير مكتملة.";
+  }else{
+   progress.className="notice";
+   progress.textContent="جميع العلامات المطلوبة مكتملة. يمكنك إرسال المساهمة؛ الملاحظات النصية اختيارية.";
+  }
+ };
+ updateScoreProgress();
  attachVoiceDictation(card);
  save.addEventListener("click",()=>persist(false));
  send.addEventListener("click",()=>{
@@ -204,6 +232,13 @@ async function persist(finalize){
   // Re-check native input range validation before requesting the RPC.
   const fields=[...shell.querySelectorAll('input[type="number"]')];
   if(fields.some(x=>!x.checkValidity()))throw Error("تحقق من صحة العلامات وحدودها.");
+  // The UI disables send for missing marks, but the check is repeated at the
+  // action boundary. The database independently enforces the same invariant.
+  if(finalize){
+   const missing=missingMandatoryScores(payload.grading);
+   if(missing.length)throw Error("لا يمكن الإرسال النهائي: "+
+    missing.length+" علامة ناقصة. "+missing.map(x=>x.label).join("، "));
+  }
   await rpc("save_titularisation_member_contribution",{
    p_mission_id:requestedMission,p_seat_code:requestedSeat,
    p_payload:payload,p_submit:finalize
