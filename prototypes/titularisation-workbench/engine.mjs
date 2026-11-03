@@ -153,6 +153,21 @@ export function lessonItems(draft){
  }
  throw Error("شبكة غير معروفة");
 }
+// A zero is a real score. A missing key means no mark was entered.
+ // The only exemption is an indicator frozen with cap=0 (non-scoring).
+export function missingMandatoryScores(draft){
+ const scores=draft?.scores;
+ if(!scores||!scores.lesson||!scores.discussion)
+  throw Error("بيانات العلامات غير مكتملة");
+ return [
+  ...lessonItems(draft).filter(item=>
+   item.cap>0&&!Object.hasOwn(scores.lesson,item.id)
+  ).map(item=>({phase:"lesson",id:item.id,label:item.label})),
+  ...DISCUSSION.filter(item=>
+   item.cap>0&&!Object.hasOwn(scores.discussion,item.id)
+  ).map(item=>({phase:"discussion",id:item.id,label:item.label}))
+ ];
+}
 export function withScore(draft,phase,id,raw){
  if(!["lesson","discussion"].includes(phase))throw Error("مرحلة غير معروفة");
  if(isAnalytical(draft)&&!draft.profile?.frozen)throw Error("ثبت ملف الأوزان قبل إدخال العلامات");
