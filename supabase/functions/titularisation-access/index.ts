@@ -520,12 +520,34 @@ Deno.serve(async req=>{
   String(body.mission_id||""),String(body.seat_code||""));
  const missionId=String(body.mission_id||"");
  const seatCode=String(body.seat_code||"");
- if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(missionId)||!seats.has(seatCode))
+ if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(missionId)||
+   (action!=="synthesis_sources"&&!seats.has(seatCode)))
   return error("Invalid mission or seat",400);
  const token=authenticating(req);
  if(!token)return error("Authentication required",401);
  try{
   const {db,id,mission}=await requireOwner(token,missionId);
+  // M5.12: QA OWNER-ONLY reading of submitted prose for inspector synthesis.
+  // A temporary seat's JWT cannot pass requireOwner(), even if it knows
+  // the mission UUID or calls this action directly without using the UI.
+  if(action==="synthesis_sources"){
+   if(!IS_DISPOSABLE_QA)return error("هذه الخاصية للمفتش في بيئة QA فقط.",403);
+   const {data:contributions,error:readError}=await db.from("titularisation_contributions")
+    .select("seat_code,payload,revision,submitted_at")
+    .eq("mission_id",missionId).eq("status","submitted")
+    .in("seat_code",["member1","member2","member3"])
+    .order("seat_code",{ascending:true}).limit(3);
+   if(readError)return error("تعذر قراءة التقديرات المرسلة.",503);
+   const rows=(contributions||[]).map(row=>({
+    seat_code:row.seat_code,revision:row.revision,submitted_at:row.submitted_at,
+    notes:row.payload?.notes||null
+   }));
+   if(rows.some(row=>!row.notes||typeof row.notes!=="object"||
+      Array.isArray(row.notes)||JSON.stringify(row.notes).length>180000))
+    return error("تقديرات إحدى المساهمات غير صالحة للتركيب.",409);
+   return json({mission_id:mission.id,rubric_id:mission.rubric_id,
+    rows,qa_only:true,owner_only:true});
+  }
   if((action==="issue"||action==="rotate"||action==="issue_link"||action==="issue_direct"||action==="renew_week_link")&&
    (mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now()))
    return error("هذه المهمة مغلقة أو انتهت صلاحيتها.",409);
