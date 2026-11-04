@@ -240,3 +240,13 @@ button.demo-fill-button:hover{background:#f5dfa6}
 .voice-cancel{background:#fff1eb;color:#8d3d24;border-color:#d3a493}
 .voice-unsupported{font-size:12px;color:#96562a}
 @media print{.voice-launch,.voice-dictation-panel,.voice-unsupported{display:none!important}}
+
+/* M5.12 — QA inspector-only review, absent from member app. */
+.inspector-synthesis[hidden]{display:none!important}
+.inspector-synthesis .synthesis-review{margin:12px 0;padding:12px;border:1px solid #d1e1d8;border-radius:9px;background:#fbfdfb}
+.inspector-synthesis .synthesis-review>summary{font-weight:bold;color:#18583c;cursor:pointer}
+.inspector-synthesis .synthesis-candidate{background:#edf8ef;border-inline-start:4px solid #1e7854;padding:14px;border-radius:7px;white-space:pre-wrap;line-height:1.85;color:#214934}
+.inspector-synthesis .synthesis-sources{margin-top:12px;border-top:1px solid #bcd3c3;padding:8px}
+.inspector-synthesis .synthesis-source{border-inline-start:2px solid #b4c8bc;padding:8px;margin:7px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.inspector-synthesis button{min-height:44px}
+@media print{#inspector-synthesis{display:none!important}}
