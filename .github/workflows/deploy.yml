@@ -50,6 +50,12 @@ jobs:
           else
             echo "Previous Pages deployment could not be read; continuing to normal deployment."
           fi
+          # On 04/11 GitHub answered "deployment_cancelled" yet still kept
+          # a server-side lock. Give the Pages backend time to release it.
+          if [[ "${status:-}" == "deployment_cancelled" ]]; then
+            echo "GitHub Pages still settling the old cancellation; using a one-time 90-second grace period."
+            sleep 90
+          fi
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:
