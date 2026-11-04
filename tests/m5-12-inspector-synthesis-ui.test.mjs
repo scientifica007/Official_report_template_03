@@ -102,3 +102,110 @@ test("owner-only UI: mission change resets the whole review with no stale propos
  assert.equal(x.controller.panel.children.length,0);
  assert.equal(x.applied.length,0);
 });
+
+const multiFixture=(revision=1)=>{
+ const source=fixture();
+ source.rows[0].revision=revision;
+ source.rows[0].notes.lesson={
+  g1:"أحسن الأستاذ تنظيم الحصة",
+  g2:"وزع الأستاذ الزمن بين الأنشطة"
+ };
+ source.rows[0].notes.discussion={d1:"قدم الأستاذ توضيحات دقيقة"};
+ return source;
+};
+const insertButtons=panel=>collect(panel,e=>
+ e.tag==="button"&&(
+  e.textContent==="إدراج هذه الصياغة في تقدير المفتش"||
+  e.textContent==="تم إدراج الصياغة في تقدير المفتش"
+ ));
+test("M5.12 continuous: inspector can insert all three proposals without regenerating or reopening",async()=>{
+ let reads=0;
+ const x=setup(async()=>{reads++;return multiFixture()});
+ await x.controller.activate(id);
+ const generate=find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات");
+ await generate.emit("click");
+ const buttons=insertButtons(x.controller.panel);
+ assert.equal(buttons.length,3);
+ assert.equal(reads,2,"owner checked at activation and on generation");
+ const progress=x.controller.panel.querySelector("#synthesis-progress");
+ assert.match(progress.textContent,/0 من 3/);
+ await buttons[0].emit("click");
+ assert.equal(x.controller.panel.hidden,false);
+ assert.equal(buttons[0].disabled,true);
+ assert.equal(buttons[1].disabled,false);
+ assert.ok(x.controller.panel.querySelector("#synthesis-results").children.length>0);
+ assert.match(progress.textContent,/1 من 3/);
+ assert.equal(x.applied.length,1);
+ await buttons[1].emit("click");
+ assert.equal(buttons[1].disabled,true);
+ assert.match(progress.textContent,/2 من 3/);
+ assert.equal(x.applied.length,2);
+ await buttons[2].emit("click");
+ assert.equal(buttons[2].disabled,true);
+ assert.match(progress.textContent,/3 من 3/);
+ assert.equal(x.applied.length,3);
+ assert.equal(reads,5,"owner authorization is rechecked for each insertion");
+ assert.match(x.controller.panel.querySelector("#synthesis-status").textContent,/جميع الصياغات/);
+ assert.equal(x.controller.panel.hidden,false);
+ await buttons[0].emit("click");
+ assert.equal(x.applied.length,3,"same proposal cannot be inserted twice without regenerating");
+});
+test("M5.12 continuous: manual editor changes after first insertion still invalidate remaining cached proposals",async()=>{
+ const x=setup(async()=>multiFixture());
+ await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const buttons=insertButtons(x.controller.panel);
+ await buttons[0].emit("click");
+ x.state.serial++;
+ await buttons[1].emit("click");
+ assert.equal(x.applied.length,1);
+ assert.equal(buttons[1].disabled,false);
+ assert.match(x.controller.panel.querySelector("#synthesis-status").textContent,/تغيرت المسودة/);
+ assert.equal(x.controller.panel.hidden,false);
+});
+test("M5.12 continuous: corrected member assessment after first insertion blocks later stale fields",async()=>{
+ let revision=1;
+ const x=setup(async()=>multiFixture(revision));
+ await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const buttons=insertButtons(x.controller.panel);
+ await buttons[0].emit("click");
+ revision=2;
+ await buttons[1].emit("click");
+ assert.equal(x.applied.length,1);
+ assert.match(x.controller.panel.querySelector("#synthesis-status").textContent,/عُدّلت مساهمات/);
+});
+test("M5.12 continuous: refusal at an explicit confirmation leaves suggestions and progress intact",async()=>{
+ const oldConfirm=globalThis.confirm;
+ try{
+  globalThis.confirm=()=>false;
+  const x=setup(async()=>multiFixture());
+  await x.controller.activate(id);
+  await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+  const buttons=insertButtons(x.controller.panel);
+  await buttons[0].emit("click");
+  assert.equal(x.applied.length,0);
+  assert.equal(buttons[0].disabled,false);
+  assert.match(x.controller.panel.querySelector("#synthesis-progress").textContent,/0 من 3/);
+  assert.equal(x.controller.panel.hidden,false);
+ }finally{globalThis.confirm=oldConfirm}
+});
+test("M5.12 continuous: mission reset during async owner check cannot apply stale insertion",async()=>{
+ let release;
+ let requests=0;
+ const x=setup(async()=>{
+  requests++;
+  if(requests!==3)return multiFixture();
+  return new Promise(resolve=>{release=resolve});
+ });
+ await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const buttons=insertButtons(x.controller.panel);
+ const pending=buttons[0].emit("click");
+ x.controller.reset();
+ release(multiFixture());
+ await pending;
+ assert.equal(x.applied.length,0);
+ assert.equal(x.controller.panel.hidden,true);
+ assert.equal(x.controller.panel.children.length,0);
+});
