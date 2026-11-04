@@ -6,11 +6,15 @@ const qaLink=document.getElementById("qa-mode-link");
 const localLink=document.getElementById("local-mode-link");
 const localNotice=document.getElementById("local-mode-description");
 const qaNotice=document.getElementById("qa-mode-description");
+const localSeatNotice=document.getElementById("simulated-members-description");
+const qaSeatNotice=document.getElementById("qa-members-description");
 if(qaRequested){
  if(qaLink)qaLink.hidden=true;
  if(localLink)localLink.hidden=false;
  if(localNotice)localNotice.hidden=true;
  if(qaNotice)qaNotice.hidden=false;
+ if(localSeatNotice)localSeatNotice.hidden=true;
+ if(qaSeatNotice)qaSeatNotice.hidden=false;
  const status=document.getElementById("qa-link-status");
  let signedIn=false;
  try{
