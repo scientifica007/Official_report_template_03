@@ -147,7 +147,7 @@ test("M5.12: explicit inspector decision, stale-source check and untouched score
  assert.match(ui,/getState\(\)\.serial!==generatedSerial/);
  assert.match(ui,/getWho\(\)!=="final"/);
  assert.match(ui,/if\(!confirm\(question\)\)/);
- assert.match(ui,/applyNote\(field\.field,field\.itemId,field\.candidate\)/);
+ assert.match(ui,/applyNote\(field\.field,field\.itemId,audited\.text\)/);
  assert.doesNotMatch(ui,/fetch\(|openai|llm|service_role/i);
  for(const path of [
   "prototypes/titularisation-committee/app.mjs",
