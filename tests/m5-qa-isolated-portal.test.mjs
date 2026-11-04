@@ -65,7 +65,7 @@ test("M5-QA: three separate seats, no credential tokens in link, secrets only in
 });
 test("M5-QA: member portal loads shared tested voice and contribution code but QA config only",()=>{
  assert.match(member,/src="\.\.\/config\.js"/);
- assert.match(member,/src="\.\.\/\.\.\/committee-member\/app\.mjs"/);
+ assert.match(member,/src="\.\.\/\.\.\/committee-member\/app\.mjs\?v=m510"/);
  assert.match(member,/noindex,nofollow,noarchive/);
  assert.match(sharedMember,/titularisation_member_session_v1_/);
  assert.match(sharedMember,/save_titularisation_member_contribution/);

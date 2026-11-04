@@ -2,6 +2,7 @@ import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-wo
 import {SEATS,assistance,proposedFinal,selectRounding,resetFinalNote,editScore,editNote,submit,reopen,fillDemoMember,hasMemberContent} from "./committee-engine.mjs";
 import {node,clear,action,textValue} from "./dom.mjs";
 import {suggestedAppreciation} from "./document-rules.mjs";
+import {createPairedScore} from "../../shared/score-range.mjs";
 const labels={lessonSummary:"تقدير الحصة",discussionSummary:"تقدير المناقشة",general:"التقدير العام",recommendations:"التوصيات"};
 const show=x=>x==null?"—":String(Number(x.toFixed(3)));
 function itemRow(container,state,who,phase,item,commit){
@@ -15,7 +16,11 @@ function itemRow(container,state,who,phase,item,commit){
   field.disabled=c.submitted&&who!=="final";
   field.setAttribute("aria-label","علامة "+item.label);
   field.addEventListener("change",()=>commit(()=>editScore(state,who,phase,item.id,field.value)));
-  row.append(field);
+  row.append(createPairedScore(field,{
+   cap:item.cap,label:item.label,
+   // The report editor rerenders on commit; wait until drag release.
+   onRangeCommit:raw=>commit(()=>editScore(state,who,phase,item.id,raw))
+  }));
  }else row.append(node("span","وزنه صفر — غير منقّط"));
  box.append(row);
  if(final&&state.mode==="individual"){

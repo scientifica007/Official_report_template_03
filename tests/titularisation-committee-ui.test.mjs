@@ -41,6 +41,6 @@ test("chair editor remains separate from member contributions",()=>{
  renderMembers(members,s);
  assert.match(words(editor),/المفتش — تحرير نتيجة المداولة/);
  assert.match(words(members),/كتابة عضو اللجنة/);
- const finalInputs=all(editor,"input").filter(x=>x.value===9.5);
+ const finalInputs=all(editor,"input").filter(x=>x.type==="number"&&x.value===9.5);
  assert.equal(finalInputs.length,1);
 });
