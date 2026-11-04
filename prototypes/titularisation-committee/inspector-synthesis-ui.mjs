@@ -56,11 +56,13 @@ export function mountInspectorSynthesis({
  }
  async function generate(){
   if(busy||!activeMission)return;
+  const stamp=sequence;
   busy=true;status("جارٍ التحقق من صلاحية المفتش وقراءة أحدث التقديرات...");
   try{
    if(getMissionId()!==activeMission)throw Error("تغيرت المهمة المختارة.");
    if(getWho()!=="final")throw Error("اختر «المفتش — الصيغة النهائية» أولًا.");
    const source=await loadSources(activeMission);
+   if(stamp!==sequence||!activeMission||getMissionId()!==activeMission)return;
    if(source.owner_only!==true||source.qa_only!==true||
       source.mission_id!==activeMission)throw Error("انتهت صلاحية الوصول للمهمة.");
    if(getState().rubricId!==source.rubric_id)
@@ -73,10 +75,11 @@ export function mountInspectorSynthesis({
     "هذه صياغات تحفظ النصوص الأصلية وتتجنب الاختلاق. راجع كل بند ومصادره قبل الإدراج.":
     "لا توجد تقديرات كتابية مرسلة قابلة للتركيب.");
   }catch(err){
+   if(stamp!==sequence)return;
    snapshot=null;generatedSerial=null;
    clear(panel.querySelector("#synthesis-results"));
    status(err?.message||"تعذر تركيب التقديرات.",true);
-  }finally{busy=false}
+  }finally{if(stamp===sequence)busy=false}
  }
  function showResults(proposal){
   const root=clear(panel.querySelector("#synthesis-results"));
@@ -140,11 +143,11 @@ export function mountInspectorSynthesis({
    if(match!==field||match.blocked||!match.candidate||appliedKeys.has(field.key))
     throw Error("هذا الحقل لا يملك اقتراحًا صالحًا للإدراج.");
    const latest=await loadSources(activeMission);
+   if(sequence!==stamp||proposal!==snapshot||getMissionId()!==activeMission)
+    throw Error("تغيرت المهمة أثناء التحقق. أعد فتح المساعد من مهمتك.");
    if(latest.owner_only!==true||latest.qa_only!==true||
       sourceFingerprint(latest)!==snapshot.sourceFingerprint)
     throw Error("عُدّلت مساهمات اللجنة بعد التحليل. أعد تكوين المقترحات.");
-   if(sequence!==stamp||proposal!==snapshot||getMissionId()!==activeMission)
-    throw Error("تغيرت المهمة أثناء التحقق. أعد فتح المساعد من مهمتك.");
    if(getState().serial!==generatedSerial)
     throw Error("تغيرت مسودة المفتش. أعد تكوين المقترحات.");
    const existing=field.itemId===null?getState().final.notes[field.field]:
@@ -170,8 +173,8 @@ export function mountInspectorSynthesis({
     "أُدرج هذا التقدير بنجاح. يمكنك إدراج "+remaining+
      " صياغة أخرى من القائمة مباشرة، دون إعادة التحليل.":
     "أُدرجت جميع الصياغات القابلة للإدراج. يمكنك تحريرها في تقرير المفتش.");
-  }catch(err){status(err?.message||"تعذر الإدراج.",true)}
-  finally{busy=false}
+  }catch(err){if(stamp===sequence)status(err?.message||"تعذر الإدراج.",true)}
+  finally{if(stamp===sequence)busy=false}
  }
  return {activate,reset,get panel(){return panel}};
 }
