@@ -180,6 +180,28 @@ function renderAnalyticalWeights(parent,mission){
  },"primary"));
  parent.append(card);
 }
+// New invitations are generated only for EXISTING ACTIVE seats: never
+// create a new Auth user, never clear grades or modify contributions.
+async function refreshExistingSeatInvitations(missionId){
+ const activeSeats=seatRows.filter(s=>s.status==="active");
+ const successful=[],failed=[];
+ for(const seat of activeSeats){
+  try{
+   await edge("renew_week_link",{mission_id:missionId,seat_code:seat.seat_code});
+   successful.push(seat.seat_code);
+  }catch(error){
+   failed.push({seat:seat.seat_code,error:error?.message||"تعذر إصدار الرابط"});
+  }
+ }
+ return {successful,failed};
+}
+function renewalSummary(renewal){
+ const done=renewal.successful.length,failed=renewal.failed.length;
+ if(!failed)return "جُدّدت روابط "+done+" حساب/حسابات نشطة لمدة تصل إلى 7 أيام. افتح بطاقة العضو لعرض الرابط وQR وPDF.";
+ return "جُدّدت روابط "+done+"، وتعذّر تجديد روابط "+
+  renewal.failed.map(x=>seatNames[x.seat]).join("، ")+
+  ". مدة المهمة محفوظة؛ استخدم زر «تجديد روابط الأعضاء فقط» لإعادة المحاولة، دون تمديد إضافي.";
+}
 function renderDashboard(){
  const greeting=wrapper("رئيس اللجنة — مختبر الحسابات المؤقتة");
  greeting.append(notice("هذه البيئة مستقلة عن قاعدة الإنتاج. العمليات التي تنفذها هنا تخص بيانات اختبار اصطناعية فقط."));
@@ -238,7 +260,38 @@ function renderDashboard(){
  if(mission){
   choose.append(element("p","الحالة: "+(mission.status==="draft"?"جارية":"مغلقة")+
   " · نهاية صلاحية المهمة: "+new Date(mission.expires_at).toLocaleString("ar-DZ")));
-  const active=mission.status==="draft"&&new Date(mission.expires_at).getTime()>Date.now();
+  const validUntil=new Date(mission.expires_at);
+  const active=mission.status==="draft"&&validUntil.getTime()>Date.now();
+  if(mission.status==="draft"){
+   if(!active)choose.append(notice("انتهت مدة المهمة، لكن الحسابات والمساهمات ما زالت محفوظة. يمكنك تمديدها 7 أيام من هنا.","notice"));
+   const renewActions=element("div","","actions");
+   renewActions.append(button("تمديد المهمة 7 أيام وتجديد روابط الأعضاء",async()=>{
+    if(!confirm("سيتم تمديد المهمة 7 أيام وتحديث صلاحية حسابات الأعضاء النشطة، ثم استبدال روابط دخولهم القديمة بروابط جديدة. لن تتغير العلامات والملاحظات والمساهمات. هل تؤكد؟"))return;
+    const missionId=selected;
+    // Server authorizes this under signed inspector ownership, records the
+    // renewal, rejects closed missions and caps overall age at 30 days.
+    const expiry=await rpc("extend_titularisation_qa_mission_7_days",{
+     p_mission_id:missionId
+    });
+    issued=null;
+    const renewal=await refreshExistingSeatInvitations(missionId);
+    await refreshData();
+    announce("امتدت المهمة حتى "+new Date(expiry).toLocaleString("ar-DZ")+
+     ". "+renewalSummary(renewal),renewal.failed.length>0);
+   },"primary"));
+   if(active&&seatRows.some(s=>s.status==="active")){
+    renewActions.append(button("تجديد روابط الأعضاء فقط دون تمديد إضافي",async()=>{
+     if(!confirm("سيتم استبدال روابط الدخول السابقة للأعضاء النشطين، مع الاحتفاظ بمساهماتهم. هل تؤكد؟"))return;
+     const missionId=selected;
+     issued=null;
+     const renewal=await refreshExistingSeatInvitations(missionId);
+     await refreshData();
+     announce(renewalSummary(renewal),renewal.failed.length>0);
+    }));
+   }
+   choose.append(renewActions);
+   choose.append(notice("يمكن تمديد المهمة المفتوحة فقط، بحد أقصى 30 يومًا منذ إنشائها. الحسابات الملغاة لا تُفعّل من جديد، والروابط القديمة لا تُستعاد."));
+  }
   const ready=mission.rubric_id!=="lesson_derived_indicators_v1"||
     mission.rubric_profile?.frozen===true;
   if(mission.rubric_id==="lesson_derived_indicators_v1")
