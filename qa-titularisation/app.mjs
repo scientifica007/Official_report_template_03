@@ -197,9 +197,17 @@ function renderLogin(){
 async function refreshProfile(){
  if(!session?.userId){profile=null;return;}
  const list=await rows("inspector_profiles",{
-  select:"id,approved,account_status,is_admin",id:"eq."+session.userId
+  select:"id,approved,account_status,is_admin,federation_required",id:"eq."+session.userId
  });
  profile=list?.[0]||null;
+ if(profile?.approved&&profile.federation_required===true){
+  const links=await rows("qa_federated_inspector_links",{
+   select:"federation_only,expires_at",qa_user_id:"eq."+session.userId
+  });
+  if(!links?.[0]||links[0].federation_only!==true||
+     Date.parse(links[0].expires_at)<=Date.now())
+   throw Error("انتهت صلاحية التحقق من الاعتماد؛ أعد الدخول بحسابك المعتمد في المنصة الرئيسية.");
+ }
 }
 async function refreshData(){
  missions=await rows("titularisation_missions",{
