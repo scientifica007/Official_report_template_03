@@ -301,6 +301,12 @@ function renderDashboard(){
   report.href="./report/?mission="+encodeURIComponent(selected);
   report.className="primary";report.style.cssText="display:inline-block;padding:12px;margin:10px 0";
   choose.append(report);
+  // Same accepted editor at its original URL, explicitly opted in to QA.
+  // Navigation stays in this tab so the inspector's sessionStorage is available.
+  const legacyLinked=element("a","فتح المحرر الأصلي مرتبطًا بهذه المهمة واستدعاء المساهمات");
+  legacyLinked.href="../prototypes/titularisation-committee/?qa=1&mission="+encodeURIComponent(selected);
+  legacyLinked.style.cssText="display:inline-block;padding:12px;margin:10px 0";
+  choose.append(legacyLinked);
   if(issued?.mission_id===selected)renderIssued(choose);
   const seatsWrap=element("div","","seats");
   for(const code of seats){
