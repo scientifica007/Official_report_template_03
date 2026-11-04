@@ -13,12 +13,16 @@ export function mountInspectorSynthesis({
  panel.id="inspector-synthesis";panel.hidden=true;
  anchor.insertAdjacentElement("afterend",panel);
  let activeMission="",snapshot=null,generatedSerial=null,sequence=0,busy=false;
+ // Only this assistant's confirmed insertions advance the cached editor serial.
+ // All other draft changes still require fresh synthesis for safety.
+ let appliedKeys=new Set();
  function status(message,error=false){
   const label=panel.querySelector("#synthesis-status");
   if(label){label.textContent=message;label.className=error?"warning":"hint";}
  }
  function reset(){
   sequence++;activeMission="";snapshot=null;generatedSerial=null;busy=false;
+  appliedKeys.clear();
   panel.hidden=true;clear(panel);
  }
  function base(){
@@ -62,6 +66,7 @@ export function mountInspectorSynthesis({
    if(getState().rubricId!==source.rubric_id)
     throw Error("شبكة المحرر لا تطابق المهمة؛ أعد استيراد مساهمات المهمة.");
    const proposal=synthesizeInspectorNotes(source);
+   appliedKeys.clear();
    snapshot=proposal;generatedSerial=getState().serial;
    showResults(proposal);
    status(proposal.fields.length?
@@ -77,6 +82,10 @@ export function mountInspectorSynthesis({
   const root=clear(panel.querySelector("#synthesis-results"));
   root.append(node("p","مساهمات مرسلة: "+proposal.seatCount+
     " — حقول ذات تقديرات: "+proposal.fields.length,"hint"));
+  const progress=node("p","","hint");
+  progress.id="synthesis-progress";progress.setAttribute("role","status");
+  root.append(progress);
+  updateProgress();
   for(const field of proposal.fields){
    const details=node("details","","synthesis-review");
    details.open=["field:general","field:lessonSummary","field:discussionSummary"].includes(field.key);
@@ -94,7 +103,7 @@ export function mountInspectorSynthesis({
     details.append(node("p",field.candidate,"synthesis-candidate"));
     const control=node("button","إدراج هذه الصياغة في تقدير المفتش");
     control.type="button";
-    control.addEventListener("click",()=>insert(field));
+    control.addEventListener("click",()=>insert(field,control,details));
     details.append(control);
    }else details.append(node("p",
     "لا يوجد اقتراح إدراج آلي لهذا الحقل؛ حرر خلاصة المفتش يدويًا بعد مراجعة المصادر.","small"));
@@ -109,9 +118,18 @@ export function mountInspectorSynthesis({
    details.append(trace);root.append(details);
   }
  }
- async function insert(field){
+ function updateProgress(){
+  const progress=panel.querySelector("#synthesis-progress");
+  if(!progress||!snapshot)return;
+  const insertable=snapshot.fields.filter(f=>!f.blocked&&f.candidate);
+  const inserted=insertable.filter(f=>appliedKeys.has(f.key)).length;
+  progress.textContent="الصياغات المدرجة: "+inserted+" من "+insertable.length+
+   " — يمكنك متابعة باقي العناصر دون إغلاق المساعد أو إعادة تكوين المقترحات.";
+ }
+ async function insert(field,control,details){
   if(busy)return;
   busy=true;
+  const stamp=sequence,proposal=snapshot;
   try{
    if(!snapshot||snapshot.mission_id!==activeMission||
       getMissionId()!==activeMission||
@@ -119,12 +137,14 @@ export function mountInspectorSynthesis({
       getState().serial!==generatedSerial)
     throw Error("تغيرت المسودة أو المهمة بعد التحليل. أعد تكوين المقترحات.");
    const match=snapshot.fields.find(x=>x.key===field.key);
-   if(match!==field||match.blocked||!match.candidate)
+   if(match!==field||match.blocked||!match.candidate||appliedKeys.has(field.key))
     throw Error("هذا الحقل لا يملك اقتراحًا صالحًا للإدراج.");
    const latest=await loadSources(activeMission);
    if(latest.owner_only!==true||latest.qa_only!==true||
       sourceFingerprint(latest)!==snapshot.sourceFingerprint)
     throw Error("عُدّلت مساهمات اللجنة بعد التحليل. أعد تكوين المقترحات.");
+   if(sequence!==stamp||proposal!==snapshot||getMissionId()!==activeMission)
+    throw Error("تغيرت المهمة أثناء التحقق. أعد فتح المساعد من مهمتك.");
    if(getState().serial!==generatedSerial)
     throw Error("تغيرت مسودة المفتش. أعد تكوين المقترحات.");
    const existing=field.itemId===null?getState().final.notes[field.field]:
@@ -134,9 +154,22 @@ export function mountInspectorSynthesis({
     "إدراج الصياغة المقترحة في حقل المفتش النهائي فقط؟ يمكنك تحريرها أو حذفها لاحقًا.";
    if(!confirm(question)){status("لم تتغير مسودة المفتش.");return;}
    applyNote(field.field,field.itemId,field.candidate);
-   snapshot=null;generatedSerial=null;
-   clear(panel.querySelector("#synthesis-results"));
-   status("أُدرج النص في حقل المفتش القابل للتحرير فقط. أعد التحليل إذا أردت إدراج بنود أخرى.");
+   // Keep the authorized proposal and other buttons available. This editor
+   // commit was caused by the assistant itself; external draft changes are
+   // still detected by the serial guard on the next insertion.
+   generatedSerial=getState().serial;
+   appliedKeys.add(field.key);
+   control.disabled=true;
+   control.textContent="تم إدراج الصياغة في تقدير المفتش";
+   control.setAttribute("aria-disabled","true");
+   details.className+=" synthesis-applied";
+   updateProgress();
+   const remaining=snapshot.fields.filter(f=>!f.blocked&&f.candidate&&
+    !appliedKeys.has(f.key)).length;
+   status(remaining?
+    "أُدرج هذا التقدير بنجاح. يمكنك إدراج "+remaining+
+     " صياغة أخرى من القائمة مباشرة، دون إعادة التحليل.":
+    "أُدرجت جميع الصياغات القابلة للإدراج. يمكنك تحريرها في تقرير المفتش.");
   }catch(err){status(err?.message||"تعذر الإدراج.",true)}
   finally{busy=false}
  }
