@@ -270,3 +270,15 @@ button.demo-fill-button:hover{background:#f5dfa6}
 .inspector-synthesis .synthesis-review .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .inspector-synthesis .synthesis-review .actions button{min-height:44px;white-space:normal}
 @media(max-width:650px){.inspector-synthesis .synthesis-review .actions button{width:100%}}
+
+/* M5.14: inspector's private evidence review */
+.inspector-synthesis .semantic-overview{margin:15px 0 22px;padding:14px;border:1px solid #abc5b2;border-radius:10px;background:#f8fbf7}
+.inspector-synthesis .semantic-overview h3{margin:0 0 9px;color:#17573d}
+.inspector-synthesis .semantic-group{margin:10px 0;padding:11px;border:1px solid #d0dbd1;border-radius:8px;background:#fff}
+.inspector-synthesis .semantic-group>summary{font-weight:700;cursor:pointer;line-height:1.7}
+.inspector-synthesis .semantic-conflicts{border-inline-start:4px solid #ba7724}
+.inspector-synthesis .semantic-links{border-inline-start:4px solid #527bb0}
+.inspector-synthesis .semantic-themes{border-inline-start:4px solid #34865a}
+.inspector-synthesis .semantic-item{padding:10px 8px;margin-top:10px;border-top:1px solid #e0e9e2}
+.inspector-synthesis .semantic-evidence{line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;border-inline-start:2px solid #aec7b4;padding:5px 10px;margin:7px 0}
+@media(max-width:650px){.inspector-synthesis .semantic-overview{padding:10px}.inspector-synthesis .semantic-group{padding:8px}}
