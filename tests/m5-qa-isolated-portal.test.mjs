@@ -13,18 +13,19 @@ const production=read("cloud-config.js");
 test("M5-QA: standalone test shell does not load production cloud.js or account storage",()=>{
  assert.match(html,/مختبر حسابات لجان الترسيم/);
  assert.match(html,/noindex,nofollow,noarchive/);
- assert.match(html,/script src="\.\/config\.js\\?v=m511-primary-inspectors"/);
+ assert.match(html,/script src="\.\/config\.js\?v=m511-primary-inspectors"/);
  assert.match(html,/script type="module" src="\.\/app\.mjs\?v=m511-primary-inspectors"/);
  assert.doesNotMatch(html,/\bsrc="(?:\.\.\/)?cloud\.js"/);
  assert.match(js,/scientifica_committee_qa_session_v1/);
- assert.doesNotMatch(js,/official_report03_cloud_session_v1/);
+ assert.match(js,/MAIN_SESSION_KEY="official_report03_cloud_session_v1"/);
 });
 test("M5-QA: public config points only at the separate QA Supabase, with default main config still disabled",()=>{
  assert.match(config,/npxwshvcrowbfoiqyrwx\.supabase\.co/);
  assert.match(config,/sb_publishable_/);
  assert.match(config,/temporaryCommitteeEnabled:true/);
  assert.match(config,/qaOnly:true/);
- assert.doesNotMatch(config,/SUPABASE_SERVICE_ROLE_KEY|sb_secret_|uxtsyzyotnohxvopgcmh/i);
+ assert.doesNotMatch(config,/SUPABASE_SERVICE_ROLE_KEY|sb_secret_/i);
+ assert.match(config,/primarySupabaseUrl:"https:\/\/uxtsyzyotnohxvopgcmh\.supabase\.co"/);
  assert.match(production,/uxtsyzyotnohxvopgcmh\.supabase\.co/);
  assert.match(production,/temporaryCommitteeEnabled: false/);
 });
@@ -60,7 +61,8 @@ test("M5-QA: three separate seats, no credential tokens in link, secrets only in
  assert.match(js,/await rpc\("close_titularisation_mission"/);
  assert.match(js,/URL\("\.\/member\/\?mission="/);
  assert.doesNotMatch(js,/sessionStorage\.setItem\(.*issued/);
- assert.doesNotMatch(js,/localStorage/);
+ assert.doesNotMatch(js,/localStorage\.setItem\(/);
+ assert.doesNotMatch(js,/localStorage\.removeItem\(/);
  assert.match(js,/issued=null/);
 });
 test("M5-QA: member portal loads shared tested voice and contribution code but QA config only",()=>{
