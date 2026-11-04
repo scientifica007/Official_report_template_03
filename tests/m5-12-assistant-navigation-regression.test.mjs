@@ -34,9 +34,9 @@ test("M5.12 discoverability: helper path requires actual import and successful o
 
 test("M5.12 discoverability: QA report links and script revisions remain consistent",()=>{
  assert.match(qaHtml,/app\.mjs\?v=m512-assistant-entry-20261104/);
- assert.match(reportHtml,/app\.mjs\?v=m512-continuous-20261104/);
- assert.match(read("prototypes/titularisation-committee/index.html"),/bootstrap\.mjs\?v=m512-continuous-20261104/);
- assert.match(read("prototypes/titularisation-committee/bootstrap.mjs"),/app\.mjs\?v=m512-continuous-20261104/);
+ assert.match(reportHtml,/app\.mjs\?v=m513-editorial-20261104/);
+ assert.match(read("prototypes/titularisation-committee/index.html"),/bootstrap\.mjs\?v=m513-editorial-20261104/);
+ assert.match(read("prototypes/titularisation-committee/bootstrap.mjs"),/app\.mjs\?v=m513-editorial-20261104/);
  for(const path of ["qa-titularisation/app.mjs","prototypes/titularisation-committee/app.mjs"])
   assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path],{stdio:"pipe"}));
 });

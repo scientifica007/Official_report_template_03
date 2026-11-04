@@ -188,7 +188,7 @@ if(committeeCloudEnabled()){
     if(qaReport){
      try{
       const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs");
-      const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=m512-continuous-20261104");
+      const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=m513-editorial-20261104");
       if(!synthesisReview)synthesisReview=mountInspectorSynthesis({
        anchor:panel,loadSources:loadInspectorSynthesisSources,
        getState:()=>state,getWho:()=>who,

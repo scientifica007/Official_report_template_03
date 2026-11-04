@@ -209,3 +209,65 @@ test("M5.12 continuous: mission reset during async owner check cannot apply stal
  assert.equal(x.controller.panel.hidden,true);
  assert.equal(x.controller.panel.children.length,0);
 });
+
+test("M5.13: inspector edits a candidate before insertion without modifying member source text",async()=>{
+ const x=setup();
+ await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const textarea=find(x.controller.panel,e=>e.tag==="textarea");
+ const button=find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش");
+ const origin=find(x.controller.panel,e=>e.textContent==="أحسن الأستاذ تنظيم الحصة");
+ assert.ok(textarea);assert.ok(button);
+ textarea.value="نظم الأستاذ الحصة بصورة جيدة، مع تحسين تسيير الوقت.";
+ await button.emit("click");
+ assert.deepEqual(x.applied,[{field:"lesson",item:"g1",text:textarea.value}]);
+ assert.equal(textarea.readOnly,true);
+ assert.equal(button.disabled,true);
+ assert.equal(x.controller.panel.hidden,false);
+ // Source is independently stored in the review, not edited in place.
+ assert.ok(find(x.controller.panel,e=>e.textContent.includes("أحسن الأستاذ تنظيم الحصة")));
+ assert.ok(origin);
+});
+test("M5.13: restore button resets only the editable proposal, not the inspector report",async()=>{
+ const x=setup();await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const textarea=find(x.controller.panel,e=>e.tag==="textarea");
+ textarea.value="صياغة معدّلة";
+ const restore=find(x.controller.panel,e=>e.textContent==="استعادة الصياغة الأصلية");
+ await restore.emit("click");
+ assert.equal(textarea.value,"أحسن الأستاذ تنظيم الحصة.");
+ assert.equal(x.applied.length,0);
+});
+test("M5.13: proposed attribution to a committee member cannot enter final report",async()=>{
+ const x=setup();await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const textarea=find(x.controller.panel,e=>e.tag==="textarea");
+ textarea.value="ورد في تقديرات العضو الأول أنه أحسن تنظيم الحصة";
+ await find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش").emit("click");
+ assert.equal(x.applied.length,0);
+ assert.match(x.controller.panel.querySelector("#synthesis-status").textContent,/نسبة قول/);
+});
+test("M5.13: numeric claim not in member observations requires an explicit source warning",async()=>{
+ const previous=globalThis.confirm;let confirmation="";
+ try{
+  globalThis.confirm=message=>{confirmation=message;return false};
+  const x=setup();await x.controller.activate(id);
+  await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+  const textarea=find(x.controller.panel,e=>e.tag==="textarea");
+  textarea.value="أحسن الأستاذ تنظيم الحصة، بنسبة إنجاز 95%.";
+  await find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش").emit("click");
+  assert.match(confirmation,/95%/);
+  assert.match(confirmation,/منقّحة بواسطتك/);
+  assert.equal(x.applied.length,0);
+  assert.equal(x.controller.panel.hidden,false);
+ }finally{globalThis.confirm=previous}
+});
+test("M5.13: empty editorial draft never overwrites a field",async()=>{
+ const x=setup();await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const textarea=find(x.controller.panel,e=>e.tag==="textarea");
+ textarea.value="   ";
+ await find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش").emit("click");
+ assert.equal(x.applied.length,0);
+ assert.match(x.controller.panel.querySelector("#synthesis-status").textContent,/الصياغة فارغة/);
+});

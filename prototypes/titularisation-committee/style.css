@@ -260,3 +260,13 @@ button.demo-fill-button:hover{background:#f5dfa6}
  background:#e5efe7;color:#335b41;border-color:#9cbea6;
  cursor:default;opacity:1;
 }
+
+/* M5.13 — editorial QA surface visible only in authorized inspector review. */
+.inspector-synthesis .synthesis-draft-label{display:grid;gap:8px;margin:14px 0}
+.inspector-synthesis .synthesis-draft-label>span{font-weight:600;color:#18583c}
+.inspector-synthesis .synthesis-draft{display:block;width:100%;min-height:120px;resize:vertical;direction:rtl;line-height:1.8;background:#fff;border:1px solid #85aa93;border-radius:7px;padding:12px;font:inherit;color:inherit;box-sizing:border-box}
+.inspector-synthesis .synthesis-draft:focus-visible{outline:3px solid #6cb992;outline-offset:2px}
+.inspector-synthesis .synthesis-draft:read-only{background:#f2f7f3;color:#3e6250}
+.inspector-synthesis .synthesis-review .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.inspector-synthesis .synthesis-review .actions button{min-height:44px;white-space:normal}
+@media(max-width:650px){.inspector-synthesis .synthesis-review .actions button{width:100%}}
