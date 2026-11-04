@@ -4,6 +4,7 @@
 // Source identities are retained in the inspector review ONLY.
 import {RUBRICS,GROUPS,TEN,DISCUSSION} from "../titularisation-workbench/engine.mjs";
 import {composeGroundedProse} from "./inspector-prose-quality.mjs";
+import {analyzePedagogicalRelations} from "./inspector-semantic-review.mjs";
 
 const PROSE=[
  ["lessonSummary","التقدير العام للحصة"],
@@ -145,6 +146,27 @@ export function synthesizeInspectorNotes(source){
    possibleConflicts:collisions.length
   });
  }
+ // M5.14: review-only semantic annotations, with explicit source evidence.
+ // Within-field opposite assessments from different members block mechanical
+ // insertion. Cross-field disagreements remain visible warnings, not verdicts.
+ const semantic=analyzePedagogicalRelations(fields);
+ for(const field of fields){
+  const conflicts=semantic.conflicts.filter(c=>
+   c.first.fieldKey===field.key||c.second.fieldKey===field.key);
+  const sameField=conflicts.filter(c=>
+   c.first.fieldKey===field.key&&c.second.fieldKey===field.key);
+  field.semanticConflictCount=conflicts.length;
+  field.semanticConflictWithinField=sameField.length;
+  field.semanticTopics=[...new Set(semantic.groups.filter(g=>
+   g.evidence.some(e=>e.fieldKey===field.key)).map(g=>g.title))];
+  if(sameField.length){
+   field.blocked=true;
+   field.candidate="";
+   field.reasons.push("اختلاف لفظي بيداغوجي محتمل بين تقويمين داخل الحقل نفسه؛ راجع الأدلة الأصلية ولا تدرج صياغة آلية.");
+  }else if(conflicts.length){
+   field.reasons.push("توجد ملاحظات متقابلة في محور بيداغوجي بأجزاء أخرى من التقديرات؛ راجع لوحة العلاقات قبل إقرار النص.");
+  }
+ }
  return {mission_id:source.mission_id,rubric_id:source.rubric_id,seatCount:seats.size,
-  fields,sourceFingerprint:sourceFingerprint(source)};
+  fields,semantic,sourceFingerprint:sourceFingerprint(source)};
 }
