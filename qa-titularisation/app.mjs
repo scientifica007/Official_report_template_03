@@ -388,6 +388,24 @@ function renderDashboard(){
   report.href="./report/?mission="+encodeURIComponent(selected);
   report.className="primary";report.style.cssText="display:inline-block;padding:12px;margin:10px 0";
   choose.append(report);
+  // M5.12 entry point appears ONLY inside the authenticated inspector dashboard.
+  // The report editor separately verifies mission ownership on the QA server
+  // before revealing any source notes or synthesis controls.
+  const submittedCount=contributions.filter(c=>c.status==="submitted").length;
+  const assistantEntry=element("div","","assistant-entry");
+  assistantEntry.append(element("h3","مساعد المفتش لتركيب تقديرات أعضاء اللجنة"));
+  if(submittedCount){
+   assistantEntry.append(notice("توجد "+submittedCount+
+    " مساهمة مرسلة. افتح المساعد، ثم اضغط داخل محرر التقرير «استيراد المساهمات المرسلة». بعدها تظهر لوحة التركيب أسفل قسم المساهمات السحابية. هذه الخاصية لصاحب المهمة فقط."));
+   const assistantLink=element("a","فتح مساعد تركيب التقديرات — للمفتش فقط");
+   assistantLink.href="./report/?mission="+encodeURIComponent(selected)+"&assistant=1";
+   assistantLink.className="primary";
+   assistantLink.style.cssText="display:inline-block;padding:12px;margin:10px 0";
+   assistantEntry.append(assistantLink);
+  }else{
+   assistantEntry.append(notice("لا توجد مساهمات مرسلة نهائيًا لهذه المهمة بعد. يظهر المساعد بعد إرسال عضو واحد على الأقل مساهمته.","hint"));
+  }
+  choose.append(assistantEntry);
   // Same accepted editor at its original URL, explicitly opted in to QA.
   // Navigation stays in this tab so the inspector's sessionStorage is available.
   const legacyLinked=element("a","فتح المحرر الأصلي مرتبطًا بهذه المهمة واستدعاء المساهمات");
