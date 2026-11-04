@@ -1,5 +1,5 @@
 import {RUBRICS,sameWeightProfile} from "../titularisation-workbench/engine.mjs";
-import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,changeMode,restoreCommittee,stringifyCommittee} from "./committee-engine.mjs";
+import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,editNote,changeMode,restoreCommittee,stringifyCommittee} from "./committee-engine.mjs";
 import {DECISIONS} from "./document-model.mjs";
 import {MINUTES_SCOPES} from "./document-language.mjs";
 import {renderWeights} from "./weights-ui.mjs";
@@ -15,6 +15,7 @@ import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
 import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers} from "./committee-cloud-bridge.mjs";
 let state=freshCommittee(),who="final";
+let synthesisReview=null; // Created only after an owner-authorized QA import.
 const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
@@ -101,6 +102,7 @@ $("mode").addEventListener("change",e=>{
  try{
   const next=changeMode(state,chosen);
   state=next;
+  synthesisReview?.reset();
   // Make the selected mode evident immediately: start on first seat
   // when entering individual contributions; return to final in unified.
   who=chosen==="individual"?SEATS[0].id:"final";
@@ -113,7 +115,7 @@ $("mode").addEventListener("change",e=>{
 $("rubric").addEventListener("change",e=>{
  if(!confirm("تغيير الشبكة يبدأ مسودة فارغة؛ صدّر JSON أولًا إن أردت حفظها. موافق؟")){render();return}
  clearVoiceDrafts();
- state=freshCommittee(state.mode,e.target.value);who="final";render();
+ state=freshCommittee(state.mode,e.target.value);who="final";synthesisReview?.reset();render();
 });
 $("save").addEventListener("click",()=>{
  try{
@@ -131,7 +133,7 @@ $("load").addEventListener("change",async e=>{
   const next=restoreCommittee(JSON.parse(await file.text()));
   if(!confirm("استيراد الملف سيستبدل مسودة الصفحة الحالية. موافق؟"))return;
   clearVoiceDrafts();
-  state=next;who="final";render();message("استُعيد ملف المسودة بعد التحقق.");
+  state=next;who="final";synthesisReview?.reset();render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
 // Optional M5.1: only authorized, submitted seats can be imported.
@@ -141,6 +143,7 @@ if(committeeCloudEnabled()){
  if(panel&&picker){
   panel.hidden=false;
   const info=v=>{$("committee-cloud-status").textContent=v;};
+  picker.addEventListener("change",()=>synthesisReview?.reset());
   $("committee-cloud-refresh").addEventListener("click",async()=>{
    info("جارٍ تحميل مهام الترسيم من حساب المفتش...");
    try{
@@ -177,6 +180,29 @@ if(committeeCloudEnabled()){
     clearVoiceDrafts();
     state=next.state;who="final";render();
     info("استُوردت "+next.seats.length+" مساهمة مرسلة بعد التحقق. بقيت بيانات المفتش النهائية كما هي.");
+    // No synthesis UI is created unless an inspector OWNER-only QA response
+    // succeeds. Member accounts, local simulations, and production cannot
+    // activate the tool, even by forging a browser role flag.
+    if(qaReport){
+     try{
+      const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs");
+      const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=m512");
+      if(!synthesisReview)synthesisReview=mountInspectorSynthesis({
+       anchor:panel,loadSources:loadInspectorSynthesisSources,
+       getState:()=>state,getWho:()=>who,
+       getMissionId:()=>picker.value,
+       applyNote:(field,itemId,text)=>{
+        state=editNote(state,"final",field,text,itemId);
+        who="final";render();
+       }
+      });
+      await synthesisReview.activate(id);
+     }catch(denied){
+      synthesisReview?.reset();
+      info("تم استيراد المساهمات؛ مساعد التركيب متاح لصاحب المهمة فقط: "+
+       (denied?.message||"تعذر إثبات الصلاحية."));
+     }
+    }
    }catch(err){info(err.message)}
   });
   if(qaReport){

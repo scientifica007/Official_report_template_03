@@ -117,3 +117,30 @@ export function mergeSubmittedCloudMembers(original,mission,rows){
  copy.serial++;
  return {state:restoreCommittee(copy),seats:[...applied]};
 }
+
+/** M5.12: only the QA mission owner may retrieve synthesis source notes.
+ * Member and arbitrary browser tokens cannot bypass server-side requireOwner.
+ * No AI provider or production project receives the text.
+ */
+export async function loadInspectorSynthesisSources(missionId){
+ const c=cfg();
+ if(c.qaOnly!==true||c.temporaryCommitteeEnabled!==true||
+    c.supabaseUrl!=="https://npxwshvcrowbfoiqyrwx.supabase.co")
+  throw Error("التركيب الذكي متاح للمفتش في QA فقط.");
+ if(!/^[0-9a-f-]{36}$/i.test(missionId))throw Error("معرّف المهمة غير صالح.");
+ const token=await inspectorToken();
+ const response=await fetch(c.supabaseUrl+"/functions/v1/titularisation-access",{
+  method:"POST",cache:"no-store",referrerPolicy:"no-referrer",
+  headers:{apikey:c.publishableKey,Authorization:"Bearer "+token,
+   "Content-Type":"application/json",Accept:"application/json"},
+  body:JSON.stringify({action:"synthesis_sources",mission_id:missionId})
+ });
+ const data=await response.json().catch(()=>null);
+ if(!response.ok)
+  throw Error(String(data?.error||"ليست لديك صلاحية تركيب تقديرات هذه المهمة.")+
+    " ("+response.status+")");
+ if(data?.owner_only!==true||data?.qa_only!==true||
+    data?.mission_id!==missionId||!Array.isArray(data.rows))
+  throw Error("استجابة تركيب التقديرات لم تجتز التحقق.");
+ return data;
+}
