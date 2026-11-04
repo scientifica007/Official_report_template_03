@@ -40,7 +40,7 @@ try{
  if(qaRequested&&(!config?.qaOnly||config?.temporaryCommitteeEnabled!==true||
   config?.supabaseUrl!=="https://npxwshvcrowbfoiqyrwx.supabase.co"))
   throw Error("لم تُحمّل إعدادات بيئة QA المعزولة بصورة صحيحة.");
- await import("./app.mjs?v=m513-editorial-20261104");
+ await import("./app.mjs?v=m514-semantic-20261104");
 }catch(error){
  const output=document.getElementById("message");
  if(output)output.textContent="تعذر تهيئة محرر الترسيم: "+(error?.message||"خطأ غير متوقع")+
