@@ -83,9 +83,88 @@ function render(){
  if(!session||!profile){renderLogin();return;}
  renderDashboard();
 }
+// Main and QA are two separate Auth issuers: a verified primary access token
+// is exchanged server-side for an independent, short-lived QA identity/session.
+// Never pass the primary refresh token or password to the QA Edge Function.
+const MAIN_SESSION_KEY="official_report03_cloud_session_v1";
+function activePrimarySession(){
+ let stored=null;
+ try{stored=localStorage.getItem(MAIN_SESSION_KEY)||
+   sessionStorage.getItem(MAIN_SESSION_KEY)}catch(_){}
+ try{
+  const item=JSON.parse(stored||"null");
+  if(item?.access_token&&item?.user?.id&&
+    (item.expires_at_ms||0)>Date.now()+60000)return item.access_token;
+ }catch(_){}
+ return null;
+}
+async function primaryPasswordToken(email,password){
+ const endpoint=config.primarySupabaseUrl;
+ const key=config.primaryPublishableKey;
+ if(endpoint!=="https://uxtsyzyotnohxvopgcmh.supabase.co"||
+    !key?.startsWith("sb_publishable_"))throw Error("إعدادات حساب المنصة الرئيسية غير صالحة.");
+ const response=await fetch(endpoint+"/auth/v1/token?grant_type=password",{
+  method:"POST",headers:{apikey:key,"Content-Type":"application/json"},
+  body:JSON.stringify({email,password}),cache:"no-store",referrerPolicy:"no-referrer"
+ });
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result?.access_token)
+  throw Error("تعذر تسجيل الدخول إلى المنصة الرئيسية. تحقق من البريد وكلمة المرور.");
+ return result.access_token;
+}
+async function loginApprovedPrimary(token){
+ const result=await request("/functions/v1/titularisation-access",{
+  method:"POST",body:{action:"federated_inspector_login",production_access_token:token}
+ });
+ if(!result?.access_token||!result?.refresh_token||!result?.user?.id)
+  throw Error("لم تُصدر QA جلسة مصادقة مستقلة.");
+ saveSession({access_token:result.access_token,refresh_token:result.refresh_token,
+  expiresAt:Date.now()+Number(result.expires_in||3600)*1000,userId:result.user.id});
+ try{
+  await refreshProfile();
+  if(!profile?.approved||profile.account_status!=="approved")
+   throw Error("الحساب غير معتمد في QA.");
+  await refreshData();
+ }catch(error){saveSession(null);profile=null;throw error}
+ announce("تم الدخول بحساب المفتش المعتمد في المنصة الرئيسية؛ بيانات مهام QA مستقلة.");
+}
 function renderLogin(){
- const card=wrapper("الدخول بحساب المفتش التجريبي");
- card.append(notice("استخدم البريد وكلمة المرور اللذين أنشأتهما في مشروع Supabase التجريبي فقط. لا تستخدم بيانات المنصة الإنتاجية."));
+ const primary=wrapper("الدخول بحساب المفتش المعتمد في المنصة الرئيسية");
+ primary.append(notice("خاص بمفتش التكوين والتعليم المهنيين أو المفتش التقني والبيداغوجي المعتمد. لا حاجة إلى حساب اختبار ثانٍ، وتظل المهام في QA مستقلة عن الإنتاج."));
+ const originalSession=activePrimarySession();
+ const oneClick=element("button","دخول مباشر بحسابي المفتوح في المنصة الرئيسية","primary");
+ oneClick.type="button";
+ oneClick.disabled=!originalSession;
+ oneClick.addEventListener("click",()=>run(async()=>{
+  const token=activePrimarySession();
+  if(!token)throw Error("انتهت جلسة المنصة الرئيسية. سجّل الدخول إليها مجددًا أو استخدم النموذج أدناه.");
+  await loginApprovedPrimary(token);
+ },oneClick));
+ primary.append(oneClick);
+ if(!originalSession)primary.append(notice("لا توجد جلسة نشطة للمنصة الرئيسية في هذا المتصفح. يمكنك استخدام بيانات دخولها أدناه أو تسجيل الدخول إليها أولًا.","hint"));
+ const primaryForm=element("form");
+ const pEmail=input("email","البريد الإلكتروني المسجل في المنصة الرئيسية");
+ pEmail.required=true;pEmail.autocomplete="username";pEmail.dir="ltr";
+ const pPassword=input("password","كلمة مرور المنصة الرئيسية");
+ pPassword.required=true;pPassword.autocomplete="current-password";
+ const pSubmit=element("button","التحقق والدخول إلى QA");pSubmit.type="submit";
+ primaryForm.append(field("البريد الإلكتروني",pEmail),field("كلمة المرور",pPassword),pSubmit);
+ primaryForm.addEventListener("submit",async event=>{
+  event.preventDefault();if(busy)return;
+  busy=true;pSubmit.disabled=true;
+  try{
+   const token=await primaryPasswordToken(pEmail.value.trim(),pPassword.value);
+   pPassword.value="";
+   await loginApprovedPrimary(token);
+  }catch(error){
+   pPassword.value="";saveSession(null);profile=null;
+   announce(error?.message||"فشل الدخول بالحساب المعتمد.",true);
+  }finally{busy=false;render()}
+ });
+ primary.append(primaryForm);
+ root.append(primary);
+ const card=wrapper("الدخول بالحساب التجريبي السابق (للتوافق)");
+ card.append(notice("للاستمرار في المهمة التجريبية القديمة يمكنك استخدام حساب QA السابق. أما الحساب المعتمد من المنصة الرئيسية فله نموذج مستقل أعلاه."));
  const form=element("form");
  const email=input("email","بريد المفتش التجريبي");
  email.required=true;email.autocomplete="username";email.dir="ltr";
