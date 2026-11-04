@@ -21,6 +21,35 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+      # One-time recovery: M5.12 Pages deploy 31fd589 timed out and
+      # left a server-side deployment stuck in 'updating_pages'. A subsequent
+      # clean run was rejected with HTTP 400 naming that exact commit.
+      # The standard workflow token has Pages write permission.
+      - name: Cancel only the stale M5.12 Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stale=31fd58917a346e8f3de1931eb24ef84c05cda360
+          endpoint="repos/${GITHUB_REPOSITORY}/pages/deployments/${stale}"
+          status="$(gh api "${endpoint}" --jq '.status' 2>/dev/null || true)"
+          echo "Stale Pages deployment status: ${status:-unavailable}"
+          if [[ "${status}" == "succeed" || "${status}" == "canceled" || "${status}" == "cancelled" ]]; then
+            echo "Old deployment is already final; no cancellation requested."
+          elif [[ -n "${status}" ]]; then
+            gh api --method POST "${endpoint}/cancel" --silent
+            echo "Requested cancellation of blocked deployment ${stale}."
+            for attempt in {1..12}; do
+              status="$(gh api "${endpoint}" --jq '.status' 2>/dev/null || true)"
+              echo "Pages recovery check ${attempt}: ${status:-unavailable}"
+              case "${status}" in
+                updating_pages|in_progress|queued|pending|building) sleep 5 ;;
+                *) break ;;
+              esac
+            done
+          else
+            echo "Previous Pages deployment could not be read; continuing to normal deployment."
+          fi
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:
