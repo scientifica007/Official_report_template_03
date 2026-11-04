@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>مختبر إعداد تقرير ومحضر الترسيم</title>
-<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./print-layout-b5.css" media="print"><script src="../../cloud-config.js" defer></script><script type="module" src="./app.mjs"></script></head>
+<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./print-layout-b5.css" media="print"><script type="module" src="./bootstrap.mjs?v=qa-link-20261104"></script></head>
 <body><header><small>ARCH-01D2 — تجربة معزولة</small><h1>مختبر إعداد تقرير ومحضر لجنة الترسيم</h1>
-<p>أداة مساعدة للمفتش واللجنة، لا نظام اعتماد أو تصديق. هذه محاكاة محلية بلا حسابات أعضاء أو تخزين سحابي.</p>
+<p id="local-mode-description">أداة مساعدة للمفتش واللجنة، لا نظام اعتماد أو تصديق. الوضع الافتراضي محلي بلا حسابات أعضاء أو تخزين سحابي.</p>
+<p id="qa-mode-description" hidden>وضع استيراد مساهمات QA مفعّل: يجلب المحرر مساهمات المهمة من مشروع الاختبار المعزول فقط، بعد تسجيل دخول المفتش في التبويب نفسه.</p>
 <p class="warning">استخدم بيانات اصطناعية فقط. المعاينة الورقية قيد المطابقة المرجعية، وهي مسودة عمل لا تمثل إمضاءً أو ختمًا. النسخة الممضاة والمؤشر عليها ورقيًا وحدها المرجع المهني الرسمي.</p>
-<nav aria-label="روابط التنقل"><a href="../../">العودة إلى منصة التفتيش والتقويم المهني</a> · <a href="../titularisation-workbench/">محرر التنقيط</a></nav></header>
+<nav aria-label="روابط التنقل"><a href="../../">العودة إلى منصة التفتيش والتقويم المهني</a> · <a href="../titularisation-workbench/">محرر التنقيط</a> · <a href="../../qa-titularisation/">لوحة المفتش QA</a> · <a id="qa-mode-link" href="?qa=1">تفعيل استيراد مساهمات أعضاء اللجنة من QA</a><a id="local-mode-link" href="./" hidden>العودة إلى التحرير المحلي</a></nav>
+<p id="qa-link-status" role="status" aria-live="polite"></p></header>
 <main><section class="panel"><h2>إعداد المهمة التجريبية</h2>
 <label>طريقة العمل<select id="mode"><option value="unified">تقييم موحد — الوضع الافتراضي</option>
 <option value="individual">مساهمات فردية</option></select></label>
