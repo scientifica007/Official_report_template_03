@@ -6,6 +6,7 @@
 import {createClient} from "npm:@supabase/supabase-js@2.58.0";
 
 const PROJECT_URL=Deno.env.get("SUPABASE_URL")||"";
+const IS_DISPOSABLE_QA=PROJECT_URL.replace(/\/+$/,"")==="https://npxwshvcrowbfoiqyrwx.supabase.co";
 const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const PUBLIC_KEY=Deno.env.get("SUPABASE_ANON_KEY")||"";
 const DOMAIN=Deno.env.get("COMMITTEE_LOGIN_DOMAIN")||"";
@@ -197,16 +198,23 @@ async function retrieveLink(db:ReturnType<typeof admin>,mission:{
 }
 
 async function issueLink(db:ReturnType<typeof admin>,actor:string,
- mission:{id:string;expires_at:string},seatCode:string){
+ mission:{id:string;expires_at:string},seatCode:string,validityHours=24){
  const {data:seat,error:e}=await db.from("titularisation_seats")
   .select("status,auth_user_id,username,expires_at")
   .eq("mission_id",mission.id).eq("seat_code",seatCode).maybeSingle();
- if(e||!seat||seat.status!=="active"||!seat.auth_user_id||!seat.username)
-  return error("يجب إنشاء حساب العضو أولًا.",409);
+ if(e||!seat||seat.status!=="active"||!seat.auth_user_id||!seat.username||
+  Date.parse(seat.expires_at)<=Date.now())
+  return error("لا يوجد حساب عضو نشط وساري الصلاحية لهذا المقعد.",409);
  const secret=freshLinkToken();
  const digest=await hex(secret);
  const sealed=await sealInvite(secret);
- const expiry=new Date(Math.min(Date.parse(mission.expires_at),Date.now()+24*60*60*1000)).toISOString();
+ // Ordinary invitations remain 24-hour capabilities. M5.9 may issue 168h
+ // ONLY in the isolated QA project, after an owner-authorized renewal.
+ if(validityHours!==24&&(!IS_DISPOSABLE_QA||validityHours!==168))
+  return error("تجديد السبعة أيام مخصص لمختبر الاختبار.",403);
+ const expiry=new Date(Math.min(
+  Date.parse(mission.expires_at),Date.now()+validityHours*60*60*1000
+ )).toISOString();
  const {error:saveError}=await db.from("titularisation_member_links").upsert({
   mission_id:mission.id,seat_code:seatCode,token_hash:digest,
   ...sealed,expires_at:expiry,revoked_at:null,created_at:new Date().toISOString()
@@ -404,10 +412,10 @@ Deno.serve(async req=>{
  if(!token)return error("Authentication required",401);
  try{
   const {db,id,mission}=await requireOwner(token,missionId);
-  if((action==="issue"||action==="rotate"||action==="issue_link"||action==="issue_direct")&&
+  if((action==="issue"||action==="rotate"||action==="issue_link"||action==="issue_direct"||action==="renew_week_link")&&
    (mission.status!=="draft"||new Date(mission.expires_at).getTime()<=Date.now()))
    return error("هذه المهمة مغلقة أو انتهت صلاحيتها.",409);
-  if((action==="issue"||action==="issue_direct"||action==="issue_link"||action==="rotate")&&
+  if((action==="issue"||action==="issue_direct"||action==="issue_link"||action==="rotate"||action==="renew_week_link")&&
     mission.rubric_id==="lesson_derived_indicators_v1"&&mission.rubric_profile?.frozen!==true)
    return error("ثبّت أوزان المؤشرات الأربعة عشر قبل إصدار حساب أو دعوة.",409);
   // Revocation remains permitted AFTER closure, so the inspector can remove
@@ -424,6 +432,10 @@ Deno.serve(async req=>{
   }
   if(action==="get_saved_link")return await retrieveLink(db,mission,seatCode);
   if(action==="issue_link")return await issueLink(db,id,mission,seatCode);
+  if(action==="renew_week_link"){
+   if(!IS_DISPOSABLE_QA)return error("هذه الوظيفة متاحة في مشروع الاختبار فقط.",403);
+   return await issueLink(db,id,mission,seatCode,168);
+  }
   if(action==="rotate")return await rotate(db,id,missionId,seatCode);
   if(action==="revoke")return await revoke(db,id,missionId,seatCode);
   return error("Unsupported action",400);
