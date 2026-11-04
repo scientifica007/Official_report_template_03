@@ -3,6 +3,7 @@
 // RPC enforce the permission for EACH contribution and read.
 import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../shared/voice-dictation.mjs";
+import {createPairedScore} from "../shared/score-range.mjs";
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(cfg.supabaseUrl||"").replace(/\/+$/,"");
 const key=String(cfg.publishableKey||"");
@@ -125,8 +126,8 @@ function addScoreField(area,phase,item,onScoreChange,scoreFields){
  hint.className="score-required-hint";hint.hidden=true;
  hint.id="missing-score-"+phase+"-"+item.id;
  score.setAttribute("aria-describedby",hint.id);
- const gradeLabel=label("العلامة",score);
- gradeLabel.append(hint);
+ const gradeLabel=el("div");gradeLabel.className="score-label";
+ gradeLabel.append(el("span","العلامة"));
  const note=el("textarea");note.rows=3;note.maxLength=4000;
  note.placeholder="تقدير مختصر يتعلق بهذا المؤشر";
  note.dataset.voiceKey=[requestedMission,requestedSeat,phase,item.id].join("|");
@@ -145,6 +146,16 @@ function addScoreField(area,phase,item,onScoreChange,scoreFields){
  };
  score.addEventListener("input",changeGrade);
  score.addEventListener("change",changeGrade);
+ if(item.cap>0){
+  gradeLabel.append(createPairedScore(score,{
+   cap:item.cap,label:item.label,
+   // Member preview updates live; final server submission still validates all marks.
+   onRangeInput:changeGrade,onRangeCommit:changeGrade
+  }));
+ }else{
+  gradeLabel.append(score,el("small","وزنه صفر — غير منقّط"));
+ }
+ gradeLabel.append(hint);
  note.addEventListener("change",()=>{
   payload.notes[phase][item.id]=note.value;dirty=true;
   statusText("توجد تعديلات غير محفوظة.");
