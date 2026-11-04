@@ -17,6 +17,7 @@ import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmi
 let state=freshCommittee(),who="final";
 let synthesisReview=null; // Created only after an owner-authorized QA import.
 const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
+const assistantRequested=qaReport&&new URLSearchParams(location.search).get("assistant")==="1";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
 const labels={institution:"المؤسسة",candidate:"الأستاذ/المترشح",rank:"الرتبة",
@@ -156,7 +157,8 @@ if(committeeCloudEnabled()){
     }
     const preferred=new URLSearchParams(location.search).get("mission");
     if(missions.some(m=>m.id===preferred))picker.value=preferred;
-    info("تم تحميل "+missions.length+" مهمة. يمكنك استيراد المساهمات المرسلة حتى بعد إغلاق المهمة وحذف الحسابات.");
+    info("تم تحميل "+missions.length+" مهمة. يمكنك استيراد المساهمات المرسلة حتى بعد إغلاق المهمة وحذف الحسابات."+
+     (assistantRequested?" اختر المهمة ثم اضغط «استيراد المساهمات المرسلة» لإظهار مساعد المفتش.":""));
    }catch(err){info(err.message)}
   });
   $("committee-cloud-import").addEventListener("click",async()=>{
@@ -197,6 +199,12 @@ if(committeeCloudEnabled()){
        }
       });
       await synthesisReview.activate(id);
+      if(!synthesisReview.panel.hidden){
+       info("تم استيراد المساهمات وتفعيل مساعد المفتش. ستجده أسفل هذا القسم مباشرة. اضغط «تكوين مقترحات التقديرات».");
+       if(assistantRequested)synthesisReview.panel.scrollIntoView?.({
+        behavior:"smooth",block:"start"
+       });
+      }
      }catch(denied){
       synthesisReview?.reset();
       info("تم استيراد المساهمات؛ مساعد التركيب متاح لصاحب المهمة فقط: "+
@@ -220,7 +228,8 @@ if(committeeCloudEnabled()){
      clearVoiceDrafts();
      state=target;who="final";render();
      picker.value=linked;
-     info("تم تحميل شبكة المهمة وأوزانها المثبتة تلقائيًا من رئيس اللجنة. اضغط «استيراد المساهمات المرسلة» لإضافة تقييمات الأعضاء دون إدخال الأوزان مرة ثانية.");
+     info("تم تحميل شبكة المهمة وأوزانها المثبتة تلقائيًا من رئيس اللجنة. اضغط «استيراد المساهمات المرسلة» لإضافة تقييمات الأعضاء دون إدخال الأوزان مرة ثانية."+
+      (assistantRequested?" ستظهر بعدها لوحة مساعد المفتش لتركيب التقديرات أسفل هذا القسم.":""));
     }).catch(err=>info("تعذر تحميل أوزان المهمة تلقائيًا: "+err.message));
    }
   }
