@@ -23,8 +23,12 @@
 .score-pair button.range-enable[aria-pressed=true]{background:#12684d;color:#fff;border-color:#12684d}
 .score-pair button.range-enable:disabled{background:#e5ebe6;color:#738379}
 .criterion-row>.score-pair{max-width:500px}
+.score-label{display:grid;gap:5px;min-width:0}
+.score-label>span{font-size:13px;font-weight:600}
+.assessment{grid-template-columns:minmax(120px,1fr) minmax(280px,1.45fr) minmax(170px,1.2fr)}
 .assessment .score-pair{width:100%;max-width:none}
 .assessment .score-pair input[type=number]{width:90px;max-width:100%}
+@media(max-width:860px){.assessment{display:block}.assessment strong{display:block}}
 @media(max-width:650px){
  .score-pair{width:100%;flex:1 1 100%;grid-template-columns:76px minmax(0,1fr);gap:8px}
  .score-pair input[type=number]{width:76px;padding:7px 5px}
