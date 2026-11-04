@@ -19,7 +19,9 @@ test("M5.3: random opaque link secret is stored hashed, scoped and revocable",()
  assert.match(edge,/const secret=freshLinkToken\(\)/);
  assert.match(edge,/const digest=await hex\(secret\)/);
  assert.match(edge,/\.eq\("token_hash",digest\)/);
- assert.match(edge,/Math\.min\(Date\.parse\(mission\.expires_at\),Date\.now\(\)\+24\*60\*60\*1000\)/);
+ assert.match(edge,/seatCode:string,validityHours=24/);
+ assert.match(edge,/Date\.parse\(mission\.expires_at\),Date\.now\(\)\+validityHours\*60\*60\*1000/);
+ assert.match(edge,/validityHours!==24&&\(!IS_DISPOSABLE_QA\|\|validityHours!==168\)/);
  assert.match(edge,/#access=/);
  assert.match(edge,/Date\.parse\(link\.expires_at\)<=Date\.now\(\)/);
  assert.match(edge,/seat\.status!=="active"/);
