@@ -14,7 +14,7 @@ test("M5-QA: standalone test shell does not load production cloud.js or account 
  assert.match(html,/مختبر حسابات لجان الترسيم/);
  assert.match(html,/noindex,nofollow,noarchive/);
  assert.match(html,/script src="\.\/config\.js"/);
- assert.match(html,/script type="module" src="\.\/app\.mjs"/);
+ assert.match(html,/script type="module" src="\.\/app\.mjs\?v=m59"/);
  assert.doesNotMatch(html,/\bsrc="(?:\.\.\/)?cloud\.js"/);
  assert.match(js,/scientifica_committee_qa_session_v1/);
  assert.doesNotMatch(js,/official_report03_cloud_session_v1/);
