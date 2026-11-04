@@ -15,6 +15,10 @@ if(qaRequested){
  if(qaNotice)qaNotice.hidden=false;
  if(localSeatNotice)localSeatNotice.hidden=true;
  if(qaSeatNotice)qaSeatNotice.hidden=false;
+ if(localLink)localLink.addEventListener("click",event=>{
+  if(!confirm("العودة إلى التحرير المحلي ستعيد تحميل الصفحة. صدّر مسودة JSON أولًا، لأن التعديلات غير المحفوظة لن تنتقل تلقائيًا. متابعة؟"))
+   event.preventDefault();
+ });
  const status=document.getElementById("qa-link-status");
  let signedIn=false;
  try{
