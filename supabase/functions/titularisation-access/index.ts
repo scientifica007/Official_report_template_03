@@ -420,7 +420,7 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
   // the verified user's own RLS; NEVER accept caller-provided role flags.
   const url=PRIMARY_URL+"/rest/v1/inspector_profiles?"+
    new URLSearchParams({
-    select:"id,email,profession,first_name,last_name,district,approved,account_status",
+    select:"id,email,profession,approved,account_status",
     id:"eq."+primaryUser.id
    }).toString();
   let rows:Record<string,unknown>[];
@@ -484,9 +484,6 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
 
   const {error:updateError}=await db.from("inspector_profiles").upsert({
    id:qaUser.id,email,
-   first_name:String(p.first_name||"").slice(0,120),
-   last_name:String(p.last_name||"").slice(0,120),
-   district:String(p.district||"").slice(0,120),
    profession:String(p.profession),approved:true,account_status:"approved",
    federation_required:federationOnly,is_admin:current?.is_admin===true
   },{onConflict:"id"});
