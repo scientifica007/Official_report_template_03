@@ -250,3 +250,13 @@ button.demo-fill-button:hover{background:#f5dfa6}
 .inspector-synthesis .synthesis-source{border-inline-start:2px solid #b4c8bc;padding:8px;margin:7px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .inspector-synthesis button{min-height:44px}
 @media print{#inspector-synthesis{display:none!important}}
+
+/* M5.12 continuous review: keep completed fields visible and auditable. */
+.inspector-synthesis #synthesis-progress{font-weight:600;margin:12px 0}
+.inspector-synthesis .synthesis-review.synthesis-applied{
+ border-color:#88bea0;background:#f5fbf7;
+}
+.inspector-synthesis .synthesis-review button:disabled{
+ background:#e5efe7;color:#335b41;border-color:#9cbea6;
+ cursor:default;opacity:1;
+}
