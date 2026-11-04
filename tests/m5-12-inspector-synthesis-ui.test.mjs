@@ -271,3 +271,42 @@ test("M5.13: empty editorial draft never overwrites a field",async()=>{
  assert.equal(x.applied.length,0);
  assert.match(x.controller.panel.querySelector("#synthesis-status").textContent,/الصياغة فارغة/);
 });
+
+test("M5.14 UI: authenticated inspector sees non-causal map with both original sources",async()=>{
+ const src=()=>{
+  const s=fixture("لم يحسن الأستاذ توزيع وقت الحصة");
+  s.rows.push({seat_code:"member2",revision:2,
+   submitted_at:"2026-11-04T22:40:00Z",
+   notes:{lesson:{g2:"لم يستكمل الأستاذ النشاط التطبيقي"},discussion:{},
+    lessonSummary:"",discussionSummary:"",general:"",recommendations:""}});
+  return s;
+ };
+ const x=setup(async()=>src());
+ await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const panel=find(x.controller.panel,e=>e.className==="semantic-overview");
+ assert.ok(panel);
+ assert.ok(find(panel,e=>e.textContent.includes("خريطة العلاقات الدلالية البيداغوجية")));
+ assert.ok(find(panel,e=>e.textContent.includes("علاقات موضوعية غير سببية")));
+ assert.ok(find(panel,e=>e.textContent.includes("لا تثبت الملاحظتان")));
+ assert.ok(find(panel,e=>e.textContent==="لم يحسن الأستاذ توزيع وقت الحصة"));
+ assert.ok(find(panel,e=>e.textContent==="لم يستكمل الأستاذ النشاط التطبيقي"));
+ assert.equal(x.applied.length,0,"semantic review must never write notes by itself");
+ assert.ok(find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش"));
+});
+test("M5.14 UI: same-field contradictory judgment keeps original quotes but disables blind insertion",async()=>{
+ const x=setup(async()=>{
+  const s=fixture("أحسن الأستاذ توزيع الوقت");
+  s.rows.push({seat_code:"member2",revision:1,
+   notes:{lesson:{g1:"التسيير الزمني ضعيف"},discussion:{},
+    lessonSummary:"",discussionSummary:"",general:"",recommendations:""}});
+  return s;
+ });
+ await x.controller.activate(id);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ assert.ok(find(x.controller.panel,e=>e.textContent.includes("اختلاف لفظي بيداغوجي محتمل")));
+ assert.ok(find(x.controller.panel,e=>e.textContent==="أحسن الأستاذ توزيع الوقت"));
+ assert.ok(find(x.controller.panel,e=>e.textContent==="التسيير الزمني ضعيف"));
+ assert.ok(!find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش"));
+ assert.equal(x.applied.length,0);
+});
