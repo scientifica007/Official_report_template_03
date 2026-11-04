@@ -3,6 +3,7 @@
 // Never copy source attributions into the proposed report text.
 import {node,clear} from "./dom.mjs";
 import {synthesizeInspectorNotes,sourceFingerprint} from "./inspector-synthesis.mjs";
+import {auditInspectorDraft} from "./inspector-prose-quality.mjs";
 
 export function mountInspectorSynthesis({
  anchor,loadSources,getState,getWho,getMissionId,applyNote
@@ -28,7 +29,7 @@ export function mountInspectorSynthesis({
  function base(){
   clear(panel);
   panel.append(node("h2","مساعد المفتش لتركيب تقديرات أعضاء اللجنة"));
-  panel.append(node("p","لرئيس اللجنة صاحب المهمة فقط. يعالج التقديرات المرسلة محليًا في المتصفح دون إرسالها إلى أي نموذج لغوي. المقترحات لا تغير العلامات أو قرار اللجنة أو نصوص الأعضاء.","small"));
+  panel.append(node("p","لرئيس اللجنة صاحب المهمة فقط. ينظم النصوص ويحذف التكرار الكتابي المحافظ، مع إمكانية تنقيح كل اقتراح قبل إدراجه. لا يرسل التقديرات إلى نموذج لغوي، ولا يغير العلامات أو مساهمات الأعضاء.","small"));
   const controls=node("div","","actions");
   const button=node("button","تكوين مقترحات التقديرات");
   button.type="button";button.addEventListener("click",()=>generate());
@@ -97,6 +98,14 @@ export function mountInspectorSynthesis({
    if(field.duplicateCount)
     details.append(node("p","أزيل تكرار "+field.duplicateCount+
      " نص/نصوص متقاربة جدًا دون حذف أي مصدر.","hint"));
+   if(field.clauseDuplicates)
+    details.append(node("p","أزيل تكرار "+field.clauseDuplicates+
+     " عبارة متطابقة داخل التقديرات؛ بقيت جميع النصوص الأصلية محفوظة للمراجعة.","hint"));
+   if(field.breakdown)
+    details.append(node("p","تحليل لغوي أولي للعبارات: "+
+     field.breakdown.strength+" إيجابية، "+
+     field.breakdown.improvement+" للتحسين، "+
+     field.breakdown.observation+" وصفية. هذا تصنيف تقريبي لا يحل محل تقييم المفتش.","hint"));
    if(field.distinctCount>1)
     details.append(node("p","توجد "+field.distinctCount+
      " صياغات متميزة. لا يعني اختلاف الصياغة وجود اتفاق أو تعارض؛ راجعها.","hint"));
@@ -104,10 +113,23 @@ export function mountInspectorSynthesis({
     details.append(node("p",warning,"warning"));
    if(!field.blocked&&field.candidate){
     details.append(node("p",field.candidate,"synthesis-candidate"));
+    const draftLabel=node("label","","synthesis-draft-label");
+    draftLabel.append(node("span","صياغة المفتش المقترحة — راجعها ونقحها هنا قبل الإدراج"));
+    const draft=node("textarea","","synthesis-draft");
+    draft.value=field.candidate;draft.rows=4;draft.maxLength=4000;draft.dir="rtl";
+    draft.setAttribute("aria-label","تنقيح صياغة "+field.title);
+    draftLabel.append(draft);details.append(draftLabel);
+    const controls=node("div","","actions");
+    const restore=node("button","استعادة الصياغة الأصلية");
+    restore.type="button";restore.className="secondary";
+    restore.addEventListener("click",()=>{
+     draft.value=field.candidate;
+     status("استُعيد اقتراح المحرك. لم تتغير مسودة التقرير.");
+    });
     const control=node("button","إدراج هذه الصياغة في تقدير المفتش");
     control.type="button";
-    control.addEventListener("click",()=>insert(field,control,details));
-    details.append(control);
+    control.addEventListener("click",()=>insert(field,control,details,draft,restore));
+    controls.append(control,restore);details.append(controls);
    }else details.append(node("p",
     "لا يوجد اقتراح إدراج آلي لهذا الحقل؛ حرر خلاصة المفتش يدويًا بعد مراجعة المصادر.","small"));
    const trace=node("details","","synthesis-sources");
@@ -129,7 +151,7 @@ export function mountInspectorSynthesis({
   progress.textContent="الصياغات المدرجة: "+inserted+" من "+insertable.length+
    " — يمكنك متابعة باقي العناصر دون إغلاق المساعد أو إعادة تكوين المقترحات.";
  }
- async function insert(field,control,details){
+ async function insert(field,control,details,draft,restore){
   if(busy)return;
   busy=true;
   const stamp=sequence,proposal=snapshot;
@@ -150,19 +172,26 @@ export function mountInspectorSynthesis({
     throw Error("عُدّلت مساهمات اللجنة بعد التحليل. أعد تكوين المقترحات.");
    if(getState().serial!==generatedSerial)
     throw Error("تغيرت مسودة المفتش. أعد تكوين المقترحات.");
+   const audited=auditInspectorDraft(draft.value,field.sources);
    const existing=field.itemId===null?getState().final.notes[field.field]:
     getState().final.notes[field.field][field.itemId];
-   const question=existing?
-    "هذا التقدير يحتوي نصًا سابقًا للمفتش. استبداله سيغيّر النص النهائي فقط دون مساهمات الأعضاء أو العلامات. هل توافق؟":
-    "إدراج الصياغة المقترحة في حقل المفتش النهائي فقط؟ يمكنك تحريرها أو حذفها لاحقًا.";
+   const edited=audited.text!==field.candidate.trim();
+   const question=(existing?
+    "الحقل النهائي يتضمن تقديرًا سبق أن حررته. الإدراج سيستبدله، دون تغيير علامات الأعضاء أو مساهماتهم.\n":
+    "سيُدرج هذا النص في حقل المفتش النهائي فقط.\n")+
+    (edited?"هذه الصياغة منقّحة بواسطتك؛ تحقق من أمانتها للملاحظات والأدلة الأصلية.\n":"")+
+    (audited.warnings.length?audited.warnings.join("\n")+"\n":"")+
+    "هل توافق على الإدراج؟";
    if(!confirm(question)){status("لم تتغير مسودة المفتش.");return;}
-   applyNote(field.field,field.itemId,field.candidate);
+   applyNote(field.field,field.itemId,audited.text);
    // Keep the authorized proposal and other buttons available. This editor
    // commit was caused by the assistant itself; external draft changes are
    // still detected by the serial guard on the next insertion.
    generatedSerial=getState().serial;
    appliedKeys.add(field.key);
    control.disabled=true;
+   draft.readOnly=true;
+   restore.disabled=true;
    control.textContent="تم إدراج الصياغة في تقدير المفتش";
    control.setAttribute("aria-disabled","true");
    details.className+=" synthesis-applied";
