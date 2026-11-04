@@ -62,14 +62,15 @@ async function requireOwner(token:string,missionId:string){
  if(userError||!id)throw new Error("AUTH");
  const db=admin();
  const {data:inspector,error:ie}=await db.from("inspector_profiles")
-  .select("id,approved,account_status")
+  .select("id,approved,account_status,federation_required")
   .eq("id",id).maybeSingle();
  if(ie||!inspector?.approved||inspector.account_status!=="approved")throw new Error("FORBIDDEN");
  // Federated profiles expire even if a QA JWT is still refreshable.
  const {data:federated,error:fe}=await db.from("qa_federated_inspector_links")
   .select("federation_only,expires_at").eq("qa_user_id",id).maybeSingle();
- if(IS_DISPOSABLE_QA&&(fe||(federated?.federation_only===true&&
-    Date.parse(federated.expires_at)<=Date.now())))throw new Error("FORBIDDEN");
+ if(IS_DISPOSABLE_QA&&(fe||(inspector.federation_required===true&&
+    (!federated||federated.federation_only!==true||
+     Date.parse(federated.expires_at)<=Date.now()))))throw new Error("FORBIDDEN");
  const {data:mission,error:me}=await db.from("titularisation_missions")
   .select("id,owner_id,status,expires_at,rubric_id,rubric_profile")
   .eq("id",missionId).maybeSingle();
@@ -453,7 +454,7 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
    return error("لا يمكن تحويل حساب عضو مؤقت إلى مفتش.",403);
 
   const {data:current,error:profileError}=await db.from("inspector_profiles")
-   .select("id,approved,account_status,is_admin")
+   .select("id,approved,account_status,is_admin,federation_required")
    .eq("id",qaUser.id).maybeSingle();
   if(profileError)return error("تعذر قراءة اعتماد المفتش في QA.",503);
   if(["suspended","rejected"].includes(current?.account_status||""))
@@ -471,7 +472,8 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
    return error("حساب المفتش مربوط بهوية مختلفة، يلزم التدخل الإداري.",409);
 
   const start=new Date();
-  const federationOnly=qaBinding.data?.federation_only??!(current?.approved===true);
+  const federationOnly=qaBinding.data?.federation_only??
+   (current?.federation_required===true||!(current?.approved===true));
   const {error:linkError}=await db.from("qa_federated_inspector_links").upsert({
    qa_user_id:qaUser.id,production_user_id:primaryUser.id,
    federation_only:federationOnly,
@@ -486,7 +488,7 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
    last_name:String(p.last_name||"").slice(0,120),
    district:String(p.district||"").slice(0,120),
    profession:String(p.profession),approved:true,account_status:"approved",
-   is_admin:current?.is_admin===true
+   federation_required:federationOnly,is_admin:current?.is_admin===true
   },{onConflict:"id"});
   if(updateError)return error("تعذر تهيئة ملف المفتش.",503);
   const {data:authResult,error:verifyError}=await userClient().auth.verifyOtp({
