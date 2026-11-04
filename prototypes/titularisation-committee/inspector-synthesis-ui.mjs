@@ -86,6 +86,7 @@ export function mountInspectorSynthesis({
   const root=clear(panel.querySelector("#synthesis-results"));
   root.append(node("p","مساهمات مرسلة: "+proposal.seatCount+
     " — حقول ذات تقديرات: "+proposal.fields.length,"hint"));
+  if(proposal.semantic)renderSemanticReview(root,proposal.semantic);
   const progress=node("p","","hint");
   progress.id="synthesis-progress";progress.setAttribute("role","status");
   root.append(progress);
@@ -109,6 +110,11 @@ export function mountInspectorSynthesis({
    if(field.distinctCount>1)
     details.append(node("p","توجد "+field.distinctCount+
      " صياغات متميزة. لا يعني اختلاف الصياغة وجود اتفاق أو تعارض؛ راجعها.","hint"));
+   if(field.semanticTopics?.length)
+    details.append(node("p","محاور بيداغوجية مشتركة: "+
+     field.semanticTopics.join("، ")+" — تشابه الموضوع لا يعني اتفاق التقييم.","hint"));
+   if(field.semanticConflictWithinField)
+    details.open=true;
    for(const warning of field.reasons)
     details.append(node("p",warning,"warning"));
    if(!field.blocked&&field.candidate){
@@ -143,6 +149,69 @@ export function mountInspectorSynthesis({
    details.append(trace);root.append(details);
   }
  }
+ // Relationship descriptions and quoted evidence are review material only.
+ // Nothing here is persisted in the committee report until the inspector
+ // explicitly confirms a separate per-field draft insertion.
+ function renderSemanticReview(root,semantic){
+  const panel=node("section","","semantic-overview");
+  panel.append(node("h3","خريطة العلاقات الدلالية البيداغوجية — للمفتش فقط"));
+  panel.append(node("p","تحليل معجمي محلي قابل للمراجعة، وليس فهمًا دلاليًا شاملًا أو تقريرًا بالأسباب والنتائج أو إجماعًا لأعضاء اللجنة. كل علاقة مدعومة بملاحظات أصلية أدناه.","small"));
+  panel.append(node("p","محاور مشتركة: "+semantic.groups.length+
+   " | اختلافات محتملة: "+semantic.conflicts.length+
+   " | علاقات موضوعية: "+semantic.relations.length,"hint"));
+  if(semantic.omittedCount)
+   panel.append(node("p","تجاوزت بعض العبارات حد المعالجة الآمنة؛ لم تُحلل "+
+    semantic.omittedCount+" عبارة إضافية. راجع تقديرات الأعضاء مباشرة.","warning"));
+  const excerpt=(container,source)=>{
+   const p=node("p","","semantic-evidence");
+   p.append(node("strong",source.seatLabel+" — "+source.fieldTitle+": "));
+   p.append(node("span",source.text));
+   container.append(p);
+  };
+  const makeGroup=(title,kind)=> {
+   const section=node("details","","semantic-group "+kind);
+   section.open=kind==="semantic-conflicts";
+   section.append(node("summary",title));
+   panel.append(section);return section;
+  };
+  const conflicts=makeGroup("اختلافات تستلزم المراجعة ("+
+   semantic.conflicts.length+")","semantic-conflicts");
+  if(!semantic.conflicts.length)
+   conflicts.append(node("p","لم يرصد المحرك تعارضًا لفظيًا ضمن المفاهيم التي تغطيها قواعده. هذا لا يثبت عدم وجود تعارضات أخرى.","hint"));
+  for(const c of semantic.conflicts){
+   const item=node("div","","semantic-item");
+   item.append(node("strong",c.title+" — احتمال اختلاف، لا حكم نهائي"));
+   item.append(node("p",c.explanation,"small"));
+   excerpt(item,c.first);excerpt(item,c.second);
+   conflicts.append(item);
+  }
+  const linked=makeGroup("علاقات موضوعية غير سببية ("+
+   semantic.relations.length+")","semantic-links");
+  if(!semantic.relations.length)
+   linked.append(node("p","لا توجد علاقة بين محاور مختلفة استوفت شروط الكشف المعجمي المحدود.","hint"));
+  for(const link of semantic.relations){
+   const item=node("div","","semantic-item");
+   item.append(node("strong",link.firstTopic+" / "+link.secondTopic));
+   item.append(node("p",link.explanation,"small"));
+   excerpt(item,link.first);excerpt(item,link.second);
+   linked.append(item);
+  }
+  const themes=makeGroup("ملاحظات متقاربة موضوعيًا ("+
+   semantic.groups.length+")","semantic-themes");
+  if(!semantic.groups.length)
+   themes.append(node("p","لم يرصد المحرك محورًا مشتركًا بين أكثر من عضو وفق قاموسه المحدود.","hint"));
+  for(const group of semantic.groups){
+   const item=node("div","","semantic-item");
+   item.append(node("strong",group.title));
+   item.append(node("p",group.explanation,"small"));
+   for(const source of group.evidence)excerpt(item,source);
+   if(group.count>group.evidence.length)
+    item.append(node("p","توجد إشارات أخرى إلى هذا المحور ضمن المساهمات الأصلية؛ تُعرض هنا عينة محدودة.","hint"));
+   themes.append(item);
+  }
+  root.append(panel);
+ }
+
  function updateProgress(){
   const progress=panel.querySelector("#synthesis-progress");
   if(!progress||!snapshot)return;
@@ -180,7 +249,9 @@ export function mountInspectorSynthesis({
     "الحقل النهائي يتضمن تقديرًا سبق أن حررته. الإدراج سيستبدله، دون تغيير علامات الأعضاء أو مساهماتهم.\n":
     "سيُدرج هذا النص في حقل المفتش النهائي فقط.\n")+
     (edited?"هذه الصياغة منقّحة بواسطتك؛ تحقق من أمانتها للملاحظات والأدلة الأصلية.\n":"")+
-    (audited.warnings.length?audited.warnings.join("\n")+"\n":"")+
+    (field.semanticConflictCount?
+     "تنبيه: توجد ملاحظات متقابلة حول محور بيداغوجي قريب في هذه المهمة. راجع خريطة العلاقات الدلالية قبل اعتماد هذا النص.\n":"")+
+    (audited.warnings.length?audited.warnings.join("\n")+"\n":"" )+
     "هل توافق على الإدراج؟";
    if(!confirm(question)){status("لم تتغير مسودة المفتش.");return;}
    applyNote(field.field,field.itemId,audited.text);
