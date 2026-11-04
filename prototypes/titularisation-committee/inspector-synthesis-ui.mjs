@@ -2,7 +2,7 @@
 // This UI is mounted ONLY after an owner-authorized Edge response was verified.
 // Never copy source attributions into the proposed report text.
 import {node,clear} from "./dom.mjs";
-import {synthesizeInspectorNotes,sourceFingerprint} from "./inspector-synthesis.mjs";
+import {synthesizeInspectorNotes,sourceFingerprint} from "./inspector-synthesis.mjs?v=m513-editorial-20261104";
 import {auditInspectorDraft} from "./inspector-prose-quality.mjs";
 
 export function mountInspectorSynthesis({
