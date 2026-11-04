@@ -5,7 +5,7 @@ const id="11111111-1111-4111-8111-111111111111";
 class Element{
  constructor(tag){
   this.tag=tag;this.children=[];this.events={};this.hidden=false;
-  this.textContent="";this.id="";this.className="";
+  this.textContent="";this.id="";this.className="";this.disabled=false;
  }
  append(...items){this.children.push(...items)}
  replaceChildren(...items){this.children=[...items]}
