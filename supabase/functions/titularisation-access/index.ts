@@ -7,6 +7,10 @@ import {createClient} from "npm:@supabase/supabase-js@2.58.0";
 
 const PROJECT_URL=Deno.env.get("SUPABASE_URL")||"";
 const IS_DISPOSABLE_QA=PROJECT_URL.replace(/\/+$/,"")==="https://npxwshvcrowbfoiqyrwx.supabase.co";
+ // Production public endpoints only; production service keys never cross projects.
+ const PRIMARY_URL="https://uxtsyzyotnohxvopgcmh.supabase.co";
+ const PRIMARY_PUBLIC_KEY="sb_publishable_hObSzRf1Sf9HTrUppubkXA_BKT5ZMJe";
+ const QA_FEDERATION_TTL_MS=12*60*60*1000;
 const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const PUBLIC_KEY=Deno.env.get("SUPABASE_ANON_KEY")||"";
 const DOMAIN=Deno.env.get("COMMITTEE_LOGIN_DOMAIN")||"";
@@ -61,6 +65,11 @@ async function requireOwner(token:string,missionId:string){
   .select("id,approved,account_status")
   .eq("id",id).maybeSingle();
  if(ie||!inspector?.approved||inspector.account_status!=="approved")throw new Error("FORBIDDEN");
+ // Federated profiles expire even if a QA JWT is still refreshable.
+ const {data:federated,error:fe}=await db.from("qa_federated_inspector_links")
+  .select("federation_only,expires_at").eq("qa_user_id",id).maybeSingle();
+ if(IS_DISPOSABLE_QA&&(fe||(federated?.federation_only===true&&
+    Date.parse(federated.expires_at)<=Date.now())))throw new Error("FORBIDDEN");
  const {data:mission,error:me}=await db.from("titularisation_missions")
   .select("id,owner_id,status,expires_at,rubric_id,rubric_profile")
   .eq("id",missionId).maybeSingle();
@@ -390,6 +399,111 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
   message:deleted?"أُلغيت الصلاحية وحُذفت بيانات الدخول، مع حفظ المساهمات.":"أُلغي الوصول فورًا، لكن تنظيف حساب المصادقة لم يكتمل؛ أعد المحاولة."});
 }
 
+
+ // Separate QA-issued session derived from a freshly verified primary inspector.
+ // A production access token is NOT trusted as a QA JWT and is never stored.
+ async function federatedInspectorLogin(primaryToken:string){
+  if(!IS_DISPOSABLE_QA)return error("هذه الخدمة متاحة في بيئة الاختبار فقط.",403);
+  if(typeof primaryToken!=="string"||primaryToken.length<60||primaryToken.length>8192)
+   return error("يلزم تسجيل الدخول بحساب مفتش معتمد.",401);
+  const main=createClient(PRIMARY_URL,PRIMARY_PUBLIC_KEY,{
+   auth:{autoRefreshToken:false,persistSession:false}
+  });
+  const {data:identity,error:identityError}=await main.auth.getUser(primaryToken);
+  const primaryUser=identity.user;
+  if(identityError||!primaryUser?.id||!primaryUser.email||
+     !primaryUser.email_confirmed_at||primaryUser.is_anonymous)
+   return error("تعذّر التحقق من حساب المنصة الرئيسية.",401);
+
+  // Validate role and current approval in the PRODUCTION database under
+  // the verified user's own RLS; NEVER accept caller-provided role flags.
+  const url=PRIMARY_URL+"/rest/v1/inspector_profiles?"+
+   new URLSearchParams({
+    select:"id,email,profession,first_name,last_name,district,approved,account_status",
+    id:"eq."+primaryUser.id
+   }).toString();
+  let rows:Record<string,unknown>[];
+  try{
+   const response=await fetch(url,{
+    headers:{apikey:PRIMARY_PUBLIC_KEY,Authorization:"Bearer "+primaryToken,
+     Accept:"application/json"},
+    cache:"no-store",signal:AbortSignal.timeout(10000)
+   });
+   if(!response.ok)return error("تعذّر التحقق من اعتماد المفتش.",503);
+   rows=await response.json();
+  }catch(_){return error("تعذر الاتصال بسجل اعتماد المفتشين.",503)}
+  const p=rows?.[0];
+  const email=primaryUser.email.toLowerCase().trim();
+  if(rows.length!==1||!p||p.id!==primaryUser.id||p.approved!==true||
+     p.account_status!=="approved"||
+     !["IFEP","ITP"].includes(String(p.profession||""))||
+     String(p.email||"").toLowerCase().trim()!==email)
+   return error("الدخول متاح للمفتشين البيداغوجيين المعتمدين فقط.",403);
+
+  const db=admin();
+  // QA Auth supplies the JWT and refresh token; we do not forge JWTs.
+  // Existing QA accounts with this VERIFIED email keep their user ID/missions.
+  const {data:magic,error:generateError}=await db.auth.admin.generateLink({
+   type:"magiclink",email
+  });
+  const qaUser=magic?.user,otp=magic?.properties?.hashed_token;
+  if(generateError||!qaUser?.id||!otp)
+   return error("تعذر تجهيز جلسة المفتش في بيئة QA.",503);
+  if(qaUser.app_metadata?.account_type==="titularisation_temporary")
+   return error("لا يمكن تحويل حساب عضو مؤقت إلى مفتش.",403);
+
+  const {data:current,error:profileError}=await db.from("inspector_profiles")
+   .select("id,approved,account_status,is_admin")
+   .eq("id",qaUser.id).maybeSingle();
+  if(profileError)return error("تعذر قراءة اعتماد المفتش في QA.",503);
+  if(["suspended","rejected"].includes(current?.account_status||""))
+   return error("هذا الحساب موقوف في بيئة الاختبار.",403);
+  const [qaBinding,prodBinding]=await Promise.all([
+   db.from("qa_federated_inspector_links").select("qa_user_id,production_user_id,federation_only")
+    .eq("qa_user_id",qaUser.id).maybeSingle(),
+   db.from("qa_federated_inspector_links").select("qa_user_id,production_user_id,federation_only")
+    .eq("production_user_id",primaryUser.id).maybeSingle()
+  ]);
+  if(qaBinding.error||prodBinding.error)
+   return error("تعذرت قراءة رابطة حساب المفتش.",503);
+  if((qaBinding.data&&qaBinding.data.production_user_id!==primaryUser.id)||
+     (prodBinding.data&&prodBinding.data.qa_user_id!==qaUser.id))
+   return error("حساب المفتش مربوط بهوية مختلفة، يلزم التدخل الإداري.",409);
+
+  const start=new Date();
+  const federationOnly=qaBinding.data?.federation_only??!(current?.approved===true);
+  const {error:linkError}=await db.from("qa_federated_inspector_links").upsert({
+   qa_user_id:qaUser.id,production_user_id:primaryUser.id,
+   federation_only:federationOnly,
+   expires_at:new Date(start.getTime()+QA_FEDERATION_TTL_MS).toISOString(),
+   last_verified_at:start.toISOString()
+  },{onConflict:"qa_user_id"});
+  if(linkError)return error("تعذر ربط حساب المفتش بصورة آمنة.",503);
+
+  const {error:updateError}=await db.from("inspector_profiles").upsert({
+   id:qaUser.id,email,
+   first_name:String(p.first_name||"").slice(0,120),
+   last_name:String(p.last_name||"").slice(0,120),
+   district:String(p.district||"").slice(0,120),
+   profession:String(p.profession),approved:true,account_status:"approved",
+   is_admin:current?.is_admin===true
+  },{onConflict:"id"});
+  if(updateError)return error("تعذر تهيئة ملف المفتش.",503);
+  const {data:authResult,error:verifyError}=await userClient().auth.verifyOtp({
+   token_hash:otp,type:"magiclink"
+  });
+  if(verifyError||!authResult.session||authResult.user?.id!==qaUser.id)
+   return error("تعذر إصدار جلسة الدخول الخاصة بـQA.",503);
+  return json({
+   access_token:authResult.session.access_token,
+   refresh_token:authResult.session.refresh_token,
+   expires_in:authResult.session.expires_in,
+   user:{id:qaUser.id},
+   federated:true,
+   federation_valid_until:new Date(start.getTime()+QA_FEDERATION_TTL_MS).toISOString()
+  });
+ }
+ 
 Deno.serve(async req=>{
  const origin=req.headers.get("Origin")||"";
  if(origin && origin!==ALLOWED_ORIGIN)
@@ -401,6 +515,7 @@ Deno.serve(async req=>{
  try{body=await req.json();if(!body||typeof body!=="object"||Array.isArray(body))throw Error("body")}
  catch(_){return error("Invalid JSON",400)}
  const action=String(body.action||"");
+ if(action==="federated_inspector_login")return federatedInspectorLogin(String(body.production_access_token||""));
  if(action==="login")return login(String(body.username||""),String(body.password||""));
  if(action==="login_link")return loginLink(String(body.token||""),
   String(body.mission_id||""),String(body.seat_code||""));
