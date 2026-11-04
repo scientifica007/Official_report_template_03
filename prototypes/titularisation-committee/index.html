@@ -14,7 +14,8 @@
 <label>شبكة الحصة<select id="rubric"><option value="grouped5">شبكة الخمسة</option>
 <option value="inspector10">شبكة العشرة</option><option value="analytical14">شبكة 14 مؤشرًا</option></select></label>
 <label>المحرر النشط<select id="who"></select></label>
-<p class="small">اختيار العضو هنا محاكاة فنية لا تتحقق من هوية أحد. الدعوات والرموز وQR ستدرس في مرحلة التكامل السحابي.</p>
+<p id="simulated-members-description" class="small">اختيار العضو هنا محاكاة فنية لا تتحقق من هوية أحد. لاستيراد مساهمات الأعضاء الحقيقية في QA استخدم وضع الربط في الأعلى.</p>
+<p id="qa-members-description" class="small" hidden>استيراد الأعضاء يتم من قسم «مساهمات أعضاء اللجنة السحابية» بعد اختيار المهمة. اختيار المقاعد الأخرى في هذا المحرر لا يمنح صلاحية حساب عضو.</p>
 <div class="actions"><button id="save" type="button">تصدير مسودة JSON</button>
 <label class="file-label">استيراد JSON<input id="load" type="file" accept=".json,application/json"></label>
 <span class="export-label">التقرير:</span>
