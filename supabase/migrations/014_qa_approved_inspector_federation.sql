@@ -2,6 +2,9 @@
 -- This migration MUST NOT be applied to the production Supabase project.
 -- Standard QA inspector accounts and all previously saved missions remain intact.
 
+alter table public.inspector_profiles
+ add column if not exists federation_required boolean not null default false;
+
 create table if not exists public.qa_federated_inspector_links (
   qa_user_id uuid primary key references auth.users(id) on delete cascade,
   production_user_id uuid not null unique,
@@ -32,11 +35,14 @@ as $function$
   where p.id = (select auth.uid())
     and p.approved = true
     and p.account_status = 'approved'
-    and not exists (
-      select 1 from public.qa_federated_inspector_links f
-      where f.qa_user_id = p.id
-        and f.federation_only = true
-        and f.expires_at <= now()
+    and (
+      p.federation_required = false
+      or exists (
+        select 1 from public.qa_federated_inspector_links f
+        where f.qa_user_id = p.id
+          and f.federation_only = true
+          and f.expires_at > now()
+      )
     )
  );
 $function$;
