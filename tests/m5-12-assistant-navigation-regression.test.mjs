@@ -27,7 +27,7 @@ test("M5.12 discoverability: helper path requires actual import and successful o
  assert.match(inspector,/await synthesisReview\.activate\(id\)/);
  assert.match(inspector,/if\(!synthesisReview\.panel\.hidden\)\{/);
  assert.match(inspector,/synthesisReview\.panel\.scrollIntoView\?\./);
- assert.match(inspector,/مساعد المفتش متاح لصاحب المهمة فقط/);
+ assert.match(inspector,/مساعد التركيب متاح لصاحب المهمة فقط/);
  assert.match(inspector,/اضغط «استيراد المساهمات المرسلة»/);
  assert.doesNotMatch(inspector,/const assistantRequested=.*&&.*\|\|true/);
 });
