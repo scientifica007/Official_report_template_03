@@ -59,3 +59,60 @@ test("QA legacy repair: syntax checks for bootstrap and existing editor/bridge",
  "qa-titularisation/app.mjs"
  ])assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path],{stdio:"pipe"}));
 });
+
+async function simulateBootstrap(search,withSession){
+ const elements=new Map();
+ for(const id of [
+  "qa-mode-link","local-mode-link","local-mode-description",
+  "qa-mode-description","simulated-members-description",
+  "qa-members-description","qa-link-status","message"
+ ])elements.set(id,{hidden:false,textContent:"",addEventListener(){}});
+ const fakeWindow={};
+ const imports=[];
+ // Replace only module fetching, leaving routing and UI logic intact.
+ const source=bootstrap.replaceAll("await import(","await importMock(");
+ const execute=new Function("location","document","sessionStorage","window",
+  "confirm","importMock","return (async()=>{"+source+"})()");
+ await execute({search},
+  {getElementById:id=>elements.get(id)||null},
+  {getItem:key=>key==="scientifica_committee_qa_session_v1"&&withSession?
+   JSON.stringify({access_token:"synthetic",refresh_token:"synthetic",userId:"synthetic"}):null},
+  fakeWindow,()=>true,
+  async path=>{
+   imports.push(path);
+   if(path==="../../qa-titularisation/config.js")
+    fakeWindow.REPORT03_CLOUD_CONFIG={
+     qaOnly:true,temporaryCommitteeEnabled:true,
+     supabaseUrl:"https://npxwshvcrowbfoiqyrwx.supabase.co"
+    };
+   else if(path==="../../cloud-config.js")
+    fakeWindow.REPORT03_CLOUD_CONFIG={temporaryCommitteeEnabled:false};
+   else assert.match(path,/^\.\/app\.mjs\?v=/);
+  }
+ );
+ return {imports,elements,config:fakeWindow.REPORT03_CLOUD_CONFIG};
+}
+test("QA legacy repair: bootstrap executes isolated config first in explicit QA mode",async()=>{
+ const qa=await simulateBootstrap("?qa=1&mission=00000000-0000-0000-0000-000000000000",true);
+ assert.deepEqual(qa.imports,[
+  "../../qa-titularisation/config.js","./app.mjs?v=qa-link-20261104"
+ ]);
+ assert.equal(qa.config.qaOnly,true);
+ assert.equal(qa.elements.get("qa-mode-link").hidden,true);
+ assert.equal(qa.elements.get("local-mode-link").hidden,false);
+ assert.equal(qa.elements.get("simulated-members-description").hidden,true);
+ assert.equal(qa.elements.get("qa-members-description").hidden,false);
+ assert.equal(qa.elements.get("qa-link-status").textContent,"");
+});
+test("QA legacy repair: default URL uses only production-disabled local mode",async()=>{
+ const local=await simulateBootstrap("",false);
+ assert.deepEqual(local.imports,[
+  "../../cloud-config.js","./app.mjs?v=qa-link-20261104"
+ ]);
+ assert.equal(local.config.temporaryCommitteeEnabled,false);
+ assert.equal(local.elements.get("qa-mode-link").hidden,false);
+});
+test("QA legacy repair: missing same-tab QA session displays explicit guidance",async()=>{
+ const qa=await simulateBootstrap("?qa=1",false);
+ assert.match(qa.elements.get("qa-link-status").textContent,/لا توجد جلسة مفتش QA/);
+});
