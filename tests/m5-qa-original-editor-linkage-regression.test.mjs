@@ -16,10 +16,10 @@ test("QA legacy repair: original URL stays local unless the user explicitly sele
  assert.match(html,/href="\?qa=1"/);
  assert.match(html,/id="qa-mode-link"/);
  assert.match(html,/id="local-mode-link"/);
- assert.match(html,/bootstrap\.mjs\?v=m512-inspector-qa/);
+ assert.match(html,/bootstrap\.mjs\?v=m512-assistant-entry-20261104/);
  assert.match(bootstrap,/new URLSearchParams\(location\.search\)\.get\("qa"\)==="1"/);
  assert.match(bootstrap,/qaRequested\?"\.\.\/\.\.\/qa-titularisation\/config\.js":"\.\.\/\.\.\/cloud-config\.js"/);
- assert.match(bootstrap,/await import\("\.\/app\.mjs\?v=m512-inspector-qa"\)/);
+ assert.match(bootstrap,/await import\("\.\/app\.mjs\?v=m512-assistant-entry-20261104"\)/);
  assert.doesNotMatch(html,/src="\.\.\/\.\.\/qa-titularisation\/config\.js"/);
  assert.doesNotMatch(html,/src="\.\.\/\.\.\/cloud-config\.js"/);
  assert.match(bootstrap,/if\(!confirm\(/);
@@ -95,7 +95,7 @@ async function simulateBootstrap(search,withSession){
 test("QA legacy repair: bootstrap executes isolated config first in explicit QA mode",async()=>{
  const qa=await simulateBootstrap("?qa=1&mission=00000000-0000-0000-0000-000000000000",true);
  assert.deepEqual(qa.imports,[
-  "../../qa-titularisation/config.js","./app.mjs?v=m512-inspector-qa"
+  "../../qa-titularisation/config.js","./app.mjs?v=m512-assistant-entry-20261104"
  ]);
  assert.equal(qa.config.qaOnly,true);
  assert.equal(qa.elements.get("qa-mode-link").hidden,true);
@@ -107,7 +107,7 @@ test("QA legacy repair: bootstrap executes isolated config first in explicit QA 
 test("QA legacy repair: default URL uses only production-disabled local mode",async()=>{
  const local=await simulateBootstrap("",false);
  assert.deepEqual(local.imports,[
-  "../../cloud-config.js","./app.mjs?v=m512-inspector-qa"
+  "../../cloud-config.js","./app.mjs?v=m512-assistant-entry-20261104"
  ]);
  assert.equal(local.config.temporaryCommitteeEnabled,false);
  assert.equal(local.elements.get("qa-mode-link").hidden,false);
