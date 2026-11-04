@@ -61,6 +61,6 @@ test("M5: approved B19 outputs, footer and data engines remain available",()=>{
  assert.match(preview,/minutesOpeningSegments/);
  assert.match(styles,/bottom:-26mm!important/);
  assert.ok(lab.includes("bootstrap.mjs"));
- assert.ok(read("prototypes/titularisation-committee/bootstrap.mjs").includes('await import("./app.mjs?v=m512-continuous-20261104")'));
+ assert.ok(read("prototypes/titularisation-committee/bootstrap.mjs").includes('await import("./app.mjs?v=m513-editorial-20261104")'));
  assert.match(read("prototypes/titularisation-committee/app.mjs"),/attachVoiceDictation/);
 });
