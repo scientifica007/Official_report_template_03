@@ -3,7 +3,7 @@
 // predicate, number, evidence or recommendation is invented.
 const ATTRIBUTION=/(?:العضو\s+(?:الأول|الثاني|الثالث)|رئيس\s+اللجنة|ورد\s+في\s+تقديرات|لاحظ\s+أحد\s+الأعضاء|اتفق\s+أعضاء\s+اللجنة|بحسب\s+رأي\s+العضو)/u;
 const NEGATION=/(?:^|[\s،])(?:لم|لن|ليس|ليست|غير|عدم|دون|لا)(?=\s|$)/u;
-const NEEDS=/\b(?:تحسين|ينبغي|يحتاج|ضرورة|قصور|نقص|صعوبة|ضعف|إعادة|تدارك|تطوير)\b/u;
+const NEEDS=/(?:تحسين|ينبغي|يحتاج|ضرورة|قصور|نقص|صعوبة|ضعف|إعادة|تدارك|تطوير)/u;
 const POSITIVE=/(?:أحسن|نجح|تمكن|جيد|جيدة|ملائم|مناسب|منظم|سليم|متقن|فعال|فعّال|واضح|محكم|متوازن|دقيق)/u;
 const DIACRITICS=/[\u064b-\u065f\u0670\u0640]/gu;
 const normalize=s=>String(s).normalize("NFKC").replace(DIACRITICS,"")
