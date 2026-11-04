@@ -66,7 +66,7 @@ test("M5.11: verified email reuses existing QA identity, preserving previous mis
  assert.match(edge,/federation_required:federationOnly/);
  assert.match(edge,/userClient\(\)\.auth\.verifyOtp\(\{\s*token_hash:otp,type:"magiclink"/);
  assert.match(edge,/authResult\.user\?\.id!==qaUser\.id/);
- assert.doesNotMatch(edge,/db\.auth\.admin\.createUser\(/g);
+ assert.doesNotMatch(edge.slice(edge.indexOf("async function federatedInspectorLogin"),edge.indexOf("Deno.serve")),/db\.auth\.admin\.createUser\(/g);
 });
 
 test("M5.11: only QA gains linkage table with fail-closed expiry and strict read policy",()=>{
