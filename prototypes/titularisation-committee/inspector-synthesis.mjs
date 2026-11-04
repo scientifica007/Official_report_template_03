@@ -3,6 +3,7 @@
 // agreement. Every proposed clause comes from an actual submitted text.
 // Source identities are retained in the inspector review ONLY.
 import {RUBRICS,GROUPS,TEN,DISCUSSION} from "../titularisation-workbench/engine.mjs";
+import {composeGroundedProse} from "./inspector-prose-quality.mjs";
 
 const PROSE=[
  ["lessonSummary","التقدير العام للحصة"],
@@ -119,7 +120,10 @@ export function synthesizeInspectorNotes(source){
   }
   const unsafe=groups.some(g=>INVALID_ATTRIBUTION.test(g.text));
   const nonconflicting=groups.filter((g,i)=>!conflicted.has(i));
-  const proposed=nonconflicting.map(g=>g.text).join("؛ ").replace(/[؛.\s]+$/u,"")+".";
+  // M5.13: retain each original source and remove duplicated *clauses*,
+  // including when members wrote several observations in one text field.
+  const quality=composeGroundedProse(nonconflicting.map(g=>g.text));
+  const proposed=quality.candidate;
   const tooLong=proposed.length>3900;
   const blocked=collisions.length>0||unsafe||tooLong;
   fields.push({
@@ -135,6 +139,9 @@ export function synthesizeInspectorNotes(source){
    sources,
    distinctCount:groups.length,
    duplicateCount:sources.length-groups.length,
+   clauseDuplicates:quality.clauseDuplicates,
+   clauseCount:quality.clauseCount,
+   breakdown:quality.breakdown,
    possibleConflicts:collisions.length
   });
  }
