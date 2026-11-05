@@ -72,13 +72,31 @@ test('M2.1: no remote requests, accounts or credentials required when central se
  assert.match(app,/function exportDOCX/);
  assert.match(app,/function exportPDF/);
 });
-test('UX-ARCH-04: inspector can open authorized legacy institution but cannot modify it',async()=>{
+test('UX-ARCH-04: inspector can update an authorized institution and cannot create a new one',async()=>{
  const h=createHarness();await h.ready();await h.navigate('institutions');
  assert.match(h.elements['cloud-content'].innerHTML,/المؤسسات المتاحة لمقاطعة عملي/);
+ assert.doesNotMatch(h.elements['cloud-content'].innerHTML,/data-cloud-action="new-institution"/);
  assert.doesNotMatch(h.elements['cloud-content'].innerHTML,/data-cloud-action="save"/);
+ h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ assert.match(h.elements['cloud-content'].innerHTML,/data-cloud-action="save"/);
+ await h.field('director','fullName','المدير الجديد');
+ await h.action('save');
+ const patch=h.requests.find(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions'));
+ assert.ok(patch);
+ assert.equal(patch.body.director_data.fullName,'المدير الجديد');
+ assert.equal(patch.body.name,entry.name);
+ assert.equal(patch.body.code,entry.code);
+ assert.equal(patch.body.wilaya,entry.wilaya);
+ assert.equal(h.requests.some(x=>x.method==='POST'&&x.url.includes('/shared_institutions')),false);
+});
+
+test('UX-ARCH-04: inspector cannot change the protected institution identity',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('institutions');
+ h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ await h.field('institution','code','UNAUTHORIZED');
  await h.action('save');
  assert.equal(h.requests.some(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions')),false);
- assert.match(h.elements['cloud-content'].innerHTML,/لا يمكن للمفتش تعديل السجل التاريخي/);
+ assert.match(h.elements['cloud-content'].innerHTML,/لا يستطيع المفتش تغيير الهوية الأساسية للمؤسسة/);
 });
 test('M2.1: approved inspectors can see same shared institutions and load current director',async()=>{
  const h=createHarness();await h.ready();await h.navigate('institutions');
