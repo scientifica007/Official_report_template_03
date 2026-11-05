@@ -90,7 +90,7 @@ test("M5.11: only QA gains linkage table with fail-closed expiry and strict read
 
 test("M5.11: QR, member scoring, documents and official production configuration remain isolated",()=>{
  assert.match(html,/src="\.\/config\.js\?v=m511-primary-inspectors"/);
- assert.match(html,/src="\.\/app\.mjs\?v=m512-assistant-entry-20261104"/);
+ assert.match(html,/src="\.\/app\.mjs\?v=p03-mission-context-20261105"/);
  assert.doesNotMatch(html,/src="\.\.\/cloud\.js"/);
  assert.match(edge,/if\(action==="federated_inspector_login"\)/);
  assert.doesNotMatch(qa,/document\.cookie\s*=/);
