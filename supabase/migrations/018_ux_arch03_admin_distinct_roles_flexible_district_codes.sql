@@ -51,7 +51,7 @@ create policy ux_prep_read on public.mission_preparations
 
 create or replace function ux_core.has_grant(p_capability text,p_resource uuid)
 returns boolean language sql stable security definer set search_path=''
-as $
+as $$
  select exists(
  select 1 from public.district_access_grants g
  join public.inspector_profiles p on p.id=g.grantee_id
@@ -196,7 +196,7 @@ $$;
 create or replace function public.ux_admin_update_work_district(
  p_district uuid,p_code text,p_label text)
 returns void language plpgsql security definer set search_path=''
-as $
+as $$
 declare v_old public.work_districts%rowtype;
 begin
  if (select auth.uid()) is null or not ux_core.is_admin() then
