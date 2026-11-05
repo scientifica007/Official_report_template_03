@@ -903,40 +903,35 @@ function dashboardView(){
  dashboardCard('إشعارات غير مقروءة',unread,'التحديثات والدعوات','notifications')+'</div>';
 }
 function institutionEditor(){
- // UX-ARCH-04: historic lookup is read-only for inspectors. New publication
- // requests belong to the district-scoped inspector workspace.
- if(!profile?.is_admin){
-  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
-   elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
-  return '<div class="portal-page-heading"><h2>المؤسسات المتاحة لمقاطعة عملي</h2>'+
-   '<p>المؤسسات التاريخية المنشورة لمقاطعتك فقط؛ موقع المؤسسة الجغرافي لا يحدد صلاحية الوصول.</p></div>'+
-   '<section class="portal-widget"><label class="portal-field">اختر مؤسسة تاريخية'+
-   '<select id="cloud-select"><option value="">اختر مؤسسة</option>'+options+'</select></label>'+
-   '<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="refresh">تحديث البيانات</button>'+
-   (selectedSharedId?'<button type="button" class="btn primary" data-cloud-action="load">فتح المؤسسة داخل محرر التقرير</button>':'')+
-   '</div>'+(shared.length?'':'<p class="cloud-tip">لا توجد مؤسسات تاريخية منشورة لمقاطعتك حاليًا؛ لم تُحذف السجلات القديمة.</p>')+'</section>'+
-   '<section class="portal-widget"><h3>السجل الجديد والتحضير</h3>'+
-   '<p>لإنشاء سجل خاص أو اقتراح نشر مؤسسة، استخدم مساحة عمل المفتش. تظهر هناك أيضًا المؤسسات الجديدة غير المرتبطة بالسجل القديم.</p>'+
-   '<a class="btn primary" href="./prototypes/ux-arch-02/">فتح مساحة عمل المفتش</a></section>';
- }
  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
  elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
- const fields=INSTITUTION_EDITOR_FIELDS.map(([group,key,label])=>
- '<label class="portal-field">'+elt(label)+'<input type="'+(key==='email'?'email':'text')+
- '" data-cloud-field-group="'+group+'" data-cloud-field-key="'+key+'" value="'+elt(institutionDraft[group]?.[key]||'')+
- '" maxlength="'+(key==='name'?'300':'500')+'"></label>').join('');
- return '<div class="portal-page-heading"><h2>المؤسسات المشتركة</h2>'+
- '<p>إدارة السجل التاريخي للمسؤول فقط. أنشئ المؤسسات الجديدة ووزعها على المقاطعات من لوحة إدارة الموقع.</p></div>'+
+ const canCreate=Boolean(profile?.is_admin);
+ const existing=Boolean(selectedSharedId&&shared.some(x=>x.id===selectedSharedId));
+ const fields=INSTITUTION_EDITOR_FIELDS.map(([group,key,label])=>{
+  const identity=group==='institution'&&['name','code','wilaya'].includes(key);
+  const locked=identity&&!canCreate;
+  return '<label class="portal-field">'+elt(label)+'<input type="'+(key==='email'?'email':'text')+
+   '" data-cloud-field-group="'+group+'" data-cloud-field-key="'+key+'" value="'+elt(institutionDraft[group]?.[key]||'')+
+   '" maxlength="'+(key==='name'?'300':'500')+'"'+(locked?' readonly':'')+'></label>';
+ }).join('');
+ return '<div class="portal-page-heading"><h2>المؤسسات المتاحة لمقاطعة عملي</h2>'+
+ '<p>'+(canCreate?'يمكن لمسؤول المنصة إدارة بيانات المؤسسات التاريخية. توزيع المؤسسات على المقاطعات يتم من لوحة Admin.':
+ 'المؤسسات التاريخية المنشورة لمقاطعتك فقط. يمكنك تحديث بيانات مؤسساتك ورؤسائها، مع الاحتفاظ برمز المؤسسة واسمها وولايتها كما حددها المسؤول.')+
+ '</p></div>'+
  '<section class="portal-widget"><label class="portal-field">اختيار مؤسسة'+
- '<select id="cloud-select"><option value="">+ مؤسسة جديدة</option>'+options+'</select></label>'+
- '<div class="portal-actions"><button class="btn subtle" data-cloud-action="new-institution">مؤسسة جديدة</button>'+
- '<button class="btn subtle" data-cloud-action="refresh">تحديث البيانات</button></div></section>'+
- '<section class="portal-widget"><h3>'+(selectedSharedId?'تعديل بيانات المؤسسة ورئيسها':'إضافة مؤسسة جديدة')+'</h3>'+
+ '<select id="cloud-select"><option value="">'+(canCreate?'+ مؤسسة جديدة':'اختر مؤسسة')+'</option>'+options+'</select></label>'+
+ '<div class="portal-actions">'+(canCreate?'<button class="btn subtle" data-cloud-action="new-institution">مؤسسة جديدة</button>':'')+
+ '<button class="btn subtle" data-cloud-action="refresh">تحديث البيانات</button></div>'+
+ (!shared.length?'<p class="cloud-tip">لا توجد مؤسسات تاريخية منشورة لمقاطعتك حاليًا؛ لم تُحذف السجلات القديمة.</p>':'')+'</section>'+
+ (existing||canCreate?'<section class="portal-widget"><h3>'+(existing?'تعديل بيانات المؤسسة ورئيسها':'إضافة مؤسسة جديدة')+'</h3>'+
  '<div class="portal-form-grid">'+fields+'</div>'+
  '<div class="portal-actions"><button class="btn primary" data-cloud-action="save">'+
- (selectedSharedId?'حفظ تعديلات المؤسسة':'إضافة المؤسسة إلى السجل المركزي')+'</button>'+
- (selectedSharedId?'<button class="btn subtle" data-cloud-action="load">فتح المؤسسة داخل محرر التقرير</button>':'')+
- '</div><p class="cloud-tip">لا يؤدي حفظ المؤسسة إلى حفظ أي مهمة تفتيش أو معاينات أو توصيات.</p></section>';
+ (existing?'حفظ تعديلات المؤسسة':'إضافة المؤسسة إلى السجل المركزي')+'</button>'+
+ (existing?'<button class="btn subtle" data-cloud-action="load">فتح المؤسسة داخل محرر التقرير</button>':'')+
+ '</div><p class="cloud-tip">يحفظ هذا القسم بيانات المؤسسة ورئيسها فقط، ولا يغير المعاينات أو التوصيات داخل التقرير.</p></section>':'')+
+ (!canCreate?'<section class="portal-widget"><h3>السجل الجديد والتحضير</h3>'+
+ '<p>لإضافة مؤسسة جديدة، أعد سجلًا خاصًا واقترح نشره للمسؤول من مساحة عمل المفتش.</p>'+
+ '<a class="btn primary" href="./prototypes/ux-arch-02/">فتح مساحة عمل المفتش</a></section>':'');
 }
 function colleaguesView(){
  const colleagues=profiles.filter(p=>p.approved);
@@ -1201,7 +1196,8 @@ async function onAuthSubmit(event){
  finally{busy=false;render()}
 }
 async function saveShared(){
- if(!verifiedUser()||!profile?.is_admin)throw Error('لا يمكن للمفتش تعديل السجل التاريخي مباشرة؛ استخدم طلب النشر في مساحة عمل المفتش.');
+ if(!verifiedUser())throw Error('الحساب غير معتمد');
+ if(!selectedSharedId&&!profile?.is_admin)throw Error('إضافة مؤسسة جديدة تتطلب حساب Admin؛ استخدم طلب النشر في مساحة عمل المفتش.');
  const data=institutionDraft;
  const i={},director={};
  for(const [group,field] of INSTITUTION_EDITOR_FIELDS){
@@ -1213,6 +1209,10 @@ async function saveShared(){
   institution_data:i,director_data:director,updated_by:session.user.id};
  let updated;
  if(selectedSharedId){
+  const original=shared.find(x=>x.id===selectedSharedId);
+  if(!profile?.is_admin&&original&&
+   (text(i.name)!==original.name||text(i.code)!==original.code||text(i.wilaya)!==original.wilaya))
+   throw Error('لا يستطيع المفتش تغيير الهوية الأساسية للمؤسسة. يستطيع مسؤول الموقع تصحيح الاسم والرمز والولاية.');
   const previous=shared.find(x=>x.id===selectedSharedId);if(!previous)throw Error('المؤسسة المحددة غير موجودة');
   if(editingVersion===null)throw Error('رقم نسخة المؤسسة غير معروف. أعد اختيار المؤسسة قبل الحفظ.');
   updated=await submit('shared_institutions',{...baseRecord,version:editingVersion+1},
