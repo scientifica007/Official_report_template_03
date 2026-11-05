@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إدارة الموقع — المقاطعات والمؤسسات</title>
+<link rel="stylesheet" href="../../ux-arch-01/style.css?v=uxarch03">
+<style>
+.admin-only{background:#eef6f3;border:1px solid #d2e8dd;border-radius:9px;padding:12px}
+ul.district-choices{list-style:none;padding:0;display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(175px,1fr))}
+.district-choices label{border:1px solid #d4e3d9;border-radius:8px;background:white;padding:10px;display:flex;align-items:center;gap:9px;cursor:pointer}
+.district-choices input{width:auto}
+summary{cursor:pointer;font-weight:700}
+details{border:1px solid #dae4dd;border-radius:10px;padding:13px;margin:9px 0}
+.badge-admin{font-size:12px;font-weight:700;border-radius:7px;padding:5px 10px;color:#285d4c;background:#e7f4ea}
+#notice.error{color:#9d2727;background:#fff3ef}
+dialog{border:1px solid #b6d1bd;border-radius:12px;max-width:min(550px,96vw);padding:25px}
+</style></head>
+<body>
+<div class="demo-banner">واجهة إدارة الموقع — ترتبط بحساب Admin فقط. لا تستخدم حساب المفتش لمهام الإدارة.</div>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-mark">إ</div><div><strong>إدارة الموقع</strong><small>UX-ARCH-03 — فصل الإدارة عن التفتيش</small></div></div>
+<nav class="nav">
+<button data-page="districts">المقاطعات والرموز</button>
+<button data-page="inspectors">توزيع حسابات المفتشين</button>
+<button data-page="institutions">المؤسسات وتوزيعها</button>
+<button data-page="requests">طلبات نشر المؤسسات</button>
+</nav>
+<div class="sidebar-foot"><a href="../../ux-arch-02/">العودة إلى فضاء العمل الحالي</a><br><a href="../../../">المنصة الرئيسية</a></div>
+</aside>
+<div class="main-shell">
+<header class="topbar"><div><p class="overline">إدارة تقنية للموقع الشخصي</p><h1 id="page-heading">المقاطعات والرموز</h1>
+<p class="district">الرمز والاسم يحددهما صاحب الموقع، وليس ولاية السكن.</p></div>
+<div class="badge-admin" id="signed-in">التحقق من صلاحية Admin...</div></header>
+<div id="notice" aria-live="polite" role="status"></div>
+<main id="content"><p class="hint">التحقق من الجلسة...</p></main>
+<footer class="footer">كل سجل مؤسسة واحد، ويمكن إتاحته في عدة مقاطعات. لا تنسخ المؤسسات أو توزعها تلقائيًا.</footer>
+</div></div>
+<script src="../../../cloud-config.js"></script>
+<script type="module" src="./app.mjs?v=uxarch03a"></script>
+</body></html>

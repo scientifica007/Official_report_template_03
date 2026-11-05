@@ -31,6 +31,6 @@ test("UX-ARCH-02 correction: browser and server use the same existing district r
  assert.match(ui,/إسناد مقاطعة العمل إلى مفتش/);
 });
 test("UX-ARCH-02 correction: refreshed script and safe ESM",()=>{
- assert.match(html,/app\.mjs\?v=uxarch02-3-district-code/);
+ assert.match(html,/app\.mjs\?v=uxarch03-role-separation/);
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","prototypes/ux-arch-02/app.mjs"],{stdio:"pipe"}));
 });
