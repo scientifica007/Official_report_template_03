@@ -74,7 +74,7 @@ test("M5.6.1: linked QA report automatically inherits frozen mission rubric, wit
  assert.match(app,/\$\("rubric"\)\.disabled=qaReport/);
  assert.match(app,/if\(qaReport\)\{/);
  assert.match(app,/لا يلزم إدخالها مرة ثانية/);
- assert.match(app,/loadCloudCommitteeSubmissions\(linked\)\.then\(\(\{mission\}\)=>/);
+ assert.match(app,/Promise\.all\(\[loadCloudCommitteeSubmissions\(linked\),loadCloudCommitteeReportDraft\(linked\)\]\)/);
  assert.match(app,/state!==untouched/);
  assert.match(app,/prepareCloudCommitteeDraft\(mission\)/);
  assert.match(app,/sameWeightProfile\(state\.final\.grading\.profile,mission\.rubric_profile\)/);
