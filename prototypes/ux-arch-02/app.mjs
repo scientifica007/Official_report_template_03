@@ -13,7 +13,7 @@ const attr=x=>clean(x);
 const uid=()=>crypto.randomUUID();
 let session=null,profile=null,district=null,route="dashboard",draft=null,dirty=false,
  saveTimer=null,savePromise=null,editSequence=0,busy=false,privateRecords=[],preparations=[],publications=[],
- requests=[],grants=[],districts=[],colleagues=[],pending=[],lastError="";
+ requests=[],grants=[],districts=[],colleagues=[],pending=[],lastError="",catalogSeq=0;
 const validUUID=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x||"");
 function inform(msg,error=false){
  const el=$("notice");el.textContent=msg||"";el.classList.toggle("is-error",error);
@@ -225,7 +225,7 @@ function adminView(){
  const options=items=>items.map(x=>'<option value="'+attr(x.id)+'">'+
  clean(x.label||((x.first_name+" "+x.last_name).trim()||x.id))+"</option>").join("");
  const grantees=colleagues.filter(x=>x.approved&&x.account_status==="approved"&&x.work_district_id);
- const resourcesNote='<p class="hint">يجب اختيار معرّف UUID لمؤسسة منشورة أو مهمة أو مفتش محدد. يرفض الخادم الموارد غير المعتمدة أو غير العابرة للمقاطعات.</p>';
+ const resourcesNote='<p class="hint">اختر موردًا محددًا من القائمة. لا تُعرض البيانات الخاصة أو المؤسسات غير المنشورة، ويرفض الخادم أي مورد غير مؤهل.</p>';
  return panel("تسجيل مقاطعة عمل رسمية",'<form id="district-create">'+
  '<div class="fields"><div class="field"><label>الرمز الإداري الثابت (3–40 حرفًا)</label>'+
  '<input name="code" required pattern="[A-Z0-9][A-Z0-9._-]{2,39}" maxlength="40"></div>'+
@@ -248,8 +248,8 @@ function adminView(){
  '<select name="p_capability"><option value="view_institution">قراءة مؤسسة منشورة محددة</option>'+
  '<option value="view_inspector">عرض مفتش محدد</option>'+
  '<option value="collaborate_mission">التعاون في مهمة محددة</option></select></div>'+
- '<div class="field"><label>معرف المورد UUID</label>'+
- '<input name="p_resource" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>'+
+ '<div class="field"><label>المورد الذي يشمله الاستثناء</label>'+
+ '<select name="p_resource" id="grant-resource" required><option value="">جارٍ تحميل الموارد...</option></select></div>'+
  '<div class="field"><label>مدة الاستثناء بالأيام</label><select name="days">'+
  '<option value="1">يوم</option><option value="7">7 أيام</option><option value="30">30 يومًا</option></select></div>'+
  '<div class="field wide"><label>السبب المهني</label>'+
@@ -283,6 +283,35 @@ function render(){
   dashboard,preparations:preps,edit:prepEditor,private:privateView,
   published,requests:requestsView,admin:adminView
  }[route]||dashboard)();
+ if(route==="admin")refreshCatalog();
+}
+async function refreshCatalog(){
+ if(!profile?.is_admin||route!=="admin")return;
+ const form=$("grant-form");if(!form)return;
+ const selected=form.elements.p_resource;
+ const grantee=form.elements.p_grantee.value,cap=form.elements.p_capability.value;
+ const stamp=++catalogSeq;
+ selected.disabled=true;
+ selected.innerHTML='<option value="">جارٍ تحميل قائمة الموارد المؤهلة...</option>';
+ if(!validUUID(grantee)){
+  selected.innerHTML='<option value="">لا يوجد مفتش مؤهل للاستثناء</option>';
+  return;
+ }
+ try{
+  const rows=await rpc("ux_admin_list_exception_resources",{
+   p_grantee:grantee,p_capability:cap});
+  if(stamp!==catalogSeq||route!=="admin"||$("grant-form")!==form)return;
+  selected.innerHTML=rows?.length?rows.map(r=>
+   '<option value="'+attr(r.resource_id)+'">'+clean(r.resource_label+
+    " — "+r.district_label)+'</option>').join(""):
+   '<option value="">لا يوجد مورد خارجي معتمد ومؤهل لهذا الاستثناء</option>';
+  selected.disabled=!rows?.length;
+ }catch(err){
+  if(stamp!==catalogSeq||$("grant-form")!==form)return;
+  selected.disabled=true;
+  selected.innerHTML='<option value="">تعذر تحميل الموارد</option>';
+  inform(err.message,true);
+ }
 }
 async function saveDraft(){
  if(savePromise){await savePromise;if(dirty)return saveDraft();return true;}
@@ -345,6 +374,10 @@ $("content").addEventListener("input",event=>{
 });
 window.addEventListener("beforeunload",event=>{
  if(dirty){event.preventDefault();event.returnValue="";}
+});
+$("content").addEventListener("change",event=>{
+ if(["grant-grantee","grant-capability"].includes(event.target.id))
+  refreshCatalog();
 });
 $("content").addEventListener("submit",event=>{
  event.preventDefault();

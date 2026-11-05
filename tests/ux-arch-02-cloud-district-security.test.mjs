@@ -85,3 +85,22 @@ test("UX-ARCH-02 app has syntax-safe ESM and no accidental password or demo gran
  }
  assert.doesNotMatch(client,/localStorage\.setItem\([^)]*district_access_grants|data\.password/i);
 });
+
+test("UX-ARCH-02 admin resource chooser cannot disclose unapproved people or institutions",()=>{
+ const sql=read("supabase/migrations/017_ux_arch02_admin_exception_resource_catalog.sql");
+ const frontend=read("prototypes/ux-arch-02/app.mjs");
+ assert.match(sql,/ux_admin_list_exception_resources/);
+ assert.match(sql,/not ux_core\.is_admin\(\)/);
+ assert.match(sql,/p\.approved and p\.account_status='approved'/);
+ assert.match(sql,/r\.publication_status='published'/);
+ assert.match(sql,/p\.work_district_id<>v_district/);
+ assert.match(sql,/r\.work_district_id<>v_district/);
+ assert.match(sql,/revoke all on function public\.ux_admin_list_exception_resources[\s\S]*from public,anon,authenticated/);
+ assert.match(sql,/grant execute on function public\.ux_admin_list_exception_resources[\s\S]*to authenticated/);
+ assert.match(frontend,/rpc\("ux_admin_list_exception_resources"/);
+ assert.match(frontend,/id="grant-resource"/);
+ assert.match(frontend,/refreshCatalog\(\)/);
+ assert.match(frontend,/selected\.disabled=true/);
+ assert.doesNotMatch(frontend,/<input name="p_resource"/);
+ assert.match(read("prototypes/ux-arch-02/index.html"),/app\.mjs\?v=uxarch02-2/);
+});
