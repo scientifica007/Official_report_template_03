@@ -97,7 +97,7 @@ test("UX-ARCH-03: admin mutations have real role checks and anonymous execution 
 });
 test("UX-ARCH-03: old admin/inspector paths and production datasets remain untouched by proposal",()=>{
  assert.match(html,/prototypes|UX-ARCH-03/);
- assert.match(html,/app\.mjs\?v=uxarch03a/);
+ assert.match(html,/app\.mjs\?v=uxarch03-admin-auth-1/);
  assert.match(api,/official_report03_cloud_session_v1/);
  assert.match(api,/\/auth\/v1\/user/);
  assert.match(app,/!p\?\.is_admin/);
