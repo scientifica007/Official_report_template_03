@@ -85,5 +85,5 @@ test("P0.3: incompatible rubric or malformed metadata cannot be persisted",()=>{
  const raw={payload:missionContextDraft(mission,null)};
  assert.throws(()=>missionContextDraft(wrong,raw),/لا تطابق/);
  assert.throws(()=>applyMissionContextFields(raw.payload,{...sample(),institution:"x".repeat(301)}),/غير صالحة/);
- assert.throws(()=>applyMissionContextFields(raw.payload,{...sample(),candidate:"unexpected"}),/غير صالحة|^$/);
+ assert.throws(()=>applyMissionContextFields(raw.payload,{...sample(),candidate:"unexpected"}),/غير صالح/);
 });
