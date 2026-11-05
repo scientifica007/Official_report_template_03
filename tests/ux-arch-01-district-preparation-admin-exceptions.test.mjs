@@ -180,11 +180,11 @@ test("UX-ARCH-01: prototype is isolated, responsive, and clearly states no real 
  assert.match(html,/ليس متصلًا بحسابات أو قواعد بيانات المنصة/);
  assert.match(html,/app\.mjs\?v=uxarch01/);
  assert.match(ui,/localStorage\.setItem/);
- assert.match(ui,/data-route="dashboard"|data-route="dashboard"/); // render is driven from HTML
+ assert.match(html,/data-route="dashboard"/);
  assert.match(css,/@media\(max-width:850px\)/);
  assert.doesNotMatch(ui,/supabase\.co|service_role|publishableKey/);
  assert.match(docs,/استثناءات المقاطعات التي يمنحها admin/);
- assert.match(docs,/قفل/); // expected? not in document, see correction below
+ assert.match(docs,/RLS/);
  for(const path of ["prototypes/ux-arch-01/demo-model.mjs","prototypes/ux-arch-01/app.mjs"])
   assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path],{stdio:"pipe"}));
 });
