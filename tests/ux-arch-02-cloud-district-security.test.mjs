@@ -51,7 +51,7 @@ test("UX-ARCH-02 grant is admin-scoped, resource-verified, expiring, and revocab
  assert.match(rpc,/if v_admin is null or not ux_core\.is_admin\(\)/);
  assert.match(rpc,/view_inspector','view_institution','collaborate_mission/);
  assert.match(rpc,/p_expires_at>now\(\)\+interval '30 days'/);
- assert.match(rpc,/where p\.id=p_grantee and p\.approved and p\.account_status='approved'/);
+ assert.match(rpc,/where p\.id=p_grantee and p\.approved(?:=true)? and p\.account_status='approved'/);
  assert.match(rpc,/r\.publication_status='published'/);
  assert.match(rpc,/v_resource_district=v_recipient_district/);
  assert.match(rpc,/ux_admin_revoke_district_access/);
