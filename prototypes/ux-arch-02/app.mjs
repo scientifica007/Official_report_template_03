@@ -467,7 +467,15 @@ $("content").addEventListener("click",event=>{
 });
 async function init(){
  try{
-  loadSession();await getProfile();await reload();render();
+  loadSession();
+  await getProfile();
+  // The site owner administers the platform in a dedicated workspace.
+  // No inspector forms, district constraints or professional dashboard for Admin.
+  if(profile?.is_admin){
+   window.location.replace("../ux-arch-03/admin/");
+   return;
+  }
+  await reload();render();
  }catch(e){
   $("content").innerHTML=panel("تعذر فتح فضاء العمل",
    "<p>"+clean(e.message)+"</p><p><a href='../../'>تسجيل الدخول من المنصة الرئيسية</a></p>");
