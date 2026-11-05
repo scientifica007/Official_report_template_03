@@ -694,7 +694,7 @@ function useSharedInstitution(id){
 const NAV_ITEMS=[
  ['dashboard','لوحة القيادة','▦'],
  ['templates','نماذج التفتيش','▣'],
- ['titularisation','لجان الترسيم','☷'],
+ ['titularisation','ترسيم أستاذ','☷'],
  ['missions','مهامي الجارية','◷'],
  ['institutions','المؤسسات','▤'],
  ['colleagues','المفتشون الزملاء','♙'],
@@ -736,11 +736,11 @@ function templatesView(){
  '<p>تقييم الحصة والمناقشة، وإعداد التقرير والمحضر، وتصدير PDF وDOCX وJSON، والإملاء الصوتي.</p>'+
  '<p class="portal-template-status">مقبول ميدانيًا · نسخة محلية مستقلة</p>'+
  '<p class="portal-template-warning">تنبيه: لا يرتبط المختبر حاليًا بحسابك السحابي. لا تُحفظ مسوداته على Supabase، ورابطه العام ليس حسابًا محميًا لأعضاء اللجنة. احفظ JSON بنفسك.</p>'+
- '<a class="btn primary portal-template-link" href="./prototypes/titularisation-committee/" target="_blank" rel="noopener noreferrer">فتح تطبيق الترسيم في نافذة جديدة</a></div></article>'+
+ '<button type="button" class="btn primary" data-cloud-action="nav" data-page="titularisation">فتح مهمة ترسيم أستاذ</button></div></article>'+
  '</section>'+
- '<section class="portal-template-future"><h3>حسابات أعضاء لجنة الترسيم المؤقتة — قيد التفعيل</h3>'+
- '<p>سيتمكن رئيس اللجنة من إصدار ثلاثة روابط مستقلة، مع اسم مستخدم وكلمة مرور خاصة بكل عضو، وصلاحية مقيدة بالمهمة وحدها، ثم إلغاء الوصول بعد طباعة الوثائق مع إبقاء المساهمات الأصلية محفوظة.</p>'+
- '<p class="portal-template-warning">لم تُفعَّل خدمة الحسابات المؤقتة بعد. لا يوفّر الرابط الحالي دخولًا آمنًا للأعضاء، ولا يرسل كلمات مرور أو يحتفظ ببيانات عضو في السحابة.</p></section>'+
+ '<section class="portal-template-future"><h3>العمل المشترك في لجنة الترسيم</h3>'+
+ '<p>نظام روابط أعضاء اللجنة ومساهماتهم والمساعد البيداغوجي متاح للتجريب في QA، ويحتاج دمجًا مع مهمة المفتش الموحدة قبل اعتماده في الإنتاج.</p>'+
+ '<p class="portal-template-warning">توجد بيئة اختبار منفصلة؛ لا تستخدم بيانات أستاذ حقيقي فيها، ولا تعتبرها سجل مهمة إنتاجيًا.</p></section>'+
  '<section class="portal-template-future"><h3>النموذج الشخصي الثاني — مخطط مستقبلًا</h3>'+
  '<p>سيكون للمعايير والمؤشرات والأوزان تعريف مستقل؛ ولا تُفعَّل صلاحيات المشاركة قبل جاهزية الخادم والتحقق من الهوية.</p></section>';
 }
@@ -778,12 +778,21 @@ async function loadCommitteeDetails(){
 }
 const committeeMemberName=id=>({member1:'العضو الأول',member2:'العضو الثاني',member3:'العضو الثالث'})[id]||id;
 function committeeView(){
- const intro='<div class="portal-page-heading"><h2>لجان التفتيش قصد الترسيم</h2>'+
- '<p>مهام مستقلة عن التفتيش المعمق 03. تصدر حسابات مؤقتة لكل عضو، وتُحفظ مساهمات اللجنة دون تغيير سلطة رئيسها في تحرير التقرير النهائي.</p></div>';
- if(!committeeEnabled)return intro+'<section class="portal-widget"><h3>الحسابات المؤقتة — في مرحلة الاختبار الخادمي</h3>'+
- '<p class="cloud-warning">أُعدّت شيفرة قاعدة البيانات والوظيفة الخادمية ومحرر العضو، لكنها لم تُفعّل على خادم Supabase. لا يمكن إصدار حسابات حقيقية قبل فحص RLS وإعداد أسرار الخادم وتفعيل الخدمة صراحة.</p>'+
- '<p>تطبيق الترسيم المقبول ميدانيًا يظل متاحًا دون تغيير.</p>'+
- '<a class="btn subtle portal-template-link" href="./prototypes/titularisation-committee/" target="_blank" rel="noopener noreferrer">فتح تطبيق الترسيم الحالي</a></section>';
+ const intro='<div class="portal-page-heading"><h2>مهمة ترسيم أستاذ</h2>'+
+ '<p>نقطة عمل واحدة للمفتش من إعداد المهمة إلى المداولة ثم التقرير والمحضر. تُحفظ مساهمات الأعضاء الأصلية، ويبقى القرار والتقرير النهائي بيد المفتش.</p></div>';
+ if(!committeeEnabled)return intro+
+ '<section class="portal-widget"><h3>1 — إعداد التقرير والمحضر</h3>'+
+ '<p>استخدم المحرر المقبول ميدانيًا لإدخال معطيات الأستاذ، التنقيط، المناقشة، والخلاصة، ثم إصدار التقرير والمحضر.</p>'+
+ '<div class="portal-actions"><a class="btn primary portal-template-link" href="./prototypes/titularisation-committee/" target="_blank" rel="noopener noreferrer">فتح محرر تقرير ومحضر الترسيم</a></div>'+
+ '<p class="cloud-tip">حاليًا تُحفظ مسودة هذا المحرر بملف JSON على جهازك. لم يُدمج حفظه بعد في حساب المفتش أو سجل المهمة السحابي.</p></section>'+
+ '<section class="portal-widget"><h3>2 — تجربة التعاون مع أعضاء اللجنة</h3>'+
+ '<p>توجد نسخة اختبار مستقلة لإعداد مهمة اللجنة، وإصدار الروابط، واستلام العلامات والتقديرات ومساعدة المفتش على تركيبها. هذه ليست قاعدة بيانات الإنتاج.</p>'+
+ '<div class="portal-actions"><a class="btn subtle portal-template-link" href="./qa-titularisation/" target="_blank" rel="noopener noreferrer">فتح اختبار لجنة الترسيم QA</a></div>'+
+ '<p class="portal-template-warning">استخدم بيانات تجريبية فقط في QA. يمكن للنظام التحقق من حسابك في المنصة الرئيسية لكن مهمات QA لا تُنشئ تلقائيًا مهمات في الإنتاج.</p></section>'+
+ '<section class="portal-widget"><h3>المسار الموحد المعتمد للتطوير</h3>'+
+ '<p>تحضير مهمة الأستاذ ← أعضاء اللجنة وروابطهم ← التنقيط والتقديرات ← مراجعة المفتش ← التقرير والمحضر ← الطباعة.</p>'+
+ '<p class="cloud-tip">سيُدمج المحرر والمساهمات في سجل مهمة واحد قابل للاستئناف، دون إعادة إنشاء نماذج أو تغيير النسخة المقبولة ميدانيًا.</p></section>';
+
  const selected=committeeMissions.find(m=>m.id===committeeSelectedId);
  let html=intro+(committeeError?'<p class="cloud-warning">'+elt(committeeError)+'</p>':'')+
  '<section class="portal-widget"><h3>إنشاء مهمة ترسيم</h3>'+
@@ -881,7 +890,10 @@ function dashboardView(){
  const active=missions.filter(m=>m.status==='draft');
  const invited=missionMembers.filter(m=>m.inspector_id===session.user.id&&m.membership_status==='invited');
  const unread=notifications.filter(x=>!x.read_at).length+missionNotifications.filter(x=>!x.read_at).length;
- return '<div class="portal-page-heading"><h2>مهامي الجارية</h2><p>اختر مهمة لاستكمالها من أي جهاز، أو أنشئ مهمة جديدة. تُحفظ المهام الفردية والجماعية سحابيًا.</p></div>'+
+ return '<div class="portal-page-heading"><h2>فضاء مهماتي المهنية</h2><p>ابدأ بنوع المهمة المطلوب، ثم تابع العمل في مساره المخصص. يجري توحيد بيانات الترسيم مع حساب المفتش تدريجيًا.</p></div>'+
+ '<section class="portal-widget mission-workspace" aria-label="الأولوية: ترسيم أستاذ"><div class="mission-workspace-head"><div><h3>مهمة ترسيم أستاذ</h3>'+
+ '<p class="helper">إعداد تقرير ومحضر الترسيم، وتعاون اللجنة، ومراجعة التقديرات؛ يجري دمجها في مهمة موحدة قابلة للاستئناف.</p></div>'+
+ '<button type="button" class="btn primary" data-cloud-action="nav" data-page="titularisation">فتح مهمة ترسيم أستاذ</button></div></section>'+
  '<section class="portal-widget mission-workspace"><div class="mission-workspace-head"><div><h3>تقارير قيد الإنجاز ('+active.length+')</h3>'+
  '<p class="helper">كل المهام التي تشارك فيها، سواء أنشأتها أنت أو دعاك إليها زميل.</p></div>'+
  '<button type="button" class="btn primary" data-cloud-action="nav" data-page="missions">+ مهمة جديدة</button></div>'+
@@ -895,8 +907,8 @@ function dashboardView(){
  '<p class="cloud-warning">'+elt(missionError||'تعذر تحميل المهام السحابية.')+'</p>')+
  (invited.length?'<p class="cloud-tip">لديك '+invited.length+' دعوة تنتظر الرد. <button type="button" class="btn subtle" data-cloud-action="nav" data-page="missions">عرض الدعوات</button></p>':'')+
  '<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="refresh">تحديث المهام</button></div></section>'+
- '<section class="portal-template-shortcut"><h3>نماذج التفتيش</h3>'+
- '<p>يتوفر النموذج 03 والتفتيش قصد الترسيم. محرر الترسيم يعمل محليًا ولا تُحفظ بياناته في حساب المنصة بعد.</p>'+
+ '<section class="portal-template-shortcut"><h3>نماذج التفتيش الأخرى</h3>'+
+ '<p>الترسيم له مدخل مستقل ظاهر أعلاه. محرر النموذج 03 ومهماته السحابية متاحان أيضًا من مكتبة النماذج.</p>'+
  '<button type="button" class="btn primary" data-cloud-action="nav" data-page="templates">استعراض نماذج التفتيش</button></section>'+
  '<div class="portal-metrics">'+dashboardCard('المؤسسات المشتركة',shared.length,'اختيار المؤسسة','institutions')+
  dashboardCard('المفتشون المعتمدون',profiles.filter(p=>p.approved).length,'بيانات الزملاء','colleagues')+
