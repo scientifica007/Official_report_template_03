@@ -108,3 +108,31 @@ test("UX-ARCH-03: old admin/inspector paths and production datasets remain untou
   "prototypes/ux-arch-03/admin/app.mjs"])
   assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path],{stdio:"pipe"}));
 });
+
+test("UX-ARCH-03: admin can create or import institution without assigning any district",()=>{
+ assert.match(sql,/alter column work_district_id drop not null/);
+ const create=sql.slice(sql.indexOf("function public.ux_admin_create_institution"),
+  sql.indexOf("function public.ux_admin_import_legacy_institution"));
+ const importLegacy=sql.slice(sql.indexOf("function public.ux_admin_import_legacy_institution"),
+  sql.indexOf("function public.ux_admin_set_institution_districts"));
+ assert.match(create,/if p_initial_district is not null/);
+ assert.match(importLegacy,/if p_initial_district is not null/);
+ assert.match(views,/لا تنشر في أي مقاطعة الآن/);
+ assert.match(views,/مقاطعة النشر الأولى \(اختياري\)/);
+ assert.match(app,/p_initial_district:form\.elements\.p_initial_district\.value\?/);
+});
+test("UX-ARCH-03: admin's legacy own data remains readable, but nobody can read another inspector's private data",()=>{
+ const privatePolicy=sql.slice(sql.indexOf("drop policy if exists ux_private_read"),
+  sql.indexOf("create or replace function ux_core.has_grant"));
+ assert.match(privatePolicy,/owner_id=\(select auth\.uid\(\)\)/);
+ assert.match(privatePolicy,/ux_core\.approved_inspector\(\)\) or \(select ux_core\.is_admin\(\)/);
+ assert.doesNotMatch(privatePolicy,/owner_id<>|work_district_id=/);
+});
+test("UX-ARCH-03: publication reason is optional for site owner, but actor and decision are recorded",()=>{
+ const review=sql.slice(sql.indexOf("function public.ux_review_institution_request"),
+  sql.indexOf("function public.ux_admin_create_institution"));
+ assert.doesNotMatch(review,/v_request\.author_id=v_admin/);
+ assert.doesNotMatch(review,/Rejection requires a reason/);
+ assert.match(review,/reviewer_id=v_admin/);
+ assert.match(review,/decided_at=now\(\)/);
+});
