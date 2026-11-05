@@ -31,7 +31,7 @@ test("UX-ARCH-03: platform admin is distinct from inspector",()=>{
  assert.match(sql,/not p\.is_admin/);
  assert.match(sql,/create or replace function ux_core\.approved_inspector/);
  assert.match(sql,/create or replace function ux_core\.my_district/);
- assert.match(sql,/create or replace function ux_core\.is_admin/);
+ assert.match(file("supabase/migrations/015_ux_arch02_district_data_foundation.sql"),/create or replace function ux_core\.is_admin/);
  const assign=sql.slice(sql.indexOf("function public.ux_admin_assign_work_district"),
   sql.indexOf("function public.ux_review_institution_request"));
  assert.match(assign,/if v_is_admin then/);
