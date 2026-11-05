@@ -47,7 +47,7 @@ export function viewInspectors(db){
 }
 export function viewInstitutions(db){
  const allowed=db.districts.filter(d=>d.active);
- const options=choice(allowed);
+ const options=option("","لا تنشر في أي مقاطعة الآن")+choice(allowed);
  const availableLegacy=db.legacy.filter(l=>
   !db.resources.some(r=>r.legacy_institution_id===l.id));
  const sections=db.resources.map(r=>{
@@ -68,15 +68,15 @@ export function viewInstitutions(db){
   '<div class="field"><label>اسم المؤسسة</label><input name="p_title" required maxlength="250"></div>'+
   '<div class="field"><label>رمز المؤسسة (اختياري)</label><input name="p_code" maxlength="80"></div>'+
   '<div class="field"><label>ولاية موقع المؤسسة (بيان وصفي)</label><input name="p_wilaya" maxlength="120"></div>'+
-  '<div class="field"><label>المقاطعة الأولى للنشر</label><select name="p_initial_district" required>'+options+'</select></div>'+
+  '<div class="field"><label>المقاطعة الأولى للنشر (اختياري)</label><select name="p_initial_district">'+options+'</select></div>'+
   '</div><div class="actions"><button type="submit" class="btn primary">إضافة المؤسسة</button></div>'+
-  '<p class="hint">بعد الإضافة يمكنك تحديد مقاطعات إضافية من قائمة المؤسسات، دون إنشاء نسخ منها.</p></form>');
+  '<p class="hint">يمكنك الاحتفاظ بالمؤسسة دون إتاحتها لأي مقاطعة، ثم توزيعها لاحقًا على مقاطعة واحدة أو أكثر.</p></form>');
  const importArea=wrap("إدراج مؤسسة موجودة في السجل القديم",
-  '<p class="hint">يُربط السجل القديم بسجل المنشورات الجديد مرة واحدة فقط؛ لا نُغير السجل الأصلي.</p>'+
+  '<p class="hint">يُربط السجل القديم بسجل المؤسسات الجديد مرة واحدة فقط؛ يمكنك تأجيل توزيعه، ولا نُغير السجل الأصلي.</p>'+
   (availableLegacy.length?'<form data-operation="institution-import"><div class="fields">'+
    '<div class="field"><label>المؤسسة القديمة</label><select name="p_legacy_id">'+
    availableLegacy.map(x=>option(x.id,x.name+" — "+x.code)).join("")+'</select></div>'+
-   '<div class="field"><label>مقاطعة النشر الأولى</label>'+
+   '<div class="field"><label>مقاطعة النشر الأولى (اختياري)</label>'+
    '<select name="p_initial_district">'+options+'</select></div></div>'+
    '<div class="actions"><button class="btn primary" type="submit">ربط المؤسسة المختارة</button></div></form>':
    '<p class="hint">كل مؤسسات السجل القديم متاحة في السجل الجديد أو لا توجد مؤسسات قديمة.</p>'));
