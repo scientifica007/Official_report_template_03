@@ -50,6 +50,9 @@ $$;
 
 alter table public.district_published_resources
  alter column source_request_id drop not null;
+-- Admin may keep a shared institution unassigned until deciding its audiences.
+alter table public.district_published_resources
+ alter column work_district_id drop not null;
 alter table public.district_published_resources
  add column if not exists legacy_institution_id uuid unique
  references public.shared_institutions(id);
@@ -262,8 +265,9 @@ begin
  if nullif(btrim(coalesce(p_title,'')),'') is null then
   raise exception 'Institution name required' using errcode='22023';
  end if;
- if not exists(select 1 from public.work_districts where id=p_initial_district and active) then
-  raise exception 'Choose a valid initial district' using errcode='22023';
+ if p_initial_district is not null and
+    not exists(select 1 from public.work_districts where id=p_initial_district and active) then
+  raise exception 'Invalid initial district' using errcode='22023';
  end if;
  insert into public.district_published_resources
   (work_district_id,resource_kind,title,code,wilaya,payload,approved_by)
@@ -272,13 +276,15 @@ begin
   jsonb_build_object('title',left(btrim(p_title),250),
      'code',btrim(coalesce(p_code,'')),'wilaya',btrim(coalesce(p_wilaya,''))),
   v_admin) returning id into v_id;
- insert into public.district_resource_assignments(resource_id,work_district_id,assigned_by)
- values(v_id,p_initial_district,v_admin);
- insert into public.district_resource_assignment_events(resource_id,work_district_id,action,admin_id)
- values(v_id,p_initial_district,'assigned',v_admin);
+ if p_initial_district is not null then
+  insert into public.district_resource_assignments(resource_id,work_district_id,assigned_by)
+  values(v_id,p_initial_district,v_admin);
+  insert into public.district_resource_assignment_events(resource_id,work_district_id,action,admin_id)
+  values(v_id,p_initial_district,'assigned',v_admin);
+ end if;
  return v_id;
 end;
-$$;
+$;
 create or replace function public.ux_admin_import_legacy_institution(
  p_legacy_id uuid,p_initial_district uuid)
 returns uuid language plpgsql security definer set search_path=''
@@ -289,8 +295,9 @@ begin
  if v_admin is null or not ux_core.is_admin() then
   raise exception 'Site admin only' using errcode='42501';
  end if;
- if not exists(select 1 from public.work_districts where id=p_initial_district and active) then
-  raise exception 'Choose an initial district' using errcode='22023';
+ if p_initial_district is not null and
+    not exists(select 1 from public.work_districts where id=p_initial_district and active) then
+  raise exception 'Invalid initial district' using errcode='22023';
  end if;
  select * into v_old from public.shared_institutions
  where id=p_legacy_id;
@@ -302,17 +309,19 @@ begin
  insert into public.district_published_resources
   (work_district_id,resource_kind,title,code,wilaya,payload,approved_by,legacy_institution_id)
  values(p_initial_district,'institution',left(btrim(v_old.name),250),
-  btrim(v_old.code),btrim(v_old.wilaya),
+  btrim(coalesce(v_old.code,'')),btrim(coalesce(v_old.wilaya,'')),
   jsonb_build_object('title',left(btrim(v_old.name),250),
-   'code',btrim(v_old.code),'wilaya',btrim(v_old.wilaya)),
+   'code',btrim(coalesce(v_old.code,'')),'wilaya',btrim(coalesce(v_old.wilaya,''))),
   v_admin,p_legacy_id) returning id into v_id;
- insert into public.district_resource_assignments(resource_id,work_district_id,assigned_by)
- values(v_id,p_initial_district,v_admin);
- insert into public.district_resource_assignment_events(resource_id,work_district_id,action,admin_id)
- values(v_id,p_initial_district,'assigned',v_admin);
+ if p_initial_district is not null then
+  insert into public.district_resource_assignments(resource_id,work_district_id,assigned_by)
+  values(v_id,p_initial_district,v_admin);
+  insert into public.district_resource_assignment_events(resource_id,work_district_id,action,admin_id)
+  values(v_id,p_initial_district,'assigned',v_admin);
+ end if;
  return v_id;
 end;
-$$;
+$;
 create or replace function public.ux_admin_set_institution_districts(
  p_resource uuid,p_districts uuid[])
 returns void language plpgsql security definer set search_path=''
