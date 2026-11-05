@@ -702,7 +702,10 @@ const NAV_ITEMS=[
  ['account','حسابي','◉']
 ];
 function portalNavigation(){
- const visible=[...NAV_ITEMS,...(profile?.is_admin?[['admin','إدارة الحسابات','⚙']]:[])];
+ const visible=[...NAV_ITEMS,...(profile?.is_admin?[
+  ['admin','إدارة الحسابات','⚙'],
+  ['site_admin','إدارة الموقع','▤']
+ ]:[])];
  return '<nav class="portal-navigation" aria-label="أقسام المنصة">'+visible.map(([id,name,ico])=>
  '<button type="button" class="portal-nav-btn'+(currentPage===id?' selected':'')+
  '" data-cloud-action="nav" data-page="'+id+'" aria-current="'+(currentPage===id?'page':'false')+'">'+
@@ -1116,6 +1119,7 @@ function portalView(){
  return '<header class="portal-topbar"><div><strong>منصة التفتيش والتقويم المهني</strong>'+
  '<small>نماذج التفتيش — فضاء المفتشين المعتمدين</small></div>'+
  '<div class="session-controls portal-session-controls"><span class="session-name">'+elt(text(profile.first_name+' '+profile.last_name))+
+ (profile.is_admin?' — Admin':' — مفتش')+
  '</span><button type="button" class="btn session-logout" data-cloud-action="logout" aria-label="تسجيل الخروج من حساب المفتش">تسجيل الخروج</button></div>'+
  '</header><div class="portal-body">'+portalNavigation()+
  '<main class="portal-main" id="portal-main" tabindex="-1">'+content+
@@ -1406,6 +1410,13 @@ root.addEventListener('click',async e=>{
   }
   if(page==='admin'&&!profile?.is_admin)return;
   if(!verifiedUser())return;
+  if(page==='site_admin'){
+   // Navigating in the same tab preserves the existing tab-scoped session.
+   // Never transmit credentials through a URL.
+   if(!profile?.is_admin)return;
+   window.location.assign('./prototypes/ux-arch-03/admin/');
+   return;
+  }
   if(page!=='titularisation')committeeIssuedOnce=null;
   currentPage=page;feedback='';render();
   if(page==='titularisation'&&committeeEnabled){await loadCommittee();render();}
