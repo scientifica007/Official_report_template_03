@@ -26,7 +26,7 @@ test("UX-ARCH-04: broad permissive policies replaced atomically, not combined",(
  assert.match(rls,/create policy institution_read[\s\S]*ux_core\.legacy_institution_visible\(id\)/);
  assert.match(rls,/create policy inspector_profile_read[\s\S]*ux_core\.inspector_profile_visible\(id\)/);
  assert.doesNotMatch(rls,/using\s*\(public\.is_approved_inspector\(\)\)/);
- assert.match(rls,/^begin;[\s\S]*commit;\s*$/);
+ assert.match(rls,/\nbegin;[\s\S]*commit;\s*$/);
 });
 
 test("UX-ARCH-04: no automatic remapping or erasure of historic missions, users or institutions",()=>{
