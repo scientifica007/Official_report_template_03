@@ -94,3 +94,16 @@ test("UX-ARCH-04: emergency rollback is available and flags restoration of previ
  assert.match(sql,/create or replace function public\.create_inspection_mission/i);
  assert.match(sql,/^--[\s\S]*\nbegin;[\s\S]*\ncommit;\s*$/);
 });
+
+test("UX-ARCH-04: off-site backup helper is read-only, private, and validates expected production ref",()=>{
+ const script=read("scripts/backup_ux_arch04_pre_cutover.sh");
+ assert.doesNotThrow(()=>execFileSync("bash",["-n","scripts/backup_ux_arch04_pre_cutover.sh"]));
+ assert.match(script,/umask 077/);
+ assert.match(script,/uxtsyzyotnohxvopgcmh/);
+ assert.match(script,/read -r -s -p/);
+ assert.match(script,/supabase db dump --db-url/);
+ assert.match(script,/--role-only/);
+ assert.match(script,/--data-only/);
+ assert.match(script,/sha256sum -c SHA256SUMS/);
+ assert.doesNotMatch(script,/supabase (db reset|migration up|db push)|psql .*DROP|curl .*upload/i);
+});
