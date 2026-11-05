@@ -903,6 +903,22 @@ function dashboardView(){
  dashboardCard('إشعارات غير مقروءة',unread,'التحديثات والدعوات','notifications')+'</div>';
 }
 function institutionEditor(){
+ // UX-ARCH-04: historic lookup is read-only for inspectors. New publication
+ // requests belong to the district-scoped inspector workspace.
+ if(!profile?.is_admin){
+  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
+   elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
+  return '<div class="portal-page-heading"><h2>المؤسسات المتاحة لمقاطعة عملي</h2>'+
+   '<p>المؤسسات التاريخية المنشورة لمقاطعتك فقط؛ موقع المؤسسة الجغرافي لا يحدد صلاحية الوصول.</p></div>'+
+   '<section class="portal-widget"><label class="portal-field">اختر مؤسسة تاريخية'+
+   '<select id="cloud-select"><option value="">اختر مؤسسة</option>'+options+'</select></label>'+
+   '<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="refresh">تحديث البيانات</button>'+
+   (selectedSharedId?'<button type="button" class="btn primary" data-cloud-action="load">فتح المؤسسة داخل محرر التقرير</button>':'')+
+   '</div>'+(shared.length?'':'<p class="cloud-tip">لا توجد مؤسسات تاريخية منشورة لمقاطعتك حاليًا؛ لم تُحذف السجلات القديمة.</p>')+'</section>'+
+   '<section class="portal-widget"><h3>السجل الجديد والتحضير</h3>'+
+   '<p>لإنشاء سجل خاص أو اقتراح نشر مؤسسة، استخدم مساحة عمل المفتش. تظهر هناك أيضًا المؤسسات الجديدة غير المرتبطة بالسجل القديم.</p>'+
+   '<a class="btn primary" href="./prototypes/ux-arch-02/">فتح مساحة عمل المفتش</a></section>';
+ }
  const options=shared.map(x=>'<option value="'+elt(x.id)+'" '+(selectedSharedId===x.id?'selected':'')+'>'+
  elt(x.name+' — '+x.wilaya+(x.code?' ('+x.code+')':''))+'</option>').join('');
  const fields=INSTITUTION_EDITOR_FIELDS.map(([group,key,label])=>
@@ -910,7 +926,7 @@ function institutionEditor(){
  '" data-cloud-field-group="'+group+'" data-cloud-field-key="'+key+'" value="'+elt(institutionDraft[group]?.[key]||'')+
  '" maxlength="'+(key==='name'?'300':'500')+'"></label>').join('');
  return '<div class="portal-page-heading"><h2>المؤسسات المشتركة</h2>'+
- '<p>يمكن لجميع المفتشين المعتمدين إضافة المؤسسات وتعديلها. يُسجل اسم معدّل البيانات وتفاصيل التغيير في السجل المركزي.</p></div>'+
+ '<p>إدارة السجل التاريخي للمسؤول فقط. أنشئ المؤسسات الجديدة ووزعها على المقاطعات من لوحة إدارة الموقع.</p></div>'+
  '<section class="portal-widget"><label class="portal-field">اختيار مؤسسة'+
  '<select id="cloud-select"><option value="">+ مؤسسة جديدة</option>'+options+'</select></label>'+
  '<div class="portal-actions"><button class="btn subtle" data-cloud-action="new-institution">مؤسسة جديدة</button>'+
@@ -1185,7 +1201,7 @@ async function onAuthSubmit(event){
  finally{busy=false;render()}
 }
 async function saveShared(){
- if(!verifiedUser())throw Error('الحساب غير معتمد');
+ if(!verifiedUser()||!profile?.is_admin)throw Error('لا يمكن للمفتش تعديل السجل التاريخي مباشرة؛ استخدم طلب النشر في مساحة عمل المفتش.');
  const data=institutionDraft;
  const i={},director={};
  for(const [group,field] of INSTITUTION_EDITOR_FIELDS){
