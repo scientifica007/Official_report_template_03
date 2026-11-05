@@ -4,6 +4,7 @@
  */
 import {qrCanvas,downloadInvitationPdf} from "./invitation-pdf.mjs";
 import {GROUPS,suggestedWeights,validateWeights} from "../prototypes/titularisation-workbench/engine.mjs";
+import {MISSION_CONTEXT_FIELDS,missionContextDraft,applyMissionContextFields,serializeMissionContext} from "./mission-context.mjs";
 const config=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(config.supabaseUrl||"").replace(/\/+$/,"");
 const publicKey=String(config.publishableKey||"");
@@ -12,6 +13,7 @@ const root=document.getElementById("qa-app");
 const seats=["member1","member2","member3"];
 const seatNames={member1:"العضو الأول",member2:"العضو الثاني",member3:"العضو الثالث"};
 let session=null,profile=null,missions=[],selected="",seatRows=[],contributions=[],issued=null,busy=false;
+let contextRecord=null,contextFor="";
 let flash="",flashError=false;
 const element=(tag,text="",cls="")=>{
  const x=document.createElement(tag);if(text)x.textContent=text;if(cls)x.className=cls;return x;
@@ -217,15 +219,21 @@ async function refreshData(){
  await refreshDetails();
 }
 async function refreshDetails(){
- if(!selected){seatRows=[];contributions=[];return;}
- const [sr,cr]=await Promise.all([
+ if(!selected){seatRows=[];contributions=[];contextRecord=null;contextFor="";return;}
+ const id=selected;
+ const [sr,cr,dr]=await Promise.all([
   rows("titularisation_seats",{select:"seat_code,display_name,status,username,expires_at",
-   mission_id:"eq."+selected,order:"seat_code.asc"}),
+   mission_id:"eq."+id,order:"seat_code.asc"}),
   rows("titularisation_contributions",{
    select:"seat_code,status,revision,submitted_at",
-   mission_id:"eq."+selected,order:"seat_code.asc"})
+   mission_id:"eq."+id,order:"seat_code.asc"}),
+  rows("titularisation_report_drafts",{
+   select:"mission_id,payload,revision,updated_at",
+   mission_id:"eq."+id,limit:"1"})
  ]);
+ if(selected!==id)return; // a previous asynchronous selection must not overwrite this one
  seatRows=sr||[];contributions=cr||[];
+ contextRecord=dr?.[0]||null;contextFor=id;
 }
 function renderAnalyticalWeights(parent,mission){
  const card=element("section","","card");
@@ -289,6 +297,52 @@ function renewalSummary(renewal){
   renewal.failed.map(x=>seatNames[x.seat]).join("، ")+
   ". مدة المهمة محفوظة؛ استخدم زر «تجديد روابط الأعضاء فقط» لإعادة المحاولة، دون تمديد إضافي.";
 }
+function renderMissionContext(container,mission){
+ const box=wrapper("بيانات الأستاذ والمؤسسة — تُدخل مرة واحدة");
+ box.id="qa-mission-context";
+ box.append(notice("تُحفظ هذه المعطيات في مسودة التقرير والمحضر المرتبطة بمهمة اللجنة نفسها. عند فتح المحرر تُستعاد دون إعادة إدخال. لا تُستخدم بيانات أستاذ حقيقي في QA.","hint"));
+ if(contextFor!==mission.id){
+  box.append(notice("جارٍ تحميل بيانات المهمة. اضغط «تحديث البيانات» إن لم تظهر.","hint"));
+  container.append(box);return;
+ }
+ let current;
+ try{current=missionContextDraft(mission,contextRecord);}
+ catch(err){box.append(notice(err.message,"notice error"));container.append(box);return;}
+ const fields=element("div","","fields"),values={};
+ for(const {key,label} of MISSION_CONTEXT_FIELDS){
+  const control=input("text",label);
+  control.value=current.meta[key]||"";control.maxLength=300;
+  control.autocomplete="off";values[key]=control;
+  fields.append(field(label,control));
+ }
+ box.append(fields);
+ const named=seatRows.filter(s=>s.display_name&&["member1","member2","member3"].includes(s.seat_code));
+ if(named.length)box.append(notice("أسماء الأعضاء المستخرجة من روابط اللجنة: "+
+  named.map(s=>seatNames[s.seat_code]+": "+s.display_name).join("، ")+
+  ". تُدرج في الحقول الفارغة بالوثيقة عند حفظ البيانات دون محو أسماء حررها المفتش.","hint"));
+ const save=button("حفظ بيانات الأستاذ والمؤسسة في المهمة",async()=>{
+  const missionId=mission.id,expected=contextRecord?.revision||0;
+  const edits=Object.fromEntries(MISSION_CONTEXT_FIELDS.map(({key})=>[key,values[key].value]));
+  const next=applyMissionContextFields(current,edits,seatRows);
+  const revision=await rpc("save_titularisation_report_draft",{
+   p_mission_id:missionId,p_payload:serializeMissionContext(next),
+   p_expected_revision:expected
+  });
+  if(!Number.isSafeInteger(revision)||revision<=expected)
+   throw Error("الخادم لم يؤكد حفظ المراجعة الجديدة.");
+  await refreshDetails();
+  announce("حُفظت بيانات المهمة في مسودة التقرير والمحضر — مراجعة "+revision+
+   ". افتح المحرر وستظهر المعطيات تلقائيًا.");
+ },"primary");
+ save.id="qa-context-save";
+ box.append(save);
+ box.append(notice(contextRecord?
+  "آخر مراجعة محفوظة: "+contextRecord.revision+
+  " — إذا عدلت المحرر من تبويب آخر، حدّث الصفحة قبل الحفظ لتجنب تعارض المراجعات.":
+  "لم تُحفظ بيانات هذه المهمة بعد؛ أول حفظ ينشئ المسودة نفسها التي يستخدمها محرر التقرير.",
+  "hint"));
+ container.append(box);
+}
 function renderDashboard(){
  const greeting=wrapper("رئيس اللجنة — مختبر الحسابات المؤقتة");
  greeting.append(notice("هذه البيئة مستقلة عن قاعدة الإنتاج. العمليات التي تنفذها هنا تخص بيانات اختبار اصطناعية فقط."));
@@ -297,7 +351,7 @@ function renderDashboard(){
  row.append(button("تحديث البيانات",async()=>{issued=null;await refreshData();announce("تم تحديث بيانات المهمة.");}),
  button("تسجيل الخروج",async()=>{
   try{await request("/auth/v1/logout",{method:"POST",auth:true})}catch(_){}
-  saveSession(null);profile=null;selected="";missions=[];seatRows=[];contributions=[];issued=null;
+  saveSession(null);profile=null;selected="";missions=[];seatRows=[];contributions=[];issued=null;contextRecord=null;contextFor="";
   announce("انتهت جلسة المختبر.");
  }));
  greeting.append(row);root.append(greeting);
@@ -384,6 +438,7 @@ function renderDashboard(){
   if(mission.rubric_id==="lesson_derived_indicators_v1")
    renderAnalyticalWeights(choose,mission);
   if(!ready)choose.append(notice("أكمل تثبيت الأوزان أولًا. لن تُنشأ حسابات قبل ذلك.","notice error"));
+  if(ready)renderMissionContext(choose,mission);
   const report=element("a","فتح محرر التقرير والمحضر واستيراد المساهمات المحفوظة");
   report.href="./report/?mission="+encodeURIComponent(selected);
   report.className="primary";report.style.cssText="display:inline-block;padding:12px;margin:10px 0";
