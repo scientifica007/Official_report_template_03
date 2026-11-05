@@ -120,14 +120,14 @@ $("content").addEventListener("submit",event=>{
     p_title:requireText(data.p_title,"اسم المؤسسة",250),
     p_code:String(data.p_code||"").trim().slice(0,80),
     p_wilaya:String(data.p_wilaya||"").trim().slice(0,120),
-    p_initial_district:chosenUuid(form,"p_initial_district")
+    p_initial_district:form.elements.p_initial_district.value?chosenUuid(form,"p_initial_district"):null
    });
    return "أنشئت مؤسسة واحدة. تستطيع الآن ربطها بمقاطعات إضافية.";
   }
   if(kind==="institution-import"){
    await rpc("ux_admin_import_legacy_institution",{
     p_legacy_id:chosenUuid(form,"p_legacy_id"),
-    p_initial_district:chosenUuid(form,"p_initial_district")
+    p_initial_district:form.elements.p_initial_district.value?chosenUuid(form,"p_initial_district"):null
    });
    return "أُدرجت المؤسسة القديمة في السجل المنشور مع الاحتفاظ بأصلها.";
   }
