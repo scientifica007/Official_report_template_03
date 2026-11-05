@@ -74,6 +74,24 @@ alter table public.district_published_resources
  references public.shared_institutions(id);
 
 -- A published institution is a SINGLE row, linked to zero/one/many districts.
+
+-- Append-only admin change history for work-district labels/codes.
+create table if not exists public.work_district_edit_events(
+ id uuid primary key default gen_random_uuid(),
+ work_district_id uuid not null references public.work_districts(id),
+ old_code text not null,
+ new_code text not null,
+ old_label text not null,
+ new_label text not null,
+ admin_id uuid not null references public.inspector_profiles(id),
+ occurred_at timestamptz not null default now()
+);
+alter table public.work_district_edit_events enable row level security;
+revoke all on public.work_district_edit_events from public,anon,authenticated;
+grant select on public.work_district_edit_events to authenticated;
+create policy ux_work_district_edit_events_admin_read on public.work_district_edit_events
+ for select to authenticated using((select ux_core.is_admin()));
+
 create table if not exists public.district_resource_assignments(
  resource_id uuid not null references public.district_published_resources(id) on delete cascade,
  work_district_id uuid not null references public.work_districts(id),
@@ -178,7 +196,8 @@ $$;
 create or replace function public.ux_admin_update_work_district(
  p_district uuid,p_code text,p_label text)
 returns void language plpgsql security definer set search_path=''
-as $$
+as $
+declare v_old public.work_districts%rowtype;
 begin
  if (select auth.uid()) is null or not ux_core.is_admin() then
   raise exception 'Admin only' using errcode='42501';
@@ -187,10 +206,15 @@ begin
     nullif(btrim(coalesce(p_label,'')),'') is null then
   raise exception 'Code and label may not be empty' using errcode='22023';
  end if;
- update public.work_districts
- set code=btrim(p_code),label=btrim(p_label)
- where id=p_district;
+ select * into v_old from public.work_districts
+ where id=p_district for update;
  if not found then raise exception 'Work district not found' using errcode='22023'; end if;
+ if v_old.code=btrim(p_code) and v_old.label=btrim(p_label) then return; end if;
+ update public.work_districts set code=btrim(p_code),label=btrim(p_label)
+ where id=p_district;
+ insert into public.work_district_edit_events
+  (work_district_id,old_code,new_code,old_label,new_label,admin_id)
+ values(p_district,v_old.code,btrim(p_code),v_old.label,btrim(p_label),(select auth.uid()));
  -- district UUID stays stable: profile assignment remains valid.
 end;
 $$;
@@ -360,10 +384,12 @@ begin
   raise exception 'Invalid or inactive district' using errcode='22023';
  end if;
  for v_id in
-  delete from public.district_resource_assignments
+  select work_district_id from public.district_resource_assignments
   where resource_id=p_resource and not (work_district_id=any(p_districts))
-  returning work_district_id
+  for update
  loop
+  delete from public.district_resource_assignments
+  where resource_id=p_resource and work_district_id=v_id;
   insert into public.district_resource_assignment_events
    (resource_id,work_district_id,action,admin_id)
   values(p_resource,v_id,'unassigned',v_admin);
