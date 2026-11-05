@@ -151,9 +151,8 @@ $("content").addEventListener("click",event=>{
  const approving=b.dataset.action==="approve";
  const id=b.dataset.id;
  if(!isId(id))return message("تعذر تحديد طلب النشر.",true);
- const reason=prompt(approving?"سبب الموافقة (اختياري):":"سبب الرفض:");
+ const reason=prompt(approving?"ملاحظة الموافقة (اختيارية):":"ملاحظة الرفض (اختيارية):");
  if(reason===null)return;
- if(!approving&&!reason.trim())return message("اكتب سبب رفض واضحًا.",true);
  transact(async()=>{
   await rpc("ux_review_institution_request",{
    p_request:id,p_approve:approving,p_reason:reason.trim().slice(0,500)
