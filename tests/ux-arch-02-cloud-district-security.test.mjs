@@ -102,5 +102,5 @@ test("UX-ARCH-02 admin resource chooser cannot disclose unapproved people or ins
  assert.match(frontend,/refreshCatalog\(\)/);
  assert.match(frontend,/selected\.disabled=true/);
  assert.doesNotMatch(frontend,/<input name="p_resource"/);
- assert.match(read("prototypes/ux-arch-02/index.html"),/app\.mjs\?v=uxarch02-3-district-code/);
+ assert.match(read("prototypes/ux-arch-02/index.html"),/app\.mjs\?v=uxarch03-role-separation/);
 });
