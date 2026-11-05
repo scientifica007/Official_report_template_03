@@ -1,0 +1,59 @@
+:root{--green:#145b4b;--green-deep:#0d4237;--ink:#1c3730;--sub:#687973;--bg:#f4f7f6;--line:#d8e3dd;--white:#fff;--warning:#8d671c;--shadow:0 6px 28px rgba(14,55,40,.05)}
+*{box-sizing:border-box}
+html{font-family:Tahoma,Arial,"Noto Sans Arabic",sans-serif;color:var(--ink);background:var(--bg)}
+body{margin:0;font-size:14px}button,input,textarea,select{font:inherit}
+button,a,select,input,textarea{outline-offset:3px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #77bfa5}
+button{cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}
+a{color:var(--green);text-decoration:none}a:hover{text-decoration:underline}
+.demo-banner{background:#fff2d2;color:#6a4d18;font-size:12px;font-weight:600;text-align:center;padding:11px 18px;border-bottom:1px solid #ecd8a4;line-height:1.8}
+.app-shell{display:flex;min-height:calc(100vh - 38px)}
+.sidebar{width:265px;flex:0 0 265px;background:#fff;border-left:1px solid var(--line);padding:24px 15px;display:flex;flex-direction:column}
+.brand{display:flex;gap:11px;align-items:center;padding:2px 8px 24px;border-bottom:1px solid var(--line);line-height:1.65}
+.brand strong{font-size:15px;display:block;color:var(--green-deep)}
+.brand small,.sidebar-foot{font-size:11px;color:var(--sub)}
+.brand-mark{font-size:23px;font-weight:bold;color:#fff;background:var(--green);border-radius:12px;padding:7px 13px}
+.nav{display:grid;gap:5px;margin:24px 0}
+.nav button{text-align:right;background:transparent;border:0;border-radius:8px;padding:13px 12px;color:#355a4b}
+.nav button:hover{background:#eff6f1}.nav button.active{background:#e3f1e9;color:var(--green);font-weight:bold}
+.nav button[hidden]{display:none}.sidebar-foot{border-top:1px solid var(--line);margin-top:auto;padding:20px 7px;line-height:2}
+.main-shell{min-width:0;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:22px;align-items:center;padding:20px clamp(16px,4vw,50px);flex-wrap:wrap}
+.overline{font-size:11px;color:var(--sub);margin:0 0 5px}h1{font-size:22px;margin:0;color:var(--green-deep)}h2{font-size:18px;color:var(--green-deep);margin:0 0 16px}
+h3{font-size:15px;margin:0 0 11px}.district{font-size:12px;color:var(--sub);margin:8px 0 0}
+.account{display:grid;gap:6px;min-width:240px}.account label{font-size:12px;font-weight:600}.account select{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink)}.account small{font-size:10px;color:var(--sub)}
+#content{width:min(1130px,100%);padding:28px clamp(16px,4vw,50px) 65px;margin:0 auto;flex:1}
+#notice{min-height:0;padding:0 clamp(16px,4vw,50px);color:var(--green);font-size:13px}
+#notice:not(:empty){padding-top:10px;padding-bottom:10px;background:#eff8f2}
+.stack{display:grid;gap:16px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px}
+.card{background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:12px;padding:20px}
+.card h2,.card h3{color:var(--green-deep)}.card p{line-height:1.9}
+.card-sub{font-size:12px;color:var(--sub);line-height:1.85;margin:8px 0}
+.eyebrow{color:var(--sub);font-size:12px;line-height:1.8;margin:0 0 18px}
+.big-number{font-size:27px;font-weight:700;color:var(--green)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.btn{border:1px solid var(--line);background:#fff;color:var(--green);padding:10px 15px;border-radius:8px;min-height:42px;font-weight:600}
+.btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.btn.danger{color:#ab443d;border-color:#e9b8b5}.btn:hover{filter:brightness(.96)}
+.list-entry{border:1px solid var(--line);border-radius:10px;padding:15px;margin:9px 0;background:#fff;overflow-wrap:anywhere}
+.list-entry strong{display:block;margin-bottom:7px}.list-entry small{color:var(--sub);line-height:1.8;display:block}
+.list-entry .actions{margin-bottom:0}
+form{display:grid;gap:14px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.field{display:grid;gap:7px}.field.wide{grid-column:1/-1}
+.field label{font-size:12px;color:#425f51;font-weight:bold}
+.field input,.field select,.field textarea{background:#fff;border:1px solid #bfcec5;padding:12px;border-radius:8px;color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:90px;resize:vertical;line-height:1.8}
+.hint{color:var(--sub);font-size:12px;line-height:1.9}
+.note{padding:13px 15px;border-radius:8px;background:#eff6f1;border:1px solid #d4e7d8;font-size:12px;line-height:1.9}
+.note.warning{background:#fff9eb;border-color:#eddfb8;color:#74551b}
+.pill{display:inline-block;border-radius:100px;border:1px solid #cddfd3;background:#eff7f1;color:#31674e;padding:4px 10px;font-size:11px;font-weight:600}
+.pill.pending{background:#fff7e5;border-color:#ecd9ad;color:#7d5e25}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:11px;padding:17px}
+.stat strong{display:block;font-size:25px;color:var(--green);margin-top:7px}
+.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border-bottom:1px solid var(--line);padding:12px;text-align:right;vertical-align:top}th{background:#f5f9f6}
+.footer{border-top:1px solid var(--line);padding:18px clamp(16px,4vw,50px);display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;color:var(--sub);font-size:11px}
+.footer button{font-size:11px;background:none;border:0;color:#9a4d49;text-decoration:underline}
+@media(max-width:850px){.app-shell{display:block}.sidebar{width:auto;border-left:0;border-bottom:1px solid var(--line);padding:10px 12px}.brand{padding:10px 8px;border-bottom:0}.sidebar-foot{display:none}.nav{display:flex;overflow-x:auto;margin:0;gap:4px;padding:5px 0 9px}.nav button{white-space:nowrap;padding:10px;font-size:12px}.topbar{padding:18px}.account{min-width:190px}#content{padding:18px 14px 45px}.card{padding:16px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}

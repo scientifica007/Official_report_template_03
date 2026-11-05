@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="color-scheme" content="light"/>
+<title>UX-ARCH-01 — معاينة البنية الموحدة للمفتش</title>
+<link rel="stylesheet" href="./style.css?v=uxarch01"/>
+</head>
+<body>
+<div class="demo-banner" role="note">نموذج تفاعلي تجريبي ببيانات اصطناعية. الحفظ محلي داخل هذا المتصفح فقط؛ ليس متصلًا بحسابات أو قواعد بيانات المنصة.</div>
+<div class="app-shell">
+ <aside class="sidebar">
+  <div class="brand"><div class="brand-mark">م</div><div><strong>منصة التفتيش والتقويم المهني</strong><small>مخطط التنظيم المقترح — UX-ARCH-01</small></div></div>
+  <nav class="nav" aria-label="التنقل الرئيسي">
+   <button data-route="dashboard">لوحة القيادة</button>
+   <button data-route="tasks">مهامي وتحضير المهام</button>
+   <button data-route="private">بياناتي الدائمة</button>
+   <button data-route="institutions">مؤسسات مقاطعتي</button>
+   <button data-route="colleagues">زملاء مقاطعة العمل</button>
+   <button data-route="approvals">طلبات الاعتماد</button>
+   <button data-route="exceptions">استثناءات الإدارة</button>
+  </nav>
+  <div class="sidebar-foot">
+   <strong>البيئة:</strong> معاينة تصميم مستقلة<br/>
+   <a href="../../">العودة إلى الموقع الحالي</a>
+  </div>
+ </aside>
+ <div class="main-shell">
+  <header class="topbar">
+   <div>
+    <p class="overline">فضاء المفتش المهني</p>
+    <h1 id="page-title">لوحة القيادة</h1>
+    <p class="district" id="district-title"></p>
+   </div>
+   <div class="account">
+    <label for="demo-account">محاكاة حساب المستخدم</label>
+    <select id="demo-account" aria-label="اختيار حساب اصطناعي"></select>
+    <small>تبديل الحساب هنا للاختبار فقط؛ ليس تسجيل دخول حقيقيًا.</small>
+   </div>
+  </header>
+  <div id="notice" role="status" aria-live="polite"></div>
+  <main id="content" tabindex="-1"></main>
+  <footer class="footer">
+    <span>UX-ARCH-01 — لا تغييرات في Supabase أو مهام الإنتاج</span>
+    <button id="reset-demo" type="button">إعادة ضبط بيانات التجربة</button>
+  </footer>
+ </div>
+</div>
+<script type="module" src="./app.mjs?v=uxarch01"></script>
+</body>
+</html>
