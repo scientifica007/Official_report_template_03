@@ -323,7 +323,7 @@ begin
  end if;
  return v_id;
 end;
-$;
+$$;
 create or replace function public.ux_admin_import_legacy_institution(
  p_legacy_id uuid,p_initial_district uuid)
 returns uuid language plpgsql security definer set search_path=''
@@ -360,7 +360,7 @@ begin
  end if;
  return v_id;
 end;
-$;
+$$;
 create or replace function public.ux_admin_set_institution_districts(
  p_resource uuid,p_districts uuid[])
 returns void language plpgsql security definer set search_path=''
