@@ -7,7 +7,8 @@ const ADMIN_SESSION="official_report03_admin_session_v1";
 if(cfg.supabaseUrl!==ORIGIN||!/^sb_publishable_/.test(cfg.publishableKey||""))
  throw Error("تهيئة قاعدة الإنتاج غير مطابقة.");
 let auth=null,sessionSource="primary";
-const validId=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x||"");
+// UUID has FIVE groups (8-4-4-4-12); omitting the fourth group rejected every real session.
+const validId=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x||"");
 const validSession=x=>Boolean(x?.access_token&&x?.refresh_token&&validId(x?.user?.id));
 function saved(store,key){
  try{const value=JSON.parse(store.getItem(key)||"null");return validSession(value)?value:null}
