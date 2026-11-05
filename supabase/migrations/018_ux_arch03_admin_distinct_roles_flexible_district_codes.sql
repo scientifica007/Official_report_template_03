@@ -33,9 +33,25 @@ as $$
  where p.id=(select auth.uid()) and p.approved and not p.is_admin
  and p.account_status='approved';
 $$;
+-- Preserve read access to the administrator's OWN historical private rows
+-- and preparations created before these roles were separated. No access
+-- to another inspector's records is ever granted to the site admin.
+drop policy if exists ux_private_read on public.inspector_private_records;
+create policy ux_private_read on public.inspector_private_records
+ for select to authenticated using (
+ owner_id=(select auth.uid()) and
+ ((select ux_core.approved_inspector()) or (select ux_core.is_admin()))
+);
+drop policy if exists ux_prep_read on public.mission_preparations;
+create policy ux_prep_read on public.mission_preparations
+ for select to authenticated using (
+ owner_id=(select auth.uid()) and
+ ((select ux_core.approved_inspector()) or (select ux_core.is_admin()))
+);
+
 create or replace function ux_core.has_grant(p_capability text,p_resource uuid)
 returns boolean language sql stable security definer set search_path=''
-as $$
+as $
  select exists(
  select 1 from public.district_access_grants g
  join public.inspector_profiles p on p.id=g.grantee_id
