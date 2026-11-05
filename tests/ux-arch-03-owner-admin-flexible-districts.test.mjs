@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {execFileSync} from "node:child_process";
+import {viewDistricts,viewInspectors,viewInstitutions,viewRequests} from "../prototypes/ux-arch-03/admin/views.mjs";
 const file=path=>readFileSync(path,"utf8");
 const sql=file("supabase/migrations/018_ux_arch03_admin_distinct_roles_flexible_district_codes.sql");
 const api=file("prototypes/ux-arch-03/admin/api.mjs");
@@ -135,4 +136,51 @@ test("UX-ARCH-03: publication reason is optional for site owner, but actor and d
  assert.doesNotMatch(review,/Rejection requires a reason/);
  assert.match(review,/reviewer_id=v_admin/);
  assert.match(review,/decided_at=now\(\)/);
+});
+
+test("UX-ARCH-03 UI: one institution may be selected in two districts with a single record",()=>{
+ const db={
+  districts:[
+   {id:"11111111-1111-4111-8111-111111111111",code:"12",label:"تبسة",active:true},
+   {id:"22222222-2222-4222-8222-222222222222",code:"12-أ",label:"مقاطعة ثانية",active:true}],
+  profiles:[],resources:[{id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",title:"مؤسسة مشتركة",
+   code:"INST01",legacy_institution_id:null}],
+  assignments:[
+   {resource_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    work_district_id:"11111111-1111-4111-8111-111111111111"},
+   {resource_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    work_district_id:"22222222-2222-4222-8222-222222222222"}],
+  legacy:[],requests:[]
+ };
+ const content=viewInstitutions(db);
+ assert.match(content,/مؤسسة مشتركة/);
+ assert.match(content,/INST01 \(2 مقاطعة\)/);
+ assert.equal((content.match(/name="p_districts" type="checkbox"/g)||[]).length,2);
+ assert.equal((content.match(/name="p_districts" type="checkbox"[^>]* checked/g)||[]).length,2);
+ assert.equal((content.match(/data-operation="institution-assign"/g)||[]).length,1);
+ const admin=viewDistricts(db);
+ assert.match(admin,/12-أ/);
+ assert.match(admin,/data-operation="district-edit"/);
+ assert.match(content,/لا تنشر في أي مقاطعة الآن/);
+});
+test("UX-ARCH-03 UI: admin identity excluded from selectable inspector accounts",()=>{
+ const base={districts:[{id:"11111111-1111-4111-8111-111111111111",
+  label:"تبسة",code:"12",active:true}]};
+ const content=viewInspectors({...base,profiles:[
+  {id:"admin",first_name:"مالك",last_name:"الموقع",is_admin:true},
+  {id:"inspector",first_name:"مفتش",last_name:"مهني",is_admin:false,
+   profession:"IFEP",work_district_id:base.districts[0].id}
+ ]});
+ assert.ok(!content.includes('value="admin"'));
+ assert.ok(content.includes('value="inspector"'));
+ assert.match(content,/IFEP/);
+});
+test("UX-ARCH-03 UI: shared institution names are HTML escaped",()=>{
+ const content=viewInstitutions({
+  districts:[{id:"11111111-1111-4111-8111-111111111111",code:"12",label:"تبسة",active:true}],
+  resources:[{id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",title:"<script>alert(1)</script>",
+   code:"INST"}],assignments:[],legacy:[],requests:[]
+ });
+ assert.ok(!content.includes("<script>alert(1)</script>"));
+ assert.match(content,/&lt;script&gt;/);
 });
