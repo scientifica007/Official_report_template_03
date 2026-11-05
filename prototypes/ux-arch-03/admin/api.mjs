@@ -3,22 +3,56 @@
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
 const ORIGIN="https://uxtsyzyotnohxvopgcmh.supabase.co";
 const SESSION="official_report03_cloud_session_v1";
+const ADMIN_SESSION="official_report03_admin_session_v1";
 if(cfg.supabaseUrl!==ORIGIN||!/^sb_publishable_/.test(cfg.publishableKey||""))
  throw Error("تهيئة قاعدة الإنتاج غير مطابقة.");
-let auth=null;
-const validId=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x||"");
-export function startSession(){
- let found=null;
- for(const store of [localStorage,sessionStorage]){
-  try{
-   const candidate=JSON.parse(store.getItem(SESSION)||"null");
-   if(candidate?.access_token&&candidate?.refresh_token&&validId(candidate?.user?.id)){
-    found=candidate;break;
-   }
-  }catch{}
+let auth=null,sessionSource="primary";
+// UUID has FIVE groups (8-4-4-4-12); omitting the fourth group rejected every real session.
+const validId=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x||"");
+const validSession=x=>Boolean(x?.access_token&&x?.refresh_token&&validId(x?.user?.id));
+function saved(store,key){
+ try{const value=JSON.parse(store.getItem(key)||"null");return validSession(value)?value:null}
+ catch{return null}
+}
+function saveActiveSession(){
+ const value=JSON.stringify(auth);
+ if(sessionSource==="admin"){
+  try{sessionStorage.setItem(ADMIN_SESSION,value)}catch{}
+  return;
  }
- if(!found)throw Error("يجب تسجيل الدخول بحساب إدارة الموقع من المنصة الرئيسية.");
- auth=found;
+ // The main portal uses this same key. Keep same-tab sessionStorage as fallback.
+ let persisted=false;
+ try{localStorage.setItem(SESSION,value);persisted=true}catch{}
+ if(!persisted){try{sessionStorage.setItem(SESSION,value)}catch{}}
+}
+export function clearAdminSession(){
+ if(sessionSource==="admin")auth=null;
+ try{sessionStorage.removeItem(ADMIN_SESSION)}catch{}
+}
+export function startSession(){
+ // A dedicated administrator login should not overwrite an inspector's
+ // independent main-portal login in another tab.
+ const admin=saved(sessionStorage,ADMIN_SESSION);
+ if(admin){auth=admin;sessionSource="admin";return}
+ const primary=saved(localStorage,SESSION)||saved(sessionStorage,SESSION);
+ if(primary){auth=primary;sessionSource="primary";return}
+ throw Error("لا توجد جلسة مشتركة في هذا اللسان. يمكنك الدخول بحساب Admin الموجود مباشرة هنا، دون إنشاء حساب جديد.");
+}
+export async function signInAdmin(email,password){
+ const address=String(email||"").trim();
+ if(!address||!password)throw Error("أدخل البريد الإلكتروني وكلمة مرور حساب Admin.");
+ const response=await fetch(ORIGIN+"/auth/v1/token?grant_type=password",{
+  method:"POST",headers:{apikey:cfg.publishableKey,"Content-Type":"application/json",
+   Accept:"application/json"},body:JSON.stringify({email:address,password}),
+  cache:"no-store"});
+ const payload=await response.json().catch(()=>null);
+ if(!response.ok||!payload?.access_token||!payload?.refresh_token||
+    !validId(payload?.user?.id))
+  throw Error("لم يُقبل تسجيل الدخول. تحقق من بيانات حساب Admin الموجود.");
+ auth={access_token:payload.access_token,refresh_token:payload.refresh_token,
+  user:payload.user,expires_at_ms:Date.now()+1000*Number(payload.expires_in||3600)};
+ sessionSource="admin";
+ saveActiveSession();
 }
 async function ensureToken(){
  if(!auth)throw Error("جلسة الإدارة غير موجودة.");
@@ -32,8 +66,7 @@ async function ensureToken(){
  auth={...auth,access_token:payload.access_token,
   refresh_token:payload.refresh_token,user:payload.user||auth.user,
   expires_at_ms:Date.now()+Number(payload.expires_in||3600)*1000};
- try{localStorage.setItem(SESSION,JSON.stringify(auth))}
- catch{sessionStorage.setItem(SESSION,JSON.stringify(auth))}
+ saveActiveSession();
 }
 export async function request(method,path,body){
  await ensureToken();

@@ -1,4 +1,4 @@
-import {startSession,getUser,read,rpc,sessionId,isId} from "./api.mjs?v=uxarch03a";
+import {startSession,signInAdmin,clearAdminSession,getUser,read,rpc,sessionId,isId} from "./api.mjs?v=uxarch03-auth1";
 import {esc,viewDistricts,viewInspectors,viewInstitutions,viewRequests} from "./views.mjs?v=uxarch03a";
 const $=id=>document.getElementById(id);
 let profile=null,page="districts",busy=false,db={
@@ -160,17 +160,55 @@ $("content").addEventListener("click",event=>{
   return approving?"اعتمدت المؤسسة وأُتيحت في مقاطعة صاحب الطلب. يمكنك توزيعها لاحقًا.":"رُفض طلب النشر، مع الاحتفاظ بسجل المفتش الخاص.";
  });
 });
+function showAdminLogin(reason){
+ $("page-heading").textContent="دخول حساب إدارة الموقع";
+ $("signed-in").textContent="الدخول الإداري";
+ document.querySelectorAll("[data-page]").forEach(b=>b.disabled=true);
+ $("content").innerHTML=
+  '<section class="card"><h2>دخول حساب Admin الموجود</h2>'+
+  '<p class="note">لديك حساب مستقل لإدارة الموقع. استعمل بريده وكلمة مروره هنا؛ لن تتغير جلسة حساب المفتش المفتوح في لسان آخر.</p>'+
+  '<p class="hint">'+esc(reason||"")+'</p>'+
+  '<form id="admin-auth-form" autocomplete="on">'+
+  '<div class="fields"><div class="field"><label for="admin-email">البريد الإلكتروني لحساب Admin</label>'+
+  '<input id="admin-email" name="email" type="email" autocomplete="username" required></div>'+
+  '<div class="field"><label for="admin-password">كلمة مرور حساب Admin</label>'+
+  '<input id="admin-password" name="password" type="password" autocomplete="current-password" required></div></div>'+
+  '<div class="actions"><button class="btn primary" type="submit">الدخول إلى إدارة الموقع</button></div>'+
+  '</form><p class="hint">للانتقال مباشرة من جلسة المنصة الرئيسية، افتح «إدارة الموقع» من قائمتها في اللسان نفسه.</p>'+
+  '<p><a href="../../../">العودة إلى المنصة الرئيسية</a></p></section>';
+}
+$("content").addEventListener("submit",event=>{
+ if(event.target.id!=="admin-auth-form")return;
+ event.preventDefault();
+ const form=event.target;
+ if(busy)return;
+ busy=true;
+ const submit=form.querySelector('button[type="submit"]');
+ if(submit)submit.disabled=true;
+ (async()=>{
+  const data=new FormData(form);
+  await signInAdmin(data.get("email"),data.get("password"));
+  await verifyAdmin();
+  await load();
+  document.querySelectorAll("[data-page]").forEach(b=>b.disabled=false);
+  message("");
+  draw();
+ })().catch(e=>{
+  // Never leave the inspector account accidentally designated as Admin.
+  clearAdminSession();
+  showAdminLogin(e.message);
+  message(e.message,true);
+ }).finally(()=>{busy=false});
+});
 async function start(){
  try{
   startSession();
   await verifyAdmin();
   await load();
+  document.querySelectorAll("[data-page]").forEach(b=>b.disabled=false);
   draw();
  }catch(e){
-  $("page-heading").textContent="تعذر فتح الإدارة";
-  document.querySelectorAll("[data-page]").forEach(b=>b.disabled=true);
-  $("content").innerHTML='<section class="card"><h2>الوصول محصور بإدارة الموقع</h2><p>'+
-   esc(e.message)+'</p><p><a href="../../../">تسجيل الدخول من المنصة الرئيسية</a></p></section>';
+  showAdminLogin(e.message);
  }
 }
 start();
