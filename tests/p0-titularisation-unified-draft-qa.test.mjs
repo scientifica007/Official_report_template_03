@@ -79,7 +79,7 @@ test("P0.2: QA browser bridge reuses QA-only inspector session and handles revis
   assert.ok(calls.every(c=>c.opts?.headers?.Authorization==="Bearer qa-test-token"));
   assert.ok(calls.every(c=>String(c.resource).startsWith(url+"/rest/v1/")));
   assert.equal(calls[1].opts.method,"POST");
-  await assert.rejects(saveCloudCommitteeReportDraft("not-a-uuid",payload,0),/معرّف/);
+  await assert.rejects(saveCloudCommitteeReportDraft("not-a-uuid",payload,0),/غير صالحة/);
   assert.equal(calls.length,3);
  }finally{
   globalThis.window=original.window;
