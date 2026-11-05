@@ -224,12 +224,11 @@ begin
  if not found or v_request.status<>'submitted' then
   raise exception 'No pending publication request' using errcode='22023';
  end if;
- if v_request.author_id=v_admin then
-  raise exception 'Author may not approve own request' using errcode='42501';
+ if p_approve is null then
+  raise exception 'A publication decision is required' using errcode='22023';
  end if;
- if p_approve is null or (p_approve=false and nullif(btrim(coalesce(p_reason,'')),'') is null) then
-  raise exception 'Rejection requires a reason' using errcode='22023';
- end if;
+ -- A site owner may decide requests from either account; reasons are optional.
+ -- Every accepted/rejected request still records the actor and time.
  update public.district_publication_requests
   set status=case when p_approve then 'approved' else 'rejected' end,
   reviewer_id=v_admin,decision_reason=left(btrim(coalesce(p_reason,'')),500),
