@@ -12,7 +12,7 @@ const clean=x=>String(x??"").replace(/[&<>"']/g,c=>({
 const attr=x=>clean(x);
 const uid=()=>crypto.randomUUID();
 let session=null,profile=null,district=null,route="dashboard",draft=null,dirty=false,
- saveTimer=null,busy=false,privateRecords=[],preparations=[],publications=[],
+ saveTimer=null,savePromise=null,editSequence=0,busy=false,privateRecords=[],preparations=[],publications=[],
  requests=[],grants=[],districts=[],colleagues=[],pending=[],lastError="";
 const validUUID=x=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x||"");
 function inform(msg,error=false){
@@ -285,22 +285,32 @@ function render(){
  }[route]||dashboard)();
 }
 async function saveDraft(){
+ if(savePromise){await savePromise;if(dirty)return saveDraft();return true;}
  if(!draft||!dirty)return true;
  const form=$("prep-form");
  if(!form)return false;
  const data=Object.fromEntries(new FormData(form).entries());
  if(String(data.title||"").trim().length<3)throw Error("عنوان المهمة أقصر من ثلاثة أحرف.");
+ const startedAt=editSequence;
  const payload={title:data.title.trim(),template_id:data.template_id,
   planned_date:data.planned_date||null,
   fields:{institution:data.institution||"",teacher:data.teacher||"",
    purpose:data.purpose||"",notes:data.notes||""},revision:draft.revision+1};
- const rows=await call("PATCH",qs("mission_preparations",{
+ const snapshotId=draft.id;
+ savePromise=call("PATCH",qs("mission_preparations",{
   id:"eq."+draft.id,revision:"eq."+draft.revision,select:"*"}),payload,{returnRows:true});
- if(!Array.isArray(rows)||rows.length!==1)throw Error(
-  "تغيرت هذه المهمة على جهاز آخر. أعد تحميلها قبل محاولة الكتابة، مع الاحتفاظ بالنصوص الحالية.");
- draft=rows[0];dirty=false;
- const status=$("save-status");
- if(status)status.textContent="حُفظ على الخادم: "+dated(draft.updated_at)+" — مراجعة "+draft.revision;
+ try{
+  const rows=await savePromise;
+  if(!Array.isArray(rows)||rows.length!==1)throw Error(
+   "تغيرت هذه المهمة على جهاز آخر. أعد تحميلها قبل إعادة المحاولة، مع الاحتفاظ بالنصوص الحالية.");
+  if(!draft||draft.id!==snapshotId)throw Error("تغيرت المهمة أثناء الحفظ.");
+  draft=rows[0];dirty=(editSequence!==startedAt);
+  const status=$("save-status");
+  if(status)status.textContent=dirty?
+    "أُنجز حفظ سابق؛ توجد تعديلات أحدث يجري حفظها...":
+    "حُفظ على الخادم: "+dated(draft.updated_at)+" — مراجعة "+draft.revision;
+ }finally{savePromise=null;}
+ if(dirty)return saveDraft();
  return true;
 }
 async function flushDraft(){
@@ -327,7 +337,7 @@ document.querySelectorAll("[data-route]").forEach(el=>
  el.addEventListener("click",()=>navigate(el.dataset.route)));
 $("content").addEventListener("input",event=>{
  if(route!=="edit"||!event.target.closest?.("#prep-form"))return;
- dirty=true;
+ dirty=true;editSequence++;
  if(saveTimer)clearTimeout(saveTimer);
  saveTimer=setTimeout(()=>saveDraft().catch(e=>inform(e.message,true)),800);
  const status=$("save-status");
