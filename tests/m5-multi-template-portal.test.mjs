@@ -26,9 +26,13 @@ test("M5: launcher connects both models without changing their editor or storage
  assert.match(cloud,/لا تُحفظ مسوداته على Supabase/);
  assert.match(cloud,/رابطه العام ليس حسابًا محميًا/);
  assert.match(cloud,/النموذج الشخصي الثاني — مخطط مستقبلًا/);
- assert.match(cloud,/حسابات أعضاء لجنة الترسيم المؤقتة — قيد التفعيل/);
- assert.match(cloud,/ثلاثة روابط مستقلة/);
- assert.match(cloud,/لم تُفعَّل خدمة الحسابات المؤقتة بعد/);
+ // P0.1: the model library routes to a teacher-task workspace. QA and
+ // the approved local renderer remain distinct until real unified storage.
+ assert.match(cloud,/data-cloud-action="nav" data-page="titularisation"/);
+ assert.match(cloud,/العمل المشترك في لجنة الترسيم/);
+ assert.match(cloud,/متاح للتجريب في QA/);
+ assert.match(cloud,/قاعدة بيانات الإنتاج/);
+ assert.match(cloud,/مهمة ترسيم أستاذ/);
  assert.match(lab,/href="\.\.\/\.\.\/"/);
  assert.match(lab,/العودة إلى منصة التفتيش والتقويم المهني/);
 });

@@ -484,3 +484,30 @@ test('M4.2: session persistence never places tokens in a URL and respects storag
  assert.match(source,/if\(legacy\)storageSet\(x\)/);
  assert.doesNotMatch(source,/location\.hash\s*=\s*.*refresh_token/);
 });
+
+test('P0: teacher titularisation task has a single obvious entry from inspector dashboard',async()=>{
+ const h=createHarness();await h.ready();
+ assert.match(h.elements['cloud-content'].innerHTML,/فضاء مهماتي المهنية/);
+ assert.match(h.elements['cloud-content'].innerHTML,/الأولوية: ترسيم أستاذ/);
+ assert.match(h.elements['cloud-content'].innerHTML,/data-page="titularisation"/);
+ await h.navigate('titularisation');
+ const content=h.elements['cloud-content'].innerHTML;
+ assert.match(content,/مهمة ترسيم أستاذ/);
+ assert.match(content,/1 — إعداد التقرير والمحضر/);
+ assert.match(content,/2 — تجربة التعاون مع أعضاء اللجنة/);
+ assert.match(content,/تحضير مهمة الأستاذ/);
+ assert.match(content,/prototypes\/titularisation-committee\//);
+ assert.match(content,/qa-titularisation\//);
+ assert.match(content,/لم يُدمج حفظه بعد/);
+ assert.match(content,/بيانات تجريبية فقط في QA/);
+});
+
+test('P0: template library directs teacher titularisation into the task hub, never directly to a standalone editor',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('templates');
+ const html=h.elements['cloud-content'].innerHTML;
+ assert.match(html,/فتح مهمة ترسيم أستاذ/);
+ assert.match(html,/data-cloud-action="nav" data-page="titularisation"/);
+ assert.doesNotMatch(html,/href="\.\/prototypes\/titularisation-committee\/" target="_blank"/);
+ assert.match(html,/نسخة محلية مستقلة/);
+ assert.match(html,/قاعدة بيانات الإنتاج/);
+});
