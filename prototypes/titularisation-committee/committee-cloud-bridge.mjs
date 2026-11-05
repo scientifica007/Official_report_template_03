@@ -144,3 +144,50 @@ export async function loadInspectorSynthesisSources(missionId){
   throw Error("استجابة تركيب التقديرات لم تجتز التحقق.");
  return data;
 }
+
+/** P0.2 QA: read the chair's full report/minutes draft attached to this
+ * exact titularisation mission. RLS excludes seats and other inspectors. */
+export async function loadCloudCommitteeReportDraft(missionId){
+ const c=cfg();
+ if(c.qaOnly!==true||!committeeCloudEnabled())
+  throw Error("حفظ مسودة مهمة الترسيم السحابي متاح في QA فقط.");
+ if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(missionId))
+  throw Error("معرّف مهمة الترسيم غير صالح.");
+ const rows=await read("titularisation_report_drafts",{
+  select:"mission_id,payload,revision,updated_at",
+  mission_id:"eq."+missionId,limit:"1"
+ });
+ if(!Array.isArray(rows)||rows.length>1)throw Error("استجابة حفظ المسودة غير صالحة.");
+ return rows[0]||null;
+}
+
+/** Compare-and-swap: rejects stale writes rather than clobbering work
+ * saved in another browser or tab. Not callable from production. */
+export async function saveCloudCommitteeReportDraft(missionId,payload,revision){
+ const c=cfg();
+ if(c.qaOnly!==true||!committeeCloudEnabled())
+  throw Error("حفظ مسودة مهمة الترسيم السحابي متاح في QA فقط.");
+ if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(missionId)||
+   !Number.isSafeInteger(revision)||revision<0||!payload||
+   typeof payload!=="object"||Array.isArray(payload))
+  throw Error("بيانات حفظ مسودة المهمة غير صالحة.");
+ const token=await inspectorToken();
+ const response=await fetch(c.supabaseUrl.replace(/\/+$/,"")+
+  "/rest/v1/rpc/save_titularisation_report_draft",{
+  method:"POST",cache:"no-store",referrerPolicy:"no-referrer",
+  headers:{"apikey":c.publishableKey,"Authorization":"Bearer "+token,
+   "Content-Type":"application/json","Accept":"application/json"},
+  body:JSON.stringify({p_mission_id:missionId,p_payload:payload,
+   p_expected_revision:revision})
+ });
+ const result=await response.json().catch(()=>null);
+ if(!response.ok){
+  if(result?.code==="40001")
+   throw Error("المسودة حُفظت من صفحة أو جهاز آخر. صدّر JSON للاحتفاظ بتعديلاتك، ثم أعد فتح المهمة قبل الكتابة فوق النسخة الجديدة.");
+  throw Error(String(result?.message||"لم ينجح حفظ المسودة في المهمة.")+
+   " ("+response.status+")");
+ }
+ if(!Number.isSafeInteger(result)||result<=revision)
+  throw Error("لم يؤكد الخادم رقم المراجعة الجديد. صدّر JSON قبل إعادة المحاولة.");
+ return result;
+}

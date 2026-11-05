@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>مختبر إعداد تقرير ومحضر الترسيم</title>
-<link rel="stylesheet" href="../../prototypes/titularisation-committee/style.css?v=m514-semantic-20261104"><link rel="stylesheet" href="../../shared/score-range.css?v=m510"><link rel="stylesheet" href="../../prototypes/titularisation-committee/print-layout-b5.css" media="print"><script src="../config.js" defer></script><script type="module" src="../../prototypes/titularisation-committee/app.mjs?v=m514-semantic-20261104"></script></head>
+<link rel="stylesheet" href="../../prototypes/titularisation-committee/style.css?v=m514-semantic-20261104"><link rel="stylesheet" href="../../shared/score-range.css?v=m510"><link rel="stylesheet" href="../../prototypes/titularisation-committee/print-layout-b5.css" media="print"><script src="../config.js" defer></script><script type="module" src="../../prototypes/titularisation-committee/app.mjs?v=p02-cloud-draft-20261105"></script></head>
 <body><header><small>QA — مشروع اختبار Supabase مستقل</small><h1>مختبر إعداد تقرير ومحضر لجنة الترسيم</h1>
 <p>أداة مساعدة للمفتش واللجنة، لا نظام اعتماد أو تصديق. تجربة ربط مساهمات الأعضاء السحابية المحفوظة بمحرر التقرير؛ لا تُستخدم بيانات إنتاج حقيقية.</p>
 <p class="warning">استخدم بيانات اصطناعية فقط. المعاينة الورقية قيد المطابقة المرجعية، وهي مسودة عمل لا تمثل إمضاءً أو ختمًا. النسخة الممضاة والمؤشر عليها ورقيًا وحدها المرجع المهني الرسمي.</p>
@@ -21,6 +21,10 @@
 <span class="export-label">المحضر:</span>
 <button id="print-minutes" type="button">طباعة المحضر / حفظ PDF</button>
 <button id="docx-minutes" type="button">تنزيل المحضر DOCX</button></div>
+<div class="actions" id="cloud-draft-controls" hidden>
+<button id="cloud-draft-save" type="button">حفظ مسودة التقرير والمحضر في المهمة</button>
+<span id="cloud-draft-status" role="status" aria-live="polite">جارٍ التحقق من مسودة المهمة...</span>
+</div>
 <p id="message" role="status" aria-live="polite"></p></section>
 <section class="panel"><h2>معطيات المهمة</h2><div id="meta" class="meta-grid"></div></section>
 <section id="committee-cloud-bridge" class="panel" hidden><h2>مساهمات أعضاء اللجنة السحابية</h2><p>يمكن لرئيس اللجنة استيراد المساهمات المرسلة من حسابات الأعضاء بعد التحقق من المهمة والشبكة. لا يُغيَّر التقدير النهائي للمفتش، ويجب حفظ نسخة JSON قبل الاستيراد.</p><div class="actions"><button type="button" id="committee-cloud-refresh">عرض مهامي</button><select id="committee-cloud-mission" aria-label="اختيار مهمة الترسيم"><option value="">— اختر مهمة —</option></select><button type="button" id="committee-cloud-import">استيراد المساهمات المرسلة</button></div><p id="committee-cloud-status" role="status" aria-live="polite"></p></section>

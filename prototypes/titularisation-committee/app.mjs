@@ -13,18 +13,28 @@ import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
-import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers} from "./committee-cloud-bridge.mjs";
+import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft} from "./committee-cloud-bridge.mjs";
 let state=freshCommittee(),who="final";
 let synthesisReview=null; // Created only after an owner-authorized QA import.
 const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
 const assistantRequested=qaReport&&new URLSearchParams(location.search).get("assistant")==="1";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
+const linkedMissionId=qaReport?new URLSearchParams(location.search).get("mission"):"";
+let cloudDraftRevision=0,cloudDraftReady=false,cloudDraftDirty=false,cloudDraftBusy=false;
+function cloudDraftStatus(value){
+ const status=$("cloud-draft-status");if(status)status.textContent=value;
+}
+function flagCloudDraftDirty(){
+ if(!qaReport||!linkedMissionId||!cloudDraftReady)return;
+ cloudDraftDirty=true;
+ cloudDraftStatus("توجد تعديلات غير محفوظة في المهمة. استخدم «حفظ مسودة التقرير والمحضر» قبل المغادرة.");
+}
 const labels={institution:"المؤسسة",candidate:"الأستاذ/المترشح",rank:"الرتبة",
  date:"تاريخ المهمة",location:"المكان",session:"بيانات الجلسة"};
 function message(v){$("message").textContent=v}
 function commit(fn){
- try{state=fn();render()}catch(e){message(e.message)}
+ try{state=fn();flagCloudDraftDirty();render()}catch(e){message(e.message)}
 }
 function render(){
  // Keep unfinished speech text in the tab while rebuilding the editor.
@@ -102,7 +112,7 @@ $("mode").addEventListener("change",e=>{
  if(chosen===state.mode)return;
  try{
   const next=changeMode(state,chosen);
-  state=next;
+  state=next;flagCloudDraftDirty();
   synthesisReview?.reset();
   // Make the selected mode evident immediately: start on first seat
   // when entering individual contributions; return to final in unified.
@@ -116,7 +126,7 @@ $("mode").addEventListener("change",e=>{
 $("rubric").addEventListener("change",e=>{
  if(!confirm("تغيير الشبكة يبدأ مسودة فارغة؛ صدّر JSON أولًا إن أردت حفظها. موافق؟")){render();return}
  clearVoiceDrafts();
- state=freshCommittee(state.mode,e.target.value);who="final";synthesisReview?.reset();render();
+ state=freshCommittee(state.mode,e.target.value);flagCloudDraftDirty();who="final";synthesisReview?.reset();render();
 });
 $("save").addEventListener("click",()=>{
  try{
@@ -134,9 +144,37 @@ $("load").addEventListener("change",async e=>{
   const next=restoreCommittee(JSON.parse(await file.text()));
   if(!confirm("استيراد الملف سيستبدل مسودة الصفحة الحالية. موافق؟"))return;
   clearVoiceDrafts();
-  state=next;who="final";synthesisReview?.reset();render();message("استُعيد ملف المسودة بعد التحقق.");
+  state=next;flagCloudDraftDirty();who="final";synthesisReview?.reset();render();message("استُعيد ملف المسودة بعد التحقق.");
  }catch(err){message(err.message)}
 });
+// P0.2: explicit save tied to the SAME QA mission as committee submissions.
+if(qaReport&&linkedMissionId){
+ const controls=$("cloud-draft-controls"),save=$("cloud-draft-save");
+ if(controls&&save){
+  controls.hidden=false;
+  save.disabled=true;
+  cloudDraftStatus("جارٍ تحميل مسودة التقرير والمحضر الخاصة بهذه المهمة...");
+  save.addEventListener("click",async()=>{
+   if(!cloudDraftReady||cloudDraftBusy)return;
+   const snapshot=state,expected=cloudDraftRevision;
+   cloudDraftBusy=true;save.disabled=true;
+   cloudDraftStatus("جارٍ حفظ المسودة في المهمة...");
+   try{
+    const payload=JSON.parse(stringifyCommittee(snapshot));
+    const revision=await saveCloudCommitteeReportDraft(linkedMissionId,payload,expected);
+    cloudDraftRevision=revision;
+    if(state===snapshot){
+     cloudDraftDirty=false;
+     cloudDraftStatus("حُفظت مسودة التقرير والمحضر في المهمة — مراجعة "+revision+".");
+    }else{
+     cloudDraftDirty=true;
+     cloudDraftStatus("حُفظت مراجعة "+revision+"، لكن توجد تعديلات أحدث لم تُحفظ بعد.");
+    }
+   }catch(err){cloudDraftDirty=true;cloudDraftStatus(err.message);}
+   finally{cloudDraftBusy=false;save.disabled=false;}
+  });
+ }
+}
 // Optional M5.1: only authorized, submitted seats can be imported.
 // Never import stale draft contributions, nor change chair's scores or notes.
 if(committeeCloudEnabled()){
@@ -164,6 +202,7 @@ if(committeeCloudEnabled()){
   $("committee-cloud-import").addEventListener("click",async()=>{
    const id=picker.value;
    if(!id){info("اختر المهمة أولًا.");return;}
+   if(qaReport&&linkedMissionId&&id!==linkedMissionId){info("اختر مهمة الترسيم التي فُتح منها هذا المحرر.");return;}
    info("جارٍ قراءة المساهمات المرسلة والتحقق منها...");
    try{
     const {mission,rows}=await loadCloudCommitteeSubmissions(id);
@@ -180,7 +219,7 @@ if(committeeCloudEnabled()){
      info("لم تتغير المسودة.");return;
     }
     clearVoiceDrafts();
-    state=next.state;who="final";render();
+    state=next.state;flagCloudDraftDirty();who="final";render();
     info("استُوردت "+next.seats.length+" مساهمة مرسلة بعد التحقق. بقيت بيانات المفتش النهائية كما هي.");
     // No synthesis UI is created unless an inspector OWNER-only QA response
     // succeeds. Member accounts, local simulations, and production cannot
@@ -195,7 +234,7 @@ if(committeeCloudEnabled()){
        getMissionId:()=>picker.value,
        applyNote:(field,itemId,text)=>{
         state=editNote(state,"final",field,text,itemId);
-        who="final";render();
+        flagCloudDraftDirty();who="final";render();
        }
       });
       await synthesisReview.activate(id);
@@ -222,15 +261,34 @@ if(committeeCloudEnabled()){
    const linked=new URLSearchParams(location.search).get("mission");
    if(linked){
     const untouched=state;
-    loadCloudCommitteeSubmissions(linked).then(({mission})=>{
-     if(state!==untouched)return;
-     const target=prepareCloudCommitteeDraft(mission);
+    Promise.all([loadCloudCommitteeSubmissions(linked),loadCloudCommitteeReportDraft(linked)])
+    .then(([{mission},saved])=>{
+     if(state!==untouched){
+      cloudDraftStatus("عُدّلت الصفحة قبل انتهاء تحميل المهمة. صدّر JSON ثم أعد فتح المهمة لتجنب فقد التغييرات.");
+      return;
+     }
+     const target=saved?.payload?
+      restoreCommittee(saved.payload):prepareCloudCommitteeDraft(mission);
+     if(target.rubricId!==mission.rubric_id||
+        (target.rubricId===RUBRICS.analytical14.id&&
+         !sameWeightProfile(target.final.grading.profile,mission.rubric_profile)))
+      throw Error("المسودة المحفوظة لا تطابق الشبكة أو الأوزان المثبتة في المهمة.");
      clearVoiceDrafts();
      state=target;who="final";render();
-     picker.value=linked;
-     info("تم تحميل شبكة المهمة وأوزانها المثبتة تلقائيًا من رئيس اللجنة. اضغط «استيراد المساهمات المرسلة» لإضافة تقييمات الأعضاء دون إدخال الأوزان مرة ثانية."+
-      (assistantRequested?" ستظهر بعدها لوحة مساعد المفتش لتركيب التقديرات أسفل هذا القسم.":""));
-    }).catch(err=>info("تعذر تحميل أوزان المهمة تلقائيًا: "+err.message));
+     cloudDraftRevision=saved?.revision||0;
+     cloudDraftReady=true;cloudDraftDirty=false;
+     $("cloud-draft-save")?.removeAttribute("disabled");
+     cloudDraftStatus(saved?
+      "استُعيدت مسودة التقرير والمحضر المحفوظة — مراجعة "+cloudDraftRevision+".":
+      "المهمة جاهزة. أدخل معطيات الأستاذ والتقرير، ثم احفظ المسودة في المهمة.");
+     picker.value=linked;picker.disabled=true;
+     info("تم تحميل شبكة المهمة وأوزانها، واستُعيدت مسودة المفتش إن كانت محفوظة. استيراد مساهمات اللجنة يتم دون تغيير العلامات والنصوص النهائية للمفتش."+
+      (assistantRequested?" ستظهر لوحة مساعد المفتش بعد الاستيراد.":""));
+    }).catch(err=>{
+     cloudDraftReady=false;
+     cloudDraftStatus("تعذر تحميل مسودة المهمة: "+err.message+"؛ يمكنك تصدير JSON دون الكتابة فوق نسخة سحابية.");
+     info("تعذر تحميل المهمة أو مسودتها: "+err.message);
+    });
    }
   }
  }
