@@ -52,8 +52,16 @@ async function call(method,path,body,opts={}){
  const payload=await r.text();
  let data=null;
  try{data=payload?JSON.parse(payload):null}catch{data=null}
- if(!r.ok)throw Error(String(data?.message||data?.error_description||
-   data?.error||"فشلت العملية على خادم البيانات")+" ("+r.status+")");
+ if(!r.ok){
+  const message=String(data?.message||data?.error_description||data?.error||"فشلت العملية على خادم البيانات");
+  if(/work_districts_code_check/.test(message))
+   throw Error("الرمز 09 وحده يدل على الولاية ولا يحدد مقاطعة عمل. أدخل رمزًا فريدًا من 3 إلى 40 حرفًا، مثل 09-01 أو 09-02.");
+  if(/work_districts_code_key/.test(message))
+   throw Error("رمز مقاطعة العمل مستخدم سابقًا. اختر رمزًا مختلفًا لكل مقاطعة عمل.");
+  if(/work_districts_label_check/.test(message))
+   throw Error("اسم مقاطعة العمل يجب أن يكون من 3 إلى 160 حرفًا.");
+  throw Error(message+" ("+r.status+")");
+ }
  return data;
 }
 function qs(table,params={}){
@@ -227,9 +235,10 @@ function adminView(){
  const grantees=colleagues.filter(x=>x.approved&&x.account_status==="approved"&&x.work_district_id);
  const resourcesNote='<p class="hint">اختر موردًا محددًا من القائمة. لا تُعرض البيانات الخاصة أو المؤسسات غير المنشورة، ويرفض الخادم أي مورد غير مؤهل.</p>';
  return panel("تسجيل مقاطعة عمل رسمية",'<form id="district-create">'+
- '<div class="fields"><div class="field"><label>الرمز الإداري الثابت (3–40 حرفًا)</label>'+
- '<input name="code" required pattern="[A-Z0-9][A-Z0-9._-]{2,39}" maxlength="40"></div>'+
- '<div class="field"><label>اسم مقاطعة العمل</label><input name="label" required minlength="3" maxlength="160"></div>'+
+ '<p class="hint">الرمز هنا يعرّف <strong>مقاطعة العمل</strong>، وليس ولاية السكن أو الولاية وحدها. <strong>09 رمز ولاية البليدة، ولا يكفي وحده لتمييز مقاطعتها.</strong> أدخل رمزًا خاصًا بكل مقاطعة، مثل 09-01 أو 09-02 بعد التحقق من التسمية الإدارية. لا يُستنتج انتماء أي مفتش من الرمز.</p>'+
+ '<div class="fields"><div class="field"><label>رمز مقاطعة العمل الفريد (3–40 حرفًا)</label>'+
+ '<input name="code" required pattern="[A-Z0-9][A-Z0-9._-]{2,39}" minlength="3" maxlength="40" placeholder="مثال: 09-01 أو BLIDA-02" title="ثلاثة أحرف على الأقل. 09 رمز ولاية فقط؛ أدخل رمز المقاطعة الفريد مثل 09-01"></div>'+
+ '<div class="field"><label>اسم مقاطعة العمل الإداري الكامل</label><input name="label" required minlength="3" maxlength="160" placeholder="مثال توضيحي: البليدة 2"></div>'+
  '</div><div class="actions"><button class="btn primary" type="submit">إنشاء مقاطعة موثقة</button></div></form>')+
  panel("إسناد مقاطعة العمل إلى مفتش",
  '<p class="note warning">الإسناد إداري، ولا يُشتق من ولاية السكن ولا من تسمية المقاطعة القديمة. راجع السجلات قبل التغيير.</p>'+
@@ -393,8 +402,14 @@ $("content").addEventListener("submit",event=>{
     }},{returnRows:true});
    inform("حُفظت البيانات الخاصة في حسابك.");
   }else if(form.id==="district-create"){
-   await rpc("ux_admin_create_work_district",{p_code:data.code,p_label:data.label});
-   inform("أُنشئت المقاطعة؛ اسندها إلى المفتش بعد التحقق من بيانات العمل.");
+   const code=String(data.code||"").trim().toUpperCase();
+   const label=String(data.label||"").trim();
+   if(!/^[A-Z0-9][A-Z0-9._-]{2,39}$/.test(code))
+    throw Error(code==="09"?"09 رمز ولاية البليدة، وليس معرّفًا كافيًا لمقاطعة عمل. استخدم رمز المقاطعة الموثق مثل 09-01 أو 09-02.":"رمز مقاطعة العمل يجب أن يتكون من 3 إلى 40 حرفًا: أحرف لاتينية كبيرة أو أرقام أو . _ -");
+   if(label.length<3)throw Error("أدخل الاسم الإداري الكامل لمقاطعة العمل.");
+   await rpc("ux_admin_create_work_district",{p_code:code,p_label:label});
+   await getProfile();
+   inform("أُنشئت مقاطعة العمل. الخطوة التالية: اختر المفتش والمقاطعة الصحيحة في قسم «إسناد مقاطعة العمل إلى مفتش».");
   }else if(form.id==="assign-form"){
    await rpc("ux_admin_assign_work_district",data);
    inform("سُجل إسناد مقاطعة العمل في سجل التدقيق.");
