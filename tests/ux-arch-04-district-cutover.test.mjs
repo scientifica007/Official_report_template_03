@@ -73,3 +73,24 @@ test("UX-ARCH-04: portal permits authorized legacy data edits but not inspector 
  assert.doesNotMatch(portal,/يمكن لجميع المفتشين المعتمدين إضافة المؤسسات وتعديلها/);
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","cloud.js"]));
 });
+
+test("UX-ARCH-04: accepted cross-district mission teammates retain a narrowly-scoped directory identity",()=>{
+ const sql=read("supabase/migrations/023_ux_arch04_accepted_mission_colleague_visibility.sql");
+ assert.match(sql,/create or replace function ux_core\.inspector_profile_visible/);
+ assert.match(sql,/public\.inspection_mission_members me/);
+ assert.match(sql,/join public\.inspection_mission_members peer/);
+ assert.match(sql,/peer\.mission_id=me\.mission_id/);
+ assert.match(sql,/me\.inspector_id=\(select auth\.uid\(\)\)/);
+ assert.match(sql,/me\.membership_status='accepted'/);
+ assert.match(sql,/peer\.membership_status='accepted'/);
+ assert.doesNotMatch(sql,/create policy institution_read|create policy inspection_missions_read|delete from public\.inspection_mission_members/i);
+});
+test("UX-ARCH-04: emergency rollback is available and flags restoration of previously broad access as a risk",()=>{
+ const sql=read("supabase/rollback/UX_ARCH_04_PRE_CUTOVER_RESTORE_LEGACY_POLICIES.sql");
+ assert.match(sql,/CAUTION: restores the historically overly broad access policies/);
+ assert.match(sql,/create policy institution_read/i);
+ assert.match(sql,/create policy inspector_profile_read/i);
+ assert.match(sql,/create or replace function public\.guard_shared_institution/i);
+ assert.match(sql,/create or replace function public\.create_inspection_mission/i);
+ assert.match(sql,/^--[\s\S]*\nbegin;[\s\S]*\ncommit;\s*$/);
+});
