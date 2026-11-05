@@ -378,4 +378,131 @@ grant execute on function public.ux_admin_update_work_district(uuid,text,text),
  public.ux_admin_import_legacy_institution(uuid,uuid),
  public.ux_admin_set_institution_districts(uuid,uuid[])
  to authenticated;
+
+-- Existing admin exception catalog and grant RPC respect multi-district membership.
+create or replace function public.ux_admin_list_exception_resources(
+ p_grantee uuid,p_capability text)
+returns table(resource_id uuid,resource_label text,district_label text)
+language plpgsql stable security definer set search_path=''
+as $$
+declare v_district uuid;
+begin
+ if (select auth.uid()) is null or not ux_core.is_admin() then
+  raise exception 'Admin only' using errcode='42501';
+ end if;
+ if p_capability not in ('view_inspector','view_institution','collaborate_mission')
+    or p_capability is null then
+  raise exception 'Unknown exception capability' using errcode='22023';
+ end if;
+ select p.work_district_id into v_district
+ from public.inspector_profiles p
+ join public.work_districts d on d.id=p.work_district_id and d.active
+ where p.id=p_grantee and p.approved and p.account_status='approved';
+ if v_district is null then
+  raise exception 'Recipient work district is not verified' using errcode='42501';
+ end if;
+ if p_capability='view_inspector' then
+  return query select p.id,
+   left(trim(p.first_name||' '||p.last_name)||' — '||p.profession,180),
+   d.label
+   from public.inspector_profiles p
+   join public.work_districts d on d.id=p.work_district_id and d.active
+   where p.id<>p_grantee and p.work_district_id<>v_district
+     and not p.is_admin and p.approved and p.account_status='approved'
+   order by d.label,p.last_name,p.first_name limit 300;
+ elsif p_capability='view_institution' then
+  return query select r.id,
+   left(r.title||case when r.code='' then '' else ' — '||r.code end,220),
+   d.label
+   from public.district_published_resources r
+   join public.work_districts d on d.id=r.work_district_id and d.active
+   where r.publication_status='published'
+    and not exists(select 1 from public.district_resource_assignments a
+     where a.resource_id=r.id and a.work_district_id=v_district)
+   order by d.label,r.title limit 300;
+ else
+  return query select m.id,left(m.title,220),d.label
+  from public.inspection_missions m
+  join public.inspector_profiles p on p.id=m.created_by
+  join public.work_districts d on d.id=p.work_district_id and d.active
+  where p.work_district_id<>v_district
+  order by d.label,m.title limit 300;
+ end if;
+end;
+$$;
+
+create or replace function public.ux_admin_grant_district_access(
+ p_grantee uuid,p_capability text,p_resource uuid,
+ p_reason text,p_expires_at timestamptz)
+returns uuid language plpgsql security definer set search_path=''
+as $$
+declare v_admin uuid:=(select auth.uid());
+ v_recipient_district uuid;v_resource_district uuid;v_id uuid;
+begin
+ if v_admin is null or not ux_core.is_admin() then
+  raise exception 'Admin only' using errcode='42501';
+ end if;
+ if p_capability not in ('view_inspector','view_institution','collaborate_mission')
+ or p_capability is null or p_resource is null then
+  raise exception 'Unsupported permission or resource' using errcode='22023';
+ end if;
+ if length(trim(coalesce(p_reason,''))) not between 10 and 500 then
+  raise exception 'Professional justification must be 10-500 characters'
+   using errcode='22023';
+ end if;
+ if p_expires_at is null or p_expires_at<=now() or
+  p_expires_at>now()+interval '30 days' then
+  raise exception 'Exception must expire within the next 30 days'
+   using errcode='22023';
+ end if;
+ select p.work_district_id into v_recipient_district
+ from public.inspector_profiles p
+ join public.work_districts d on d.id=p.work_district_id and d.active
+ where p.id=p_grantee and p.approved=true and not p.is_admin
+  and p.account_status='approved';
+ if v_recipient_district is null or p_grantee=v_admin then
+  raise exception 'Recipient must be an approved inspector with a verified district'
+   using errcode='42501';
+ end if;
+ if p_capability='view_inspector' then
+  select p.work_district_id into v_resource_district
+  from public.inspector_profiles p
+  join public.work_districts d on d.id=p.work_district_id and d.active
+  where p.id=p_resource and p.approved and not p.is_admin
+  and p.account_status='approved';
+ elsif p_capability='view_institution' then
+  select r.work_district_id into v_resource_district
+  from public.district_published_resources r
+  where r.id=p_resource and r.publication_status='published';
+ elsif p_capability='collaborate_mission' then
+  select p.work_district_id into v_resource_district
+  from public.inspection_missions m
+  join public.inspector_profiles p on p.id=m.created_by
+  join public.work_districts d on d.id=p.work_district_id and d.active
+  where m.id=p_resource;
+ end if;
+ if v_resource_district is null then
+  raise exception 'Requested resource not eligible' using errcode='42501';
+ end if;
+ if p_capability='view_institution' then
+  if exists(select 1 from public.district_resource_assignments a
+    where a.resource_id=p_resource and a.work_district_id=v_recipient_district) then
+   raise exception 'Institution is already shared with inspector district' using errcode='22023';
+  end if;
+ elsif v_resource_district=v_recipient_district then
+  raise exception 'Only foreign-district resource eligible' using errcode='42501';
+ end if;
+ insert into public.district_access_grants
+  (grantee_id,grantee_district_id_at_grant,granted_by,
+   capability,resource_id,resource_district_id,reason,expires_at)
+ values(p_grantee,v_recipient_district,v_admin,p_capability,p_resource,
+  v_resource_district,trim(p_reason),p_expires_at)
+ returning id into v_id;
+ insert into public.district_access_grant_events(grant_id,action,actor_id,reason)
+ values(v_id,'granted',v_admin,trim(p_reason));
+ return v_id;
+end;
+$$;
+
+
 commit;
