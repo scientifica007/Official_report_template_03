@@ -102,7 +102,9 @@ test("UX-ARCH-03: old admin/inspector paths and production datasets remain untou
  assert.match(api,/\/auth\/v1\/user/);
  assert.match(app,/!p\?\.is_admin/);
  assert.match(api,/\/rest\/v1\/rpc\//);
- assert.doesNotMatch(app,/service_role|sb_secret_|refresh_token|password/i);
+ assert.doesNotMatch(app,/service_role|sb_secret_|refresh_token/i);
+ assert.match(app,/type="password"/);
+ assert.match(app,/await verifyAdmin\(\)/);
  assert.doesNotMatch(sql,/drop table public\.shared_institutions|drop table public\.inspector_profiles/i);
  for(const path of ["prototypes/ux-arch-03/admin/api.mjs",
   "prototypes/ux-arch-03/admin/views.mjs",
