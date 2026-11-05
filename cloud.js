@@ -29,7 +29,7 @@ let committeeMissions=[],committeeSeats=[],committeeContributions=[];
 let committeeSelectedId="",committeeError="",committeeIssuedOnce=null;
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const text=val=>String(val==null?'':val).trim();
-const verifiedUser=()=>profile&&profile.approved===true&&profile.account_status==='approved';
+const verifiedUser=()=>profile&&profile.approved===true&&(!profile.account_status||profile.account_status==='approved');
 const title=role=>({IFEP:'مفتش التكوين والتعليم المهنيين',ITP:'مفتش تقني وبيداغوجي',IAF:'مفتش إداري ومالي'})[role]||role||'';
 const now=()=>new Date().toISOString();
 function status(message){feedback=String(message||'');for(const id of ['cloud-message','shared-report-status']){const o=document.getElementById(id);if(o)o.textContent=feedback}}
