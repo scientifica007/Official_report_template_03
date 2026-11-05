@@ -46,9 +46,9 @@ done
   printf 'UTC_BACKUP_CREATED=%s\n' "$STAMP"
   supabase --version
   printf 'PROJECT_REF=%s\n' "$PROJECT_REF"
-  printf 'STATUS=backup files generated and checksums verified; restore rehearsal NOT yet performed\n'
+  printf 'STATUS=application SQL dump generated; auth/storage recovery and restore rehearsal NOT verified\n'
 } > "$BASE_DIR/MANIFEST.txt"
 chmod 600 "$BASE_DIR"/*
 printf '\nBackup files created in: %s\n' "$BASE_DIR"
 echo "IMPORTANT: Keep these files private, encrypt a second copy off-site, and test recovery before production cutover."
-echo "This backup does not include actual Storage API objects; back them up separately if present."
+echo "IMPORTANT: Supabase CLI may omit managed auth and storage schemas. This is not a complete Supabase service backup; verify Auth user recovery separately."\necho "This backup does not include actual Storage API objects; back them up separately if present."
