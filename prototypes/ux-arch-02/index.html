@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>فضاء البيانات والتحضير الآمن — المرحلة UX-ARCH-02</title>
+<link rel="stylesheet" href="../ux-arch-01/style.css?v=uxarch02"/>
+<style>.nav button{font-size:13px}.small-warning{font-size:12px;color:#846022;line-height:1.8}
+button.primary,.primary{background:#145b4b;color:white}.field label{display:block}
+#loading{padding:2rem}.badge{display:inline-block;background:#f9efcc;border-radius:6px;padding:4px 9px}
+</style></head><body>
+<div class="demo-banner">مرحلة تشغيل حقيقية ومحدودة: التحضير والبيانات الخاصة والمراجعة. <strong>الفصل العام للبيانات القديمة لم يُفعّل بعد.</strong></div>
+<div class="app-shell">
+<aside class="sidebar"><div class="brand"><div class="brand-mark">م</div><div><strong>فضاء المفتش الآمن</strong><small>UX-ARCH-02 / حساب الإنتاج</small></div></div>
+<nav class="nav">
+<button data-route="dashboard">الرئيسية</button><button data-route="preparations">تحضيراتي</button>
+<button data-route="private">بياناتي الخاصة</button>
+<button data-route="published">المؤسسات المنشورة لمقاطعتي</button>
+<button data-route="requests">طلبات اعتماد النشر</button>
+<button data-route="admin" id="admin-nav" hidden>إدارة المقاطعات والاستثناءات</button>
+</nav><div class="sidebar-foot"><a href="../../">العودة إلى المنصة الرئيسية</a><br/>
+<a href="../ux-arch-01/">معاينة التصميم الاصطناعية</a></div></aside>
+<div class="main-shell">
+<header class="topbar"><div><p class="overline">حساب المفتش المعتمد</p><h1 id="page-title">فضاء عملي</h1>
+<p class="district" id="district">جارٍ التحقق من مقاطعة العمل...</p></div>
+<div class="account"><strong id="profile-name">التحقق من الهوية</strong>
+<a href="../../">حساب المنصة الرئيسية</a></div></header>
+<p class="note warning" id="safety-note">البيانات الجديدة محمية بسياسات RLS. لا تتعامل هذه المرحلة بعد مع دليل المؤسسات القديم أو روابط المهمات القديمة.</p>
+<div id="notice" role="status" aria-live="polite"></div>
+<main id="content"><p id="loading">جارٍ التحقق من الجلسة والصلاحيات...</p></main>
+<footer class="footer"><span>الحفظ الجديد سحابي ومقيد بالهوية المهنية المعتمدة. لا تُرسل مفاتيح سرية إلى الواجهة.</span></footer>
+</div></div>
+<script src="../../cloud-config.js"></script>
+<script type="module" src="./app.mjs?v=uxarch02-1"></script>
+</body></html>
