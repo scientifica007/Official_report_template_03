@@ -30,7 +30,10 @@ export function missionContextDraft(mission,saved){
  return s;
 }
 export function applyMissionContextFields(state,values,seats=[]){
- if(!values||typeof values!=="object")throw Error("بيانات المهمة غير صالحة.");
+ if(!values||typeof values!=="object"||Array.isArray(values))throw Error("بيانات المهمة غير صالحة.");
+ const allowed=new Set(MISSION_CONTEXT_FIELDS.map(f=>f.key));
+ if(Object.keys(values).some(key=>!allowed.has(key)))
+  throw Error("حقل إضافي غير صالح في بيانات المهمة.");
  let next=restoreCommittee(state);
  const previous=next.meta;
  for(const {key} of MISSION_CONTEXT_FIELDS){
