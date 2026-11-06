@@ -155,5 +155,5 @@ test("M5.1: member portal uses only explicit session tokens and respects current
  assert.match(member,/confirm\(submitted\?/);
  assert.match(member,/ستُحفظ النسخة السابقة/);
  assert.match(portal,/committeeIssuedOnce=null/);
- assert.match(portal,/لا تُحفظ مسوداته على Supabase/);
+ assert.match(portal,/روابط أعضاء اللجنة ومساهماتهم ما زالت في QA/);
 });
