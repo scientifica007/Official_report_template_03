@@ -6,6 +6,7 @@ import {qrCanvas,downloadInvitationPdf} from "./invitation-pdf.mjs";
 import {GROUPS,suggestedWeights,validateWeights} from "../prototypes/titularisation-workbench/engine.mjs";
 import {MISSION_CONTEXT_FIELDS,missionContextDraft,applyMissionContextFields,serializeMissionContext} from "./mission-context.mjs";
 import {selectQAMission,validMissionId} from "./mission-navigation.mjs";
+import {orderQAWorkMissions,inspectorProfileDefaults,publishedQAInstitutionChoices} from "./workspace-sources.mjs";
 const config=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(config.supabaseUrl||"").replace(/\/+$/,"");
 const publicKey=String(config.publishableKey||"");
@@ -16,6 +17,7 @@ const seatNames={member1:"العضو الأول",member2:"العضو الثان�
 let session=null,profile=null,missions=[],selected="",seatRows=[],contributions=[],issued=null,busy=false;
 const requestedMissionFromLink=new URLSearchParams(globalThis.location?.search||"").get("mission");
 let contextRecord=null,contextFor="";
+let publishedInstitutions=[],institutionCatalogError="";
 let flash="",flashError=false;
 const element=(tag,text="",cls="")=>{
  const x=document.createElement(tag);if(text)x.textContent=text;if(cls)x.className=cls;return x;
@@ -201,7 +203,7 @@ function renderLogin(){
 async function refreshProfile(){
  if(!session?.userId){profile=null;return;}
  const list=await rows("inspector_profiles",{
-  select:"id,approved,account_status,is_admin,federation_required",id:"eq."+session.userId
+  select:"id,approved,account_status,is_admin,federation_required,first_name,last_name,email,profession,district,work_district_id",id:"eq."+session.userId
  });
  profile=list?.[0]||null;
  if(profile?.approved&&profile.federation_required===true){
@@ -214,9 +216,22 @@ async function refreshProfile(){
  }
 }
 async function refreshData(){
- missions=await rows("titularisation_missions",{
+ missions=orderQAWorkMissions(await rows("titularisation_missions",{
   select:"id,title,rubric_id,rubric_profile,status,expires_at,created_at",order:"created_at.desc",limit:"100"
- });
+ }));
+ // Source is QA-only and filtered by RLS. Never copy production institutions.
+ try{
+  const catalog=await rows("district_published_resources",{
+   select:"id,title,code,wilaya,resource_kind,publication_status",
+   resource_kind:"eq.institution",publication_status:"eq.published",
+   order:"title.asc",limit:"150"
+  });
+  publishedInstitutions=publishedQAInstitutionChoices(catalog);
+  institutionCatalogError="";
+ }catch(error){
+  publishedInstitutions=[];
+  institutionCatalogError="تعذر قراءة دليل المؤسسات المصرح به في QA: "+(error?.message||"خطأ اتصال");
+ }
  if(!missions.some(m=>m.id===selected))
   selected=selectQAMission(missions,selected,requestedMissionFromLink);
  await refreshDetails();
