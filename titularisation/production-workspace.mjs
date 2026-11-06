@@ -6,7 +6,7 @@ const clean=s=>String(s??"").trim();
 const html=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 let tasks=[],institutions=[],selected="",error="";
-const requested=new URLSearchParams(location.search).get("titularisation");
+const requested=new URLSearchParams(typeof location!=="undefined"?location.search:"").get("titularisation");
 export function currentTaskId(){return selected}
 export function choose(id){
  selected=tasks.some(t=>t.id===id)?id:"";
