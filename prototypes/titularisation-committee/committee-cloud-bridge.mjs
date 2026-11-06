@@ -191,3 +191,28 @@ export async function saveCloudCommitteeReportDraft(missionId,payload,revision){
   throw Error("لم يؤكد الخادم رقم المراجعة الجديد. صدّر JSON قبل إعادة المحاولة.");
  return result;
 }
+
+/** QA-only professional identity for the signed-in inspector, not a member.
+ * Read the current QA account by its session user ID with RLS enabled. For
+ * federated inspectors the QA profile was refreshed from verified production
+ * identity by the dedicated backend, never from browser-provided name fields. */
+export async function loadCloudCommitteeInspectorProfile(){
+ const c=cfg();
+ if(c.qaOnly!==true||!committeeCloudEnabled())
+  throw Error("ملف المفتش المهني متاح داخل مهمة QA فقط.");
+ let session;
+ try{session=JSON.parse(sessionStorage.getItem(QA_SESSION)||"null")}catch(_){}
+ const ownerId=session?.userId;
+ if(typeof ownerId!=="string"||
+   !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(ownerId))
+  throw Error("لا توجد جلسة مفتش معتمدة لقراءة بياناته المهنية.");
+ const list=await read("inspector_profiles",{
+  select:"id,first_name,last_name,district,email,approved,account_status,is_admin,federation_required",
+  id:"eq."+ownerId,limit:"1"
+ });
+ if(!Array.isArray(list)||list.length!==1||list[0]?.id!==ownerId||
+    list[0]?.approved!==true||list[0]?.account_status!=="approved"||
+    list[0]?.is_admin===true)
+  throw Error("تعذر التحقق من ملف المفتش المهني في QA.");
+ return list[0];
+}

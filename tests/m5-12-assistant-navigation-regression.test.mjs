@@ -34,7 +34,7 @@ test("M5.12 discoverability: helper path requires actual import and successful o
 
 test("M5.12 discoverability: QA report links and script revisions remain consistent",()=>{
  assert.match(qaHtml,/app\.mjs\?v=p06-qa-profile-sync-status-20261106/);
- assert.match(reportHtml,/app\.mjs\?v=p04-qa-mission-return-20261106/);
+ assert.match(reportHtml,/app\.mjs\?v=p08-qa-inspector-prefill-20261106/);
  assert.match(read("prototypes/titularisation-committee/index.html"),/bootstrap\.mjs\?v=m514-semantic-20261104/);
  assert.match(read("prototypes/titularisation-committee/bootstrap.mjs"),/app\.mjs\?v=m514-semantic-20261104/);
  for(const path of ["qa-titularisation/app.mjs","prototypes/titularisation-committee/app.mjs"])

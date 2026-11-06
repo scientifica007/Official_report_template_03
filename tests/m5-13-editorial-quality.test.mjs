@@ -101,7 +101,7 @@ test("M5.13: direct QA report has inspector editor; member bundle remains exclud
  assert.match(ui,/sourceFingerprint\(latest\)!==snapshot\.sourceFingerprint/);
  assert.match(ui,/if\(!confirm\(question\)\)/);
  assert.match(app,/inspector-synthesis-ui\.mjs\?v=m513-editorial-20261104/);
- assert.match(report,/app\.mjs\?v=p04-qa-mission-return-20261106/);
+ assert.match(report,/app\.mjs\?v=p08-qa-inspector-prefill-20261106/);
  assert.doesNotMatch(member,/inspector-synthesis|inspector-prose-quality|synthesis_sources/);
  assert.doesNotMatch(memberPage,/inspector-prose-quality|synthesis_sources/);
  assert.doesNotMatch(ui,/fetch\(|openai|llm|service_role/i);
