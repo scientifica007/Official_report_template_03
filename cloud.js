@@ -25,6 +25,15 @@ let institutionDraft={institution:{},director:{}};
 // M5.1 gate stays FALSE until migration and Supabase Edge Function pass live
 // RLS/credential tests. Never imply locally published HTML authenticates seats.
 const committeeEnabled=cfg.temporaryCommitteeEnabled===true;
+const productionTitularisationEnabled=cfg.titularisationWorkspaceEnabled===true;
+let productionTitularisationModule=null;
+const productionTaskRequested=new URLSearchParams(location.search).get('titularisation');
+async function ensureProductionTitularisation(){
+ if(!productionTitularisationEnabled)throw Error('مسار الترسيم الإنتاجي غير مفعل.');
+ if(!productionTitularisationModule)
+  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p1-prod-inspector-20261106');
+ return productionTitularisationModule;
+}
 let committeeMissions=[],committeeSeats=[],committeeContributions=[];
 let committeeSelectedId="",committeeError="",committeeIssuedOnce=null;
 const elt=val=>String(val==null?'':val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -778,6 +787,10 @@ async function loadCommitteeDetails(){
 }
 const committeeMemberName=id=>({member1:'العضو الأول',member2:'العضو الثاني',member3:'العضو الثالث'})[id]||id;
 function committeeView(){
+ if(productionTitularisationEnabled)
+  return productionTitularisationModule?
+   productionTitularisationModule.render({profile}):
+   '<div class="portal-page-heading"><h2>ترسيم أستاذ</h2><p>جارٍ تحميل مهمات المفتش...</p></div>';
  const intro='<div class="portal-page-heading"><h2>مهمة ترسيم أستاذ</h2>'+
  '<p>نقطة عمل واحدة للمفتش من إعداد المهمة إلى المداولة ثم التقرير والمحضر. تُحفظ مساهمات الأعضاء الأصلية، دون تغيير سلطة رئيسها في تحرير التقرير النهائي.</p></div>';
  if(!committeeEnabled)return intro+
@@ -1390,6 +1403,9 @@ root.addEventListener('change',async e=>{
   try{await loadCommitteeDetails();feedback='';}catch(err){committeeError=err.message;}
   render();return;
  }
+ if(e.target.id==='prod-tit-select'){
+  productionTitularisationModule?.choose(e.target.value);render();return;
+ }
  if(e.target.id==='mission-select'){
   selectedMissionId=missions.some(x=>x.id===e.target.value)?e.target.value:'';
   missionContributions=[];contributionLoadedFor='';contributionError='';
@@ -1431,7 +1447,10 @@ root.addEventListener('click',async e=>{
   }
   if(page!=='titularisation')committeeIssuedOnce=null;
   currentPage=page;feedback='';render();
-  if(page==='titularisation'&&committeeEnabled){await loadCommittee();render();}
+  if(page==='titularisation'&&productionTitularisationEnabled){
+   const workspace=await ensureProductionTitularisation();
+   await workspace.refresh(get);render();
+  }else if(page==='titularisation'&&committeeEnabled){await loadCommittee();render();}
   return;
  }
  if(action==='open-institution'){useSharedInstitution(button.dataset.institutionId);currentPage='institutions';feedback='';render();return}
@@ -1443,6 +1462,21 @@ root.addEventListener('click',async e=>{
   else if(action==='load')await loadSelected();
   else if(action==='refresh'){await fetchAll();feedback='القائمة والإشعارات محدثة.'}
   else if(action==='read')await markRead(button.dataset.notificationId);
+  else if(action==='prod-tit-refresh'){
+   const workspace=await ensureProductionTitularisation();
+   await workspace.refresh(get);feedback='تم تحديث مهمات الترسيم.';
+  }else if(action==='prod-tit-create'){
+   const workspace=await ensureProductionTitularisation();
+   await workspace.create(raw,get,{
+    title:document.getElementById('prod-tit-title')?.value,
+    rubric:document.getElementById('prod-tit-rubric')?.value,
+    institutionId:document.getElementById('prod-tit-institution')?.value
+   });
+   feedback='أُنشئت المهمة في حساب المفتش مع المؤسسة المنشورة. يمكنك استئناف التقرير والمحضر.';
+  }else if(action==='prod-tit-open'){
+   const workspace=await ensureProductionTitularisation();
+   workspace.open(button.dataset.missionId);
+  }
   else if(action==='committee-create')await createCommittee();
   else if(action==='committee-refresh'){await loadCommittee();feedback='تم تحديث المهام.';}
   else if(action==='committee-issue'||action==='committee-revoke'||action==='committee-rotate')
@@ -1540,6 +1574,12 @@ async function init(){
   loadStoredSession();
   await restoreUrlCredentials();
   if(session)await fetchAll();
+  if(session&&productionTitularisationEnabled&&
+   /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(productionTaskRequested||'')){
+   currentPage='titularisation';
+   const workspace=await ensureProductionTitularisation();
+   await workspace.refresh(get);
+  }
  }catch(err){feedback='تعذر استعادة الجلسة: '+err.message}
  render();
 }
