@@ -7,5 +7,8 @@ window.REPORT03_CLOUD_CONFIG = Object.freeze({
   supabaseUrl: 'https://uxtsyzyotnohxvopgcmh.supabase.co',
   publishableKey: 'sb_publishable_hObSzRf1Sf9HTrUppubkXA_BKT5ZMJe',
   // M5.1 secure temporary-member backend must pass server/RLS tests before enabling.
-  temporaryCommitteeEnabled: false
+  temporaryCommitteeEnabled: false,
+  // P1: owner-only production titularisation mission and report draft.
+  // Committee member invitations remain disabled until their security review.
+  titularisationWorkspaceEnabled: true
 });
