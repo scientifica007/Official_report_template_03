@@ -42,7 +42,7 @@ test("P0 navigation: both top header and cloud-save area provide a return contro
  assert.match(editor,/returnToQAMissionHref\(linkedMissionId\)/);
  assert.match(editor,/\["qa-return-to-mission-top","qa-return-to-mission-bottom"\]/);
  assert.match(editor,/link\.href=destination;link\.hidden=false/);
- assert.match(editor,/qaReport\|\|!validMissionId\(linkedMissionId\)/);
+ assert.match(editor,/missionBoundReport\|\|!validMissionId\(linkedMissionId\)/);
 });
 
 test("P0 navigation: leaving during save is blocked, and unsaved changes prompt confirmation",()=>{
