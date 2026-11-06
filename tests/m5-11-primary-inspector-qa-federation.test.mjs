@@ -44,7 +44,7 @@ test("M5.11: server validates authentic primary session, APPROVAL, and only IFEP
  assert.match(edge,/async function federatedInspectorLogin\(primaryToken:string\)/);
  assert.match(edge,/main\.auth\.getUser\(primaryToken\)/);
  assert.match(edge,/primaryUser\.email_confirmed_at/);
- assert.match(edge,/select:"id,email,profession,approved,account_status"/);
+ assert.match(edge,/select:"id,email,first_name,last_name,profession,district,work_district_id,is_admin,approved,account_status"/);
  assert.match(edge,/Authorization:"Bearer "\+primaryToken/);
  assert.match(edge,/p\.approved!==true/);
  assert.match(edge,/p\.account_status!=="approved"/);
