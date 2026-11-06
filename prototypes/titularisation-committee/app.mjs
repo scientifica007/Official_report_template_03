@@ -13,7 +13,8 @@ import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
-import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft} from "./committee-cloud-bridge.mjs";
+import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft,loadCloudCommitteeInspectorProfile} from "./committee-cloud-bridge.mjs";
+import {hydrateReportInspectorFromVerifiedProfile} from "../../qa-titularisation/report-inspector-prefill.mjs";
 import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/mission-navigation.mjs";
 let state=freshCommittee(),who="final";
 let synthesisReview=null; // Created only after an owner-authorized QA import.
@@ -283,8 +284,11 @@ if(committeeCloudEnabled()){
    const linked=new URLSearchParams(location.search).get("mission");
    if(linked){
     const untouched=state;
-    Promise.all([loadCloudCommitteeSubmissions(linked),loadCloudCommitteeReportDraft(linked)])
-    .then(([{mission},saved])=>{
+    Promise.all([
+     loadCloudCommitteeSubmissions(linked),loadCloudCommitteeReportDraft(linked),
+     loadCloudCommitteeInspectorProfile().catch(error=>({profileError:String(error?.message||error)}))
+    ])
+    .then(([{mission},saved,inspectorProfile])=>{
      if(state!==untouched){
       cloudDraftStatus("عُدّلت الصفحة قبل انتهاء تحميل المهمة. صدّر JSON ثم أعد فتح المهمة لتجنب فقد التغييرات.");
       return;
@@ -295,14 +299,31 @@ if(committeeCloudEnabled()){
         (target.rubricId===RUBRICS.analytical14.id&&
          !sameWeightProfile(target.final.grading.profile,mission.rubric_profile)))
       throw Error("المسودة المحفوظة لا تطابق الشبكة أو الأوزان المثبتة في المهمة.");
+     // Apply verified inspector details to empty report fields only.
+     // The source is the QA inspector profile federated from primary Auth.
+     // Do not auto-write or replace the chair's authored evaluation.
+     const enriched=inspectorProfile?.profileError?
+      {state:target,filled:[],sourceAvailable:false}:
+      hydrateReportInspectorFromVerifiedProfile(target,inspectorProfile);
      clearVoiceDrafts();
-     state=target;who="final";render();
+     state=enriched.state;who="final";render();
      cloudDraftRevision=saved?.revision||0;
-     cloudDraftReady=true;cloudDraftDirty=false;
+     cloudDraftReady=true;cloudDraftDirty=enriched.filled.length>0;
      $("cloud-draft-save")?.removeAttribute("disabled");
-     cloudDraftStatus(saved?
-      "استُعيدت مسودة التقرير والمحضر المحفوظة — مراجعة "+cloudDraftRevision+".":
-      "المهمة جاهزة. أدخل معطيات الأستاذ والتقرير، ثم احفظ المسودة في المهمة.");
+     if(enriched.filled.length){
+      cloudDraftStatus("جُلبت بيانات المفتش إلى التقرير تلقائيًا: "+
+       enriched.filled.join("، ")+
+       ". الإضافات غير محفوظة بعد؛ اضغط «حفظ مسودة التقرير والمحضر في المهمة».");
+     }else if(inspectorProfile?.profileError){
+      cloudDraftStatus("استُعيدت المسودة، لكن تعذر استجلاب ملف المفتش: "+
+       inspectorProfile.profileError+
+       ". يمكن متابعة العمل، ولن تُختلق بيانات غير متاحة.");
+     }else{
+      cloudDraftStatus(saved?
+       "استُعيدت مسودة التقرير والمحضر المحفوظة — مراجعة "+cloudDraftRevision+
+       ". تم التحقق من ملف المفتش؛ احتُفظ بالبيانات التي كتبها سابقًا.":
+       "المهمة جاهزة. تم التحقق من ملف المفتش؛ احفظ مسودة التقرير بعد التحرير.");
+     }
      picker.value=linked;picker.disabled=true;
      info("تم تحميل شبكة المهمة وأوزانها، واستُعيدت مسودة المفتش إن كانت محفوظة. استيراد مساهمات اللجنة يتم دون تغيير العلامات والنصوص النهائية للمفتش."+
       (assistantRequested?" ستظهر لوحة مساعد المفتش بعد الاستيراد.":""));
