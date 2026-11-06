@@ -114,8 +114,8 @@ test("P0: standalone field-approved report engine remains unchanged; no producti
  const standalone=read("prototypes/titularisation-committee/index.html");
  assert.doesNotMatch(standalone,/qa-inspector-profile-source/);
  const editor=read("prototypes/titularisation-committee/app.mjs");
- assert.match(editor,/if\(!qaReport\)return/);
- assert.match(editor,/if\(!qaReport\|\|!cloudDraftReady\)return/);
+ assert.match(editor,/if\(!missionBoundReport\)return/);
+ assert.match(editor,/if\(!missionBoundReport\|\|!cloudDraftReady\)return/);
  assert.match(editor,/saveCloudCommitteeReportDraft\(linkedMissionId,payload,expected\)/);
  assert.doesNotMatch(read("qa-titularisation/report-inspector-prefill.mjs"),/setItem|access_token|refresh_token/);
 });
