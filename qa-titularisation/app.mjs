@@ -327,21 +327,63 @@ function renderMissionContext(container,mission){
  try{current=missionContextDraft(mission,contextRecord);}
  catch(err){box.append(notice(err.message,"notice error"));container.append(box);return;}
  const fields=element("div","","fields"),values={};
+ const defaults=inspectorProfileDefaults(profile);
  for(const {key,label} of MISSION_CONTEXT_FIELDS){
   const control=input("text",label);
-  control.value=current.meta[key]||"";control.maxLength=300;
-  control.autocomplete="off";values[key]=control;
+  control.value=current.meta[key]||(key==="chairName"?defaults.chairName||"":"");
+  control.maxLength=300;control.autocomplete="off";values[key]=control;
   fields.append(field(label,control));
  }
  box.append(fields);
+ const sourceBox=element("div","","catalog-choice");
+ sourceBox.append(element("h3","اختيار المؤسسة من السجل المشترك"));
+ const sourceSelect=element("select");
+ const free=element("option","إدخال اسم مؤسسة تجريبية يدويًا");
+ free.value="";sourceSelect.append(free);
+ for(const item of publishedInstitutions){
+  const option=element("option",item.title+
+   (item.code?" ("+item.code+")":"")+(item.wilaya?" — "+item.wilaya:""));
+  option.value=item.id;sourceSelect.append(option);
+ }
+ const previousRef=current.meta.institutionResourceId||"";
+ if(previousRef&&!publishedInstitutions.some(item=>item.id===previousRef)){
+  const unavailable=element("option","المؤسسة المرتبطة سابقًا غير متاحة لحسابك حاليًا");
+  unavailable.value=previousRef;unavailable.disabled=true;sourceSelect.append(unavailable);
+  sourceBox.append(notice("لم يعد ربط المؤسسة السابق متاحًا في دليل مقاطعتك. اختر مؤسسة مصرحًا بها أو الإدخال التجريبي اليدوي قبل الحفظ.","notice error"));
+ }
+ sourceSelect.value=previousRef;
+ const setSource=()=>{
+  const item=publishedInstitutions.find(x=>x.id===sourceSelect.value);
+  if(item){values.institution.value=item.title;values.institution.readOnly=true;}
+  else{values.institution.readOnly=false;}
+ };
+ sourceSelect.addEventListener("change",setSource);
+ setSource();
+ sourceBox.append(field("المؤسسات المنشورة والمتاحة لمقاطعة الحساب التجريبي",sourceSelect));
+ if(institutionCatalogError)sourceBox.append(notice(institutionCatalogError,"notice error"));
+ else if(!publishedInstitutions.length)
+  sourceBox.append(notice("لا توجد مؤسسات منشورة في دليل QA حاليًا. استعمل إدخالًا اصطناعيًا؛ لا تُنسخ مؤسسات الإنتاج إلى المختبر.","hint"));
+ else sourceBox.append(notice("قائمة المؤسسات محددة بالصلاحيات على الخادم. اختيار مؤسسة يحفظ معرّفها المرجعي مع اسمها في مسودة المهمة.","hint"));
+ box.append(sourceBox);
+ if(defaults.chairName||defaults.inspectorDistrict||defaults.inspectorEmail){
+  box.append(notice("بيانات حساب المفتش التجريبي: "+
+   [defaults.chairName&&"الاسم: "+defaults.chairName,
+    defaults.inspectorDistrict&&"المقاطعة: "+defaults.inspectorDistrict,
+    defaults.inspectorEmail&&"البريد: "+defaults.inspectorEmail].filter(Boolean).join(" · ")+
+   ". تُملأ الحقول الفارغة فقط عند الحفظ، دون استبدال بيانات كتبها المفتش. مقر المفتش وهاتفه غير متاحين في ملف الحساب الحالي.","hint"));
+ }
  const named=seatRows.filter(s=>s.display_name&&["member1","member2","member3"].includes(s.seat_code));
  if(named.length)box.append(notice("أسماء الأعضاء المستخرجة من روابط اللجنة: "+
   named.map(s=>seatNames[s.seat_code]+": "+s.display_name).join("، ")+
   ". تُدرج في الحقول الفارغة بالوثيقة عند حفظ البيانات دون محو أسماء حررها المفتش.","hint"));
  const save=button("حفظ بيانات الأستاذ والمؤسسة في المهمة",async()=>{
   const missionId=mission.id,expected=contextRecord?.revision||0;
+  const ref=sourceSelect.value;
+  if(ref&&!publishedInstitutions.some(item=>item.id===ref))
+   throw Error("لم تعد هذه المؤسسة متاحة في دليل مقاطعتك. غيّر الاختيار قبل الحفظ.");
   const edits=Object.fromEntries(MISSION_CONTEXT_FIELDS.map(({key})=>[key,values[key].value]));
-  const next=applyMissionContextFields(current,edits,seatRows);
+  edits.institutionResourceId=ref;
+  const next=applyMissionContextFields(current,edits,seatRows,profile);
   const revision=await rpc("save_titularisation_report_draft",{
    p_mission_id:missionId,p_payload:serializeMissionContext(next),
    p_expected_revision:expected
