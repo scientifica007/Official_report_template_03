@@ -7,6 +7,7 @@ import {restoreCommittee,editMeta,stringifyCommittee}
  from "../prototypes/titularisation-committee/committee-engine.mjs";
 import {prepareCloudCommitteeDraft}
  from "../prototypes/titularisation-committee/committee-cloud-bridge.mjs";
+import {inspectorProfileDefaults,UUID} from "./workspace-sources.mjs";
 
 export const MISSION_CONTEXT_FIELDS=Object.freeze([
  {key:"familyName",label:"لقب الأستاذ المترشح"},
@@ -29,9 +30,9 @@ export function missionContextDraft(mission,saved){
   throw Error("مسودة المهمة لا تطابق شبكة التقييم وأوزانها المعتمدة.");
  return s;
 }
-export function applyMissionContextFields(state,values,seats=[]){
+export function applyMissionContextFields(state,values,seats=[],profile=null){
  if(!values||typeof values!=="object"||Array.isArray(values))throw Error("بيانات المهمة غير صالحة.");
- const allowed=new Set(MISSION_CONTEXT_FIELDS.map(f=>f.key));
+ const allowed=new Set([...MISSION_CONTEXT_FIELDS.map(f=>f.key),"institutionResourceId"]);
  if(Object.keys(values).some(key=>!allowed.has(key)))
   throw Error("حقل إضافي غير صالح في بيانات المهمة.");
  let next=restoreCommittee(state);
@@ -50,6 +51,22 @@ export function applyMissionContextFields(state,values,seats=[]){
     (values.givenName.trim()||values.familyName.trim())){
   const full=[values.familyName.trim(),values.givenName.trim()].filter(Boolean).join(" ");
   if(full!==next.meta.candidate)next=editMeta(next,"candidate",full);
+ }
+ // An optional catalog ID is persisted in the SAME report draft, not in a
+ // duplicate institution record. Old JSON files simply have an empty ID.
+ if(values.institutionResourceId!==undefined){
+  const ref=values.institutionResourceId;
+  if(typeof ref!=="string"||(ref!==""&&!UUID.test(ref)))
+   throw Error("معرّف المؤسسة المشتركة غير صالح.");
+  if(ref!==next.meta.institutionResourceId)
+   next=editMeta(next,"institutionResourceId",ref);
+ }
+ // Profile defaults come only from an approved non-Admin QA inspector profile.
+ // Never overwrite an inspector-authored value or infer a district assignment.
+ const defaults=inspectorProfileDefaults(profile);
+ for(const key of ["inspectorEmail","inspectorDistrict"]){
+  if(!next.meta[key]&&defaults[key])
+   next=editMeta(next,key,defaults[key]);
  }
  // Seat identity is controlled by the committee invitation, not a second
  // identity editor. Existing chair-authored names must never be erased.
