@@ -114,7 +114,7 @@ test("P0 interface: catalog and profile are read only from QA APIs, production u
  assert.match(qa,/edits\.institutionResourceId=ref/);
  assert.match(qa,/applyMissionContextFields\(current,edits,seatRows,profile\)/);
  assert.match(qa,/لا توجد مؤسسات منشورة في دليل QA حاليًا/);
- assert.match(html,/p05-qa-task-first-20261106/);
+ assert.match(html,/p06-qa-profile-sync-status-20261106/);
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/app.mjs"]));
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/mission-context.mjs"]));
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/workspace-sources.mjs"]));
