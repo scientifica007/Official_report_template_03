@@ -743,8 +743,8 @@ function templatesView(){
  '<article class="portal-template-card"><div class="portal-template-symbol" aria-hidden="true">ت</div>'+
  '<div><h3>التفتيش قصد الترسيم — النموذج الأول</h3>'+
  '<p>تقييم الحصة والمناقشة، وإعداد التقرير والمحضر، وتصدير PDF وDOCX وJSON، والإملاء الصوتي.</p>'+
- '<p class="portal-template-status">مقبول ميدانيًا · نسخة محلية مستقلة</p>'+
- '<p class="portal-template-warning">تنبيه: لا يرتبط المختبر حاليًا بحسابك السحابي. لا تُحفظ مسوداته على Supabase، ورابطه العام ليس حسابًا محميًا لأعضاء اللجنة. احفظ JSON بنفسك.</p>'+
+ '<p class="portal-template-status">نموذج الوثائق مقبول ميدانيًا · مهام المفتش ومسوداته في حسابه السحابي</p>'+
+ '<p class="portal-template-warning">تم تفعيل إنشاء مهمة ترسيم وحفظ تقريرها ومحضرها داخل حساب المفتش الأصلي. روابط أعضاء اللجنة ومساهماتهم ما زالت في QA ولا تُستعمل في مهمة إنتاج.</p>'+
  '<button type="button" class="btn primary" data-cloud-action="nav" data-page="titularisation">فتح مهمة ترسيم أستاذ</button></div></article>'+
  '</section>'+
  '<section class="portal-template-future"><h3>العمل المشترك في لجنة الترسيم</h3>'+
