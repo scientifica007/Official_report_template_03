@@ -615,14 +615,14 @@ async function startQAPortal(){
  }
  try{
   render();
-  // Returning from the editor should land at the exact mission, not at
-  // the unrelated create-new-mission form near the top of this long page.
-  if(globalThis.location?.hash==="#qa-mission-context"&&selected)
-   root.querySelector?.("#qa-mission-context")?.scrollIntoView?.({block:"start"});
  }catch(err){
   // Display a recoverable error instead of leaving an inert loading screen.
   root.replaceChildren(notice("تعذر تحميل واجهة المختبر. حدّث الصفحة، وإذا تكرر الخطأ أبلغني به.", "notice error"));
   console.error("QA portal startup failed",err);
  }
+ // Returning from the editor should land at the same selected mission,
+ // without interfering with the old recoverable startup error handling.
+ if(globalThis.location?.hash==="#qa-mission-context"&&selected)
+  root.querySelector?.("#qa-mission-context")?.scrollIntoView?.({block:"start"});
 }
 await startQAPortal();
