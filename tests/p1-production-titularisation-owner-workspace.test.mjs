@@ -65,7 +65,7 @@ test("P1 production: list authorized tasks, create mission using server-side cat
  assert.ok(view.indexOf("مهمات الترسيم الجارية")<view.indexOf("إنشاء مهمة ترسيم جديدة"));
  assert.match(view,/فتح التقرير والمحضر واستئناف المسودة/);
  assert.doesNotMatch(view,/رابط.*عضو.*إصدار/);
- assert.throws(()=>workspace.create(raw,get,{
+ await assert.rejects(workspace.create(raw,get,{
   title:"مهمة",rubric:"lesson_grouped_5_v1",institutionId:"not-assigned"
  }),/اختر/);
 });
