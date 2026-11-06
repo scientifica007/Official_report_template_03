@@ -71,7 +71,7 @@ test("M5.6.1: linked QA report automatically inherits frozen mission rubric, wit
  const member=file("committee-member/app.mjs");
  const committee=file("prototypes/titularisation-committee/committee-engine.mjs");
  assert.match(app,/const qaReport=.*qaOnly===true/);
- assert.match(app,/\$\("rubric"\)\.disabled=qaReport/);
+ assert.match(app,/\$\("rubric"\)\.disabled=missionBoundReport/);
  assert.match(app,/if\(qaReport\)\{/);
  assert.match(app,/لا يلزم إدخالها مرة ثانية/);
  assert.match(app,/loadCloudCommitteeInspectorProfile\(\)\.catch\(error=>/);
