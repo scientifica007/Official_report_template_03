@@ -282,3 +282,15 @@ button.demo-fill-button:hover{background:#f5dfa6}
 .inspector-synthesis .semantic-item{padding:10px 8px;margin-top:10px;border-top:1px solid #e0e9e2}
 .inspector-synthesis .semantic-evidence{line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;border-inline-start:2px solid #aec7b4;padding:5px 10px;margin:7px 0}
 @media(max-width:650px){.inspector-synthesis .semantic-overview{padding:10px}.inspector-synthesis .semantic-group{padding:8px}}
+
+/* QA mission workflow: visible, keyboard-accessible return action next to save. */
+.qa-mission-return-action:not([hidden]){
+ display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+ padding:9px 16px;border:1px solid #247458;border-radius:8px;
+ background:#e9f5ee;color:#164b38;font-weight:700;text-decoration:none;
+}
+.qa-mission-return-action:hover{background:#d4ebdf;text-decoration:underline}
+.qa-mission-return-action:focus-visible{outline:3px solid #e6b85a;outline-offset:3px}
+@media(max-width:620px){
+ .qa-mission-return-action:not([hidden]){width:100%}
+}
