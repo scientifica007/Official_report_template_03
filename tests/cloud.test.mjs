@@ -508,6 +508,6 @@ test('P0: template library directs teacher titularisation into the task hub, nev
  assert.match(html,/فتح مهمة ترسيم أستاذ/);
  assert.match(html,/data-cloud-action="nav" data-page="titularisation"/);
  assert.doesNotMatch(html,/href="\.\/prototypes\/titularisation-committee\/" target="_blank"/);
- assert.match(html,/نسخة محلية مستقلة/);
+ assert.match(html,/مهام المفتش ومسوداته في حسابه السحابي/);
  assert.match(html,/قاعدة بيانات الإنتاج/);
 });

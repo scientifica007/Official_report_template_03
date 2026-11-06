@@ -20,15 +20,21 @@ import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/miss
 let state=freshCommittee(),who="final";
 let synthesisReview=null; // Created only after an owner-authorized QA import.
 const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
+const prodReport=typeof window!=="undefined"&&
+ window.REPORT03_CLOUD_CONFIG?.qaOnly!==true&&
+ window.REPORT03_CLOUD_CONFIG?.titularisationWorkspaceEnabled===true&&
+ /\/titularisation\/report\/?$/.test(location.pathname);
+const missionBoundReport=qaReport||prodReport;
 const assistantRequested=qaReport&&new URLSearchParams(location.search).get("assistant")==="1";
 const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
-const linkedMissionId=qaReport?new URLSearchParams(location.search).get("mission"):"";
+const linkedMissionId=missionBoundReport?new URLSearchParams(location.search).get("mission"):"";
 let cloudDraftRevision=0,cloudDraftReady=false,cloudDraftDirty=false,cloudDraftBusy=false;
 function connectQAMissionReturn(){
  // A mission UUID is only a locator. Never put the session token in the URL.
- if(!qaReport||!validMissionId(linkedMissionId))return;
- const destination=returnToQAMissionHref(linkedMissionId);
+ if(!missionBoundReport||!validMissionId(linkedMissionId))return;
+ const destination=qaReport?returnToQAMissionHref(linkedMissionId):
+  "../../?titularisation="+encodeURIComponent(linkedMissionId);
  for(const id of ["qa-return-to-mission-top","qa-return-to-mission-bottom"]){
   const link=$(id);
   if(!link)continue;
@@ -47,7 +53,7 @@ function connectQAMissionReturn(){
 }
 connectQAMissionReturn();
 function showVerifiedInspectorSource(profile){
- if(!qaReport)return;
+ if(!missionBoundReport)return;
  const section=$("qa-inspector-profile-source");
  const note=$("qa-inspector-profile-note");
  const useName=$("qa-chair-use-profile-name");
@@ -66,14 +72,14 @@ function showVerifiedInspectorSource(profile){
  ].filter(Boolean);
  note.textContent=available.length?
   "تم التحقق من ملف المفتش المهني "+
-  (profile.federation_required===true?"المربوط بالحساب الرئيسي":"في QA")+
+  (prodReport?"الموجود في حساب المفتش الرئيسي":profile.federation_required===true?"المربوط بالحساب الرئيسي":"في QA")+
   ". الحقول المتاحة: "+available.join("، ")+
   ". تُملأ الحقول الفارغة فقط، ولا يُستبدل اسم رئيس اللجنة المكتوب يدويًا.":
   "لا توجد حقول مهنية قابلة للتعبئة في الملف الحالي.";
  if(!defaults.chairName){useName.hidden=true;return}
  useName.hidden=false;
  useName.addEventListener("click",()=>{
-  if(!qaReport||!cloudDraftReady)return;
+  if(!missionBoundReport||!cloudDraftReady)return;
   if(state.meta.chairName===defaults.chairName)return;
   if(state.meta.chairName&&!confirm(
    "سيُستبدل اسم رئيس اللجنة الذي كتبته باسم حساب المفتش الأصلي. هل تريد المتابعة؟"))return;
@@ -85,7 +91,7 @@ function cloudDraftStatus(value){
  const status=$("cloud-draft-status");if(status)status.textContent=value;
 }
 function flagCloudDraftDirty(){
- if(!qaReport||!linkedMissionId||!cloudDraftReady)return;
+ if(!missionBoundReport||!linkedMissionId||!cloudDraftReady)return;
  cloudDraftDirty=true;
  cloudDraftStatus("توجد تعديلات غير محفوظة في المهمة. استخدم «حفظ مسودة التقرير والمحضر» قبل المغادرة.");
 }
@@ -101,10 +107,10 @@ function render(){
  $("mode").value=state.mode;
  $("rubric").value=Object.keys(RUBRICS).find(k=>RUBRICS[k].id===state.rubricId);
  // The mission, not a second independent editor, owns the rubric in QA.
- $("rubric").disabled=qaReport;
+ $("rubric").disabled=missionBoundReport;
  const seats=clear($("who"));
  for(const [key,label] of [["final","المفتش — الصيغة النهائية"],...(
-  state.mode==="individual"?SEATS.map(s=>[s.id,"محاكاة "+s.label]):[]) ]){
+  state.mode==="individual"&&!prodReport?SEATS.map(s=>[s.id,"محاكاة "+s.label]):[]) ]){
   const option=node("option",label);option.value=key;seats.append(option);
  }
  if(state.mode==="unified")who="final";
@@ -142,11 +148,18 @@ function render(){
     select.value=state.meta.decision;
     select.addEventListener("change",()=>commit(()=>editMeta(state,"decision",select.value)));
     wrap.append(select);grid.append(wrap);
+   }else if(key==="institution"&&prodReport){
+    // The mission's resource UUID and official snapshot are fixed by its owner
+    // RPC. Prevent a text-only rename that would invalidate the linked draft.
+    const index=grid.children.length;
+    labelValue(grid,label,state.meta[key],()=>message("المؤسسة مثبتة في المهمة. غيّرها من مسار تعديل المهمة عندما يُتاح ذلك."));
+    const control=grid.children[index]?.querySelector("input,textarea");
+    if(control){control.readOnly=true;control.title="المؤسسة مرتبطة بمعرّفها في المهمة الإنتاجية";}
    }else labelValue(grid,label,state.meta[key],value=>commit(()=>editMeta(state,key,value)));
   }
   details.append(grid);meta.append(details);
  }
- if(qaReport){
+ if(missionBoundReport){
   const weightsBox=clear($("weights"));
   if(state.rubricId===RUBRICS.analytical14.id){
    weightsBox.append(node("h2","أوزان المؤشرات الأربعة عشر"));
@@ -158,6 +171,7 @@ function render(){
  renderForm($("editor"),state,who,commit);
  attachVoiceDictation($("editor"));
  renderMembers($("members"),state);
+ if(prodReport)$("members").hidden=true;
  renderDocuments($("paper"),state);
  fitPrintPages($("paper"));
  message("");
@@ -207,7 +221,7 @@ $("load").addEventListener("change",async e=>{
  }catch(err){message(err.message)}
 });
 // P0.2: explicit save tied to the SAME QA mission as committee submissions.
-if(qaReport&&linkedMissionId){
+if(missionBoundReport&&linkedMissionId){
  const controls=$("cloud-draft-controls"),save=$("cloud-draft-save");
  if(controls&&save){
   controls.hidden=false;
@@ -239,7 +253,7 @@ if(qaReport&&linkedMissionId){
 if(committeeCloudEnabled()){
  const panel=$("committee-cloud-bridge"),picker=$("committee-cloud-mission");
  if(panel&&picker){
-  panel.hidden=false;
+  panel.hidden=prodReport;
   const info=v=>{$("committee-cloud-status").textContent=v;};
   picker.addEventListener("change",()=>synthesisReview?.reset());
   $("committee-cloud-refresh").addEventListener("click",async()=>{
@@ -261,7 +275,7 @@ if(committeeCloudEnabled()){
   $("committee-cloud-import").addEventListener("click",async()=>{
    const id=picker.value;
    if(!id){info("اختر المهمة أولًا.");return;}
-   if(qaReport&&linkedMissionId&&id!==linkedMissionId){info("اختر مهمة الترسيم التي فُتح منها هذا المحرر.");return;}
+   if(missionBoundReport&&linkedMissionId&&id!==linkedMissionId){info("اختر مهمة الترسيم التي فُتح منها هذا المحرر.");return;}
    info("جارٍ قراءة المساهمات المرسلة والتحقق منها...");
    try{
     const {mission,rows}=await loadCloudCommitteeSubmissions(id);
@@ -311,8 +325,8 @@ if(committeeCloudEnabled()){
     }
    }catch(err){info(err.message)}
   });
-  if(qaReport){
-   $("committee-cloud-refresh").click();
+  if(missionBoundReport){
+   if(qaReport)$("committee-cloud-refresh").click();
    // When launched from an inspector's mission, make the saved mission
    // the single source of truth even BEFORE the user clicks import. The
    // initial empty grouped-five draft must not ask for duplicate weights.
@@ -329,8 +343,21 @@ if(committeeCloudEnabled()){
       cloudDraftStatus("عُدّلت الصفحة قبل انتهاء تحميل المهمة. صدّر JSON ثم أعد فتح المهمة لتجنب فقد التغييرات.");
       return;
      }
-     const target=saved?.payload?
+     let target=saved?.payload?
       restoreCommittee(saved.payload):prepareCloudCommitteeDraft(mission);
+     if(prodReport){
+      if(!validMissionId(mission.institution_resource_id)||
+         !mission.institution_name_snapshot)
+       throw Error("لم يثبت خادم الإنتاج المؤسسة المرجعية للمهمة.");
+      if(saved?.payload){
+       if(target.meta.institutionResourceId!==mission.institution_resource_id||
+          target.meta.institution!==mission.institution_name_snapshot)
+        throw Error("المسودة لا تطابق المؤسسة المثبتة في مهمة الترسيم.");
+      }else{
+       target=editMeta(target,"institution",mission.institution_name_snapshot);
+       target=editMeta(target,"institutionResourceId",mission.institution_resource_id);
+      }
+     }
      if(target.rubricId!==mission.rubric_id||
         (target.rubricId===RUBRICS.analytical14.id&&
          !sameWeightProfile(target.final.grading.profile,mission.rubric_profile)))
@@ -345,7 +372,7 @@ if(committeeCloudEnabled()){
      state=enriched.state;who="final";render();
      showVerifiedInspectorSource(inspectorProfile);
      cloudDraftRevision=saved?.revision||0;
-     cloudDraftReady=true;cloudDraftDirty=enriched.filled.length>0;
+     cloudDraftReady=true;cloudDraftDirty=enriched.filled.length>0||(!saved&&prodReport);
      $("cloud-draft-save")?.removeAttribute("disabled");
      if(enriched.filled.length){
       cloudDraftStatus("جُلبت بيانات المفتش إلى التقرير تلقائيًا: "+
@@ -362,7 +389,7 @@ if(committeeCloudEnabled()){
        "المهمة جاهزة. تم التحقق من ملف المفتش؛ احفظ مسودة التقرير بعد التحرير.");
      }
      picker.value=linked;picker.disabled=true;
-     info("تم تحميل شبكة المهمة وأوزانها، واستُعيدت مسودة المفتش إن كانت محفوظة. استيراد مساهمات اللجنة يتم دون تغيير العلامات والنصوص النهائية للمفتش."+
+     info((prodReport?"المهمة الإنتاجية متاحة للمفتش دون حسابات أعضاء في هذه المرحلة. ":"")+"تم تحميل شبكة المهمة وأوزانها، واستُعيدت مسودة المفتش إن كانت محفوظة. استيراد مساهمات اللجنة يتم دون تغيير العلامات والنصوص النهائية للمفتش."+
       (assistantRequested?" ستظهر لوحة مساعد المفتش بعد الاستيراد.":""));
     }).catch(err=>{
      cloudDraftReady=false;
