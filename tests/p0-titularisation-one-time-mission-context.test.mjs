@@ -27,7 +27,7 @@ test("P0.3: panel uses existing draft as single source of chair metadata",()=>{
  assert.match(board,/if\(selected!==id\)return/);
  assert.doesNotMatch(board,/insert.*titularisation_report_drafts|sessionStorage\.setItem\("qa_context"/);
  const html=read("qa-titularisation/index.html");
- assert.match(html,/app\.mjs\?v=p04-qa-mission-return-20261106/);
+ assert.match(html,/app\.mjs\?v=p05-qa-task-first-20261106/);
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/app.mjs"]));
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/mission-context.mjs"]));
 });
