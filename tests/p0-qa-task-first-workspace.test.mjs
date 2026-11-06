@@ -119,3 +119,18 @@ test("P0 interface: catalog and profile are read only from QA APIs, production u
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/mission-context.mjs"]));
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/workspace-sources.mjs"]));
 });
+
+test("P0 identity: federation derives name and professional district from verified production JWT, never from browser claims",()=>{
+ const edge=read("supabase/functions/titularisation-access/index.ts");
+ assert.match(edge,/main\.auth\.getUser\(primaryToken\)/);
+ assert.match(edge,/p\.is_admin===true/);
+ assert.match(edge,/select:"id,email,first_name,last_name,profession,district,work_district_id,is_admin,approved,account_status"/);
+ assert.match(edge,/new URLSearchParams\(\{select:"id,code,label",id:"eq\."\+districtId\}\)/);
+ assert.match(edge,/Authorization:"Bearer "\+primaryToken/);
+ assert.match(edge,/first_name:firstName,last_name:lastName,district:districtLabel/);
+ assert.match(edge,/is_admin:false/);
+ assert.doesNotMatch(edge,/SERVICE_KEY.*PRIMARY_URL\+"\/rest\/v1\/inspector_profiles/);
+ const qa=read("qa-titularisation/app.mjs");
+ assert.match(qa,/تحديث بيانات المفتش من حسابي الرئيسي/);
+ assert.match(qa,/await loginApprovedPrimary\(token\)/);
+});
