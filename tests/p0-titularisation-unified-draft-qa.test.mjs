@@ -39,8 +39,8 @@ test("P0.2: compare-and-swap protects newer drafts and mission rubric including 
 test("P0.2: QA editor restores before allowing save, tracks changes and never overwrites a newer version",()=>{
  assert.match(qaReport,/id="cloud-draft-save"/);
  assert.match(qaReport,/id="cloud-draft-status"/);
- assert.match(qaReport,/p04-qa-mission-return-20261106/);
- assert.match(editor,/Promise\.all\(\[loadCloudCommitteeSubmissions\(linked\),loadCloudCommitteeReportDraft\(linked\)\]\)/);
+ assert.match(qaReport,/p08-qa-inspector-prefill-20261106/);
+ assert.match(editor,/loadCloudCommitteeInspectorProfile\(\)\.catch\(error=>/);
  assert.match(editor,/restoreCommittee\(saved\.payload\)/);
  assert.match(editor,/cloudDraftRevision=saved\?\.revision\|\|0/);
  assert.match(editor,/if\(state!==untouched\)/);
