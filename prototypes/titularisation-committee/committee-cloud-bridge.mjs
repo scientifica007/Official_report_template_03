@@ -4,7 +4,9 @@
 import {restoreCommittee,freshCommittee} from "./committee-engine.mjs";
 import {RUBRICS,validateWeights,sameWeightProfile} from "../titularisation-workbench/engine.mjs";
 const cfg=()=>typeof window==="undefined"?{}:(window.REPORT03_CLOUD_CONFIG||{});
-export const committeeCloudEnabled=()=>cfg().temporaryCommitteeEnabled===true;
+// Explicitly separate tenant flags. QA member accounts never point to production.
+const productionWorkspace=()=>cfg().qaOnly!==true&&cfg().titularisationWorkspaceEnabled===true;
+export const committeeCloudEnabled=()=>cfg().temporaryCommitteeEnabled===true||productionWorkspace();
 const QA_SESSION="scientifica_committee_qa_session_v1";
 let qaRefreshing=null;
 async function inspectorToken(){
@@ -35,7 +37,10 @@ async function inspectorToken(){
   })().finally(()=>{qaRefreshing=null});
   return qaRefreshing;
  }
- const raw=localStorage.getItem("official_report03_cloud_session_v1");
+ let raw=null;
+ try{raw=localStorage.getItem("official_report03_cloud_session_v1")||
+  sessionStorage.getItem("official_report03_cloud_session_v1")}catch(_){}
+
  let data;try{data=JSON.parse(raw||"null")}catch(_){}
  if(!data?.access_token||!data?.user?.id||Date.now()>=(data.expires_at_ms||0)-60000)
   throw Error("سجل الدخول مجددًا إلى حساب المفتش المعتمد في المنصة الرئيسية.");
@@ -67,6 +72,9 @@ export async function loadCloudCommitteeSubmissions(id){
   select:"id,title,rubric_id,rubric_profile,status",id:"eq."+id
  });
  if(missions.length!==1)throw Error("المهمة غير متاحة لحساب المفتش الحالي.");
+ // P1 production pilot has no issued committee seats or contribution table.
+ // Never read QA contribution records with a production token.
+ if(productionWorkspace())return {mission:missions[0],rows:[]};
  const rows=await read("titularisation_contributions",{
   select:"seat_code,payload,status,revision,submitted_at",
   mission_id:"eq."+id,status:"eq.submitted",order:"seat_code.asc"
@@ -149,8 +157,8 @@ export async function loadInspectorSynthesisSources(missionId){
  * exact titularisation mission. RLS excludes seats and other inspectors. */
 export async function loadCloudCommitteeReportDraft(missionId){
  const c=cfg();
- if(c.qaOnly!==true||!committeeCloudEnabled())
-  throw Error("حفظ مسودة مهمة الترسيم السحابي متاح في QA فقط.");
+ if(!committeeCloudEnabled()||(c.qaOnly!==true&&!productionWorkspace()))
+  throw Error("حفظ مسودة مهمة الترسيم غير متاح للحساب الحالي.");
  if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(missionId))
   throw Error("معرّف مهمة الترسيم غير صالح.");
  const rows=await read("titularisation_report_drafts",{
@@ -165,8 +173,8 @@ export async function loadCloudCommitteeReportDraft(missionId){
  * saved in another browser or tab. Not callable from production. */
 export async function saveCloudCommitteeReportDraft(missionId,payload,revision){
  const c=cfg();
- if(c.qaOnly!==true||!committeeCloudEnabled())
-  throw Error("حفظ مسودة مهمة الترسيم السحابي متاح في QA فقط.");
+ if(!committeeCloudEnabled()||(c.qaOnly!==true&&!productionWorkspace()))
+  throw Error("حفظ مسودة مهمة الترسيم غير متاح للحساب الحالي.");
  if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(missionId)||
    !Number.isSafeInteger(revision)||revision<0||!payload||
    typeof payload!=="object"||Array.isArray(payload))
@@ -198,16 +206,21 @@ export async function saveCloudCommitteeReportDraft(missionId,payload,revision){
  * identity by the dedicated backend, never from browser-provided name fields. */
 export async function loadCloudCommitteeInspectorProfile(){
  const c=cfg();
- if(c.qaOnly!==true||!committeeCloudEnabled())
-  throw Error("ملف المفتش المهني متاح داخل مهمة QA فقط.");
+ if(!committeeCloudEnabled()||(c.qaOnly!==true&&!productionWorkspace()))
+  throw Error("ملف المفتش المهني غير متاح للحساب الحالي.");
  let session;
- try{session=JSON.parse(sessionStorage.getItem(QA_SESSION)||"null")}catch(_){}
- const ownerId=session?.userId;
+ try{session=JSON.parse(cfg().qaOnly===true?
+  sessionStorage.getItem(QA_SESSION)||"null":
+  localStorage.getItem("official_report03_cloud_session_v1")||
+   sessionStorage.getItem("official_report03_cloud_session_v1")||"null")}catch(_){}
+ const ownerId=cfg().qaOnly===true?session?.userId:session?.user?.id;
  if(typeof ownerId!=="string"||
    !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(ownerId))
   throw Error("لا توجد جلسة مفتش معتمدة لقراءة بياناته المهنية.");
  const list=await read("inspector_profiles",{
-  select:"id,first_name,last_name,district,email,approved,account_status,is_admin,federation_required",
+  select:cfg().qaOnly===true?
+  "id,first_name,last_name,district,email,approved,account_status,is_admin,federation_required":
+  "id,first_name,last_name,district,email,approved,account_status,is_admin,work_district_id",
   id:"eq."+ownerId,limit:"1"
  });
  if(!Array.isArray(list)||list.length!==1||list[0]?.id!==ownerId||
