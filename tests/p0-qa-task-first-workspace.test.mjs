@@ -114,7 +114,7 @@ test("P0 interface: catalog and profile are read only from QA APIs, production u
  assert.match(qa,/edits\.institutionResourceId=ref/);
  assert.match(qa,/applyMissionContextFields\(current,edits,seatRows,profile\)/);
  assert.match(qa,/لا توجد مؤسسات منشورة في دليل QA حاليًا/);
- assert.match(html,/p05-qa-task-first-20261106/);
+ assert.match(html,/p06-qa-profile-sync-status-20261106/);
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/app.mjs"]));
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/mission-context.mjs"]));
  assert.doesNotThrow(()=>execFileSync(process.execPath,["--check","qa-titularisation/workspace-sources.mjs"]));
@@ -133,4 +133,21 @@ test("P0 identity: federation derives name and professional district from verifi
  const qa=read("qa-titularisation/app.mjs");
  assert.match(qa,/تحديث بيانات المفتش من حسابي الرئيسي/);
  assert.match(qa,/await loginApprovedPrimary\(token\)/);
+});
+
+test("P0 QA: profile-sync button is visible to federated inspectors even without an active primary tab session",()=>{
+ const qa=read("qa-titularisation/app.mjs");
+ assert.match(qa,/if\(profile\?\.federation_required===true\)\{/);
+ assert.doesNotMatch(qa,/federation_required===true&&activePrimarySession\(\)/);
+ assert.match(qa,/row\.append\(button\("تحديث بيانات المفتش من حسابي الرئيسي"/);
+ assert.match(qa,/const token=activePrimarySession\(\)/);
+ assert.match(qa,/if\(!token\)\{\s*announce\(/);
+ assert.match(qa,/ملفك ومهماتك في QA محفوظة ولم تُغيَّر/);
+ assert.match(qa,/await loginApprovedPrimary\(token\)/);
+ assert.match(qa,/الملف المهني المتاح في QA/);
+ assert.match(qa,/«تحديث البيانات» يعيد تحميل معلومات المهمة من QA فقط/);
+ assert.match(qa,/issued=null;await refreshData\(\);announce\("تم تحديث بيانات المهمة."/);
+ assert.match(qa,/federation_required===true/);
+ const html=read("qa-titularisation/index.html");
+ assert.match(html,/app\.mjs\?v=p06-qa-profile-sync-status-20261106/);
 });
