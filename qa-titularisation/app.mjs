@@ -404,7 +404,7 @@ function renderMissionContext(container,mission){
  container.append(box);
 }
 function renderDashboard(){
- const greeting=wrapper("رئيس اللجنة — مختبر الحسابات المؤقتة");
+ const greeting=wrapper("رئيس اللجنة — فضاء متابعة مهمات الترسيم (QA)");
  greeting.append(notice("هذه البيئة مستقلة عن قاعدة الإنتاج. العمليات التي تنفذها هنا تخص بيانات اختبار اصطناعية فقط."));
  greeting.append(element("p","تم التحقق من صفة المفتش المعتمد في مشروع الاختبار."));
  const row=element("div","","actions");
@@ -416,8 +416,12 @@ function renderDashboard(){
  }));
  greeting.append(row);root.append(greeting);
 
- const create=wrapper("إنشاء مهمة ترسيم تجريبية");
- create.append(notice("يدعم المختبر شبكات 5 معايير و10 عناصر و14 مؤشرًا. الأوزان للـ14 مؤشرًا يحددها المفتش ويثبتها قبل الدعوات. هذه تجربة تقنية وليست اعتمادًا رسميًا؛ لا تستخدم بيانات ترسيم حقيقية."));
+ const create=wrapper("إنشاء مهمة ترسيم جديدة");
+ const createDisclosure=element("details","","qa-create-task");
+ createDisclosure.open=!missions.length;
+ createDisclosure.append(element("summary",missions.length?
+  "إنشاء مهمة ترسيم أخرى (اختياري)":"إنشاء أول مهمة ترسيم تجريبية"));
+ createDisclosure.append(notice("يدعم المختبر شبكات 5 معايير و10 عناصر و14 مؤشرًا. الأوزان للـ14 مؤشرًا يحددها المفتش ويثبتها قبل الدعوات. هذه تجربة تقنية وليست اعتمادًا رسميًا؛ لا تستخدم بيانات ترسيم حقيقية."));
  const form=element("form"),fields=element("div","","fields");
  const title=input("text","مثال: اختبار لجنة رقم 01");title.required=true;title.minLength=3;title.maxLength=200;
  const rubric=element("select");for(const [value,label] of [
@@ -442,10 +446,15 @@ function renderDashboard(){
   }catch(err){announce(err?.message||"تعذر إنشاء المهمة.",true)}
   finally{busy=false;render()}
  });
- create.append(form);root.append(create);
+ createDisclosure.append(form);create.append(createDisclosure);
 
- const choose=wrapper("متابعة المهمة");
- if(!missions.length){choose.append(notice("لا توجد مهام بعد. أنشئ مهمة اختبار باستخدام النموذج أعلاه."));root.append(choose);return;}
+ const choose=wrapper("متابعة المهمات الجارية والمحفوظة");
+ choose.id="qa-current-mission";
+ if(!missions.length){
+  choose.append(notice("لا توجد مهمات محفوظة بعد. أنشئ أول مهمة من القسم التالي."));
+  root.append(choose,create);return;
+ }
+ choose.append(notice("تعرض المهمات الجارية أولًا ثم المغلقة. يمكنك استئناف المهمة المحددة دون إنشاء مهمة أخرى.","hint"));
  const select=element("select");
  for(const m of missions){
   const opt=element("option",m.title+" — "+(m.status==="draft"?"جارية":"مغلقة"));
@@ -597,7 +606,7 @@ function renderDashboard(){
    issued=null;await refreshData();announce("أُغلقت المهمة. يمكن الآن إزالة حسابات الأعضاء.");
   },"danger"));
  }
- root.append(choose);
+ root.append(choose,create);
 }
 function renderIssued(parent){
  const box=element("div","","secret");box.setAttribute("role","status");
