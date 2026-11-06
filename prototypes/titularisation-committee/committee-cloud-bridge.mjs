@@ -69,7 +69,7 @@ export async function listCloudCommitteeMissions(){
 export async function loadCloudCommitteeSubmissions(id){
  if(!/^[0-9a-f-]{36}$/i.test(id))throw Error("معرّف مهمة غير صالح.");
  const missions=await read("titularisation_missions",{
-  select:"id,title,rubric_id,rubric_profile,status",id:"eq."+id
+  select:productionWorkspace()?"id,title,rubric_id,rubric_profile,status,institution_resource_id,institution_name_snapshot":"id,title,rubric_id,rubric_profile,status",id:"eq."+id
  });
  if(missions.length!==1)throw Error("المهمة غير متاحة لحساب المفتش الحالي.");
  // P1 production pilot has no issued committee seats or contribution table.
@@ -227,5 +227,14 @@ export async function loadCloudCommitteeInspectorProfile(){
     list[0]?.approved!==true||list[0]?.account_status!=="approved"||
     list[0]?.is_admin===true)
   throw Error("تعذر التحقق من ملف المفتش المهني في QA.");
- return list[0];
+ const result=list[0];
+ if(productionWorkspace()&&result.work_district_id){
+  const work=await read("work_districts",{
+   select:"id,label,code",id:"eq."+result.work_district_id,limit:"1"
+  });
+  if(work?.[0]?.id===result.work_district_id)
+   result.district=[work[0].label,work[0].code&&"("+work[0].code+")"]
+    .filter(Boolean).join(" ");
+ }
+ return result;
 }
