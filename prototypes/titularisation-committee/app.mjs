@@ -148,6 +148,13 @@ function render(){
     select.value=state.meta.decision;
     select.addEventListener("change",()=>commit(()=>editMeta(state,"decision",select.value)));
     wrap.append(select);grid.append(wrap);
+   }else if(key==="institution"&&prodReport){
+    // The mission's resource UUID and official snapshot are fixed by its owner
+    // RPC. Prevent a text-only rename that would invalidate the linked draft.
+    const index=grid.children.length;
+    labelValue(grid,label,state.meta[key],()=>message("المؤسسة مثبتة في المهمة. غيّرها من مسار تعديل المهمة عندما يُتاح ذلك."));
+    const control=grid.children[index]?.querySelector("input,textarea");
+    if(control){control.readOnly=true;control.title="المؤسسة مرتبطة بمعرّفها في المهمة الإنتاجية";}
    }else labelValue(grid,label,state.meta[key],value=>commit(()=>editMeta(state,key,value)));
   }
   details.append(grid);meta.append(details);
