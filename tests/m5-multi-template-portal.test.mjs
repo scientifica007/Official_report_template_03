@@ -24,7 +24,7 @@ test("M5: launcher connects both models without changing their editor or storage
  assert.match(cloud,/href="\.\/prototypes\/titularisation-committee\/"/);
  assert.match(cloud,/target="_blank" rel="noopener noreferrer"/);
  assert.match(cloud,/مهام المفتش ومسوداته في حسابه السحابي/);
- assert.match(cloud,/رابطه العام ليس حسابًا محميًا/);
+ assert.match(cloud,/روابط أعضاء اللجنة ومساهماتهم ما زالت في QA/);
  assert.match(cloud,/النموذج الشخصي الثاني — مخطط مستقبلًا/);
  // P0.1: the model library routes to a teacher-task workspace. QA and
  // the approved local renderer remain distinct until real unified storage.
