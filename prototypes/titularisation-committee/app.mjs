@@ -15,6 +15,7 @@ import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
 import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft,loadCloudCommitteeInspectorProfile} from "./committee-cloud-bridge.mjs";
 import {hydrateReportInspectorFromVerifiedProfile} from "../../qa-titularisation/report-inspector-prefill.mjs";
+import {inspectorProfileDefaults} from "../../qa-titularisation/workspace-sources.mjs";
 import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/mission-navigation.mjs";
 let state=freshCommittee(),who="final";
 let synthesisReview=null; // Created only after an owner-authorized QA import.
@@ -45,6 +46,41 @@ function connectQAMissionReturn(){
  const group=$("qa-return-nav");if(group)group.hidden=false;
 }
 connectQAMissionReturn();
+function showVerifiedInspectorSource(profile){
+ if(!qaReport)return;
+ const section=$("qa-inspector-profile-source");
+ const note=$("qa-inspector-profile-note");
+ const useName=$("qa-chair-use-profile-name");
+ if(!section||!note||!useName)return;
+ section.hidden=false;
+ if(profile?.profileError){
+  note.textContent="تعذر جلب ملف المفتش المهني: "+profile.profileError+
+   ". ستبقى البيانات المحررة سابقًا محفوظة دون تغيير.";
+  useName.hidden=true;return;
+ }
+ const defaults=inspectorProfileDefaults(profile);
+ const available=[
+  defaults.chairName&&"الاسم واللقب",
+  defaults.inspectorDistrict&&"المقاطعة",
+  defaults.inspectorEmail&&"البريد الإلكتروني"
+ ].filter(Boolean);
+ note.textContent=available.length?
+  "تم التحقق من ملف المفتش المهني "+
+  (profile.federation_required===true?"المربوط بالحساب الرئيسي":"في QA")+
+  ". الحقول المتاحة: "+available.join("، ")+
+  ". تُملأ الحقول الفارغة فقط، ولا يُستبدل اسم رئيس اللجنة المكتوب يدويًا.":
+  "لا توجد حقول مهنية قابلة للتعبئة في الملف الحالي.";
+ if(!defaults.chairName){useName.hidden=true;return}
+ useName.hidden=false;
+ useName.addEventListener("click",()=>{
+  if(!qaReport||!cloudDraftReady)return;
+  if(state.meta.chairName===defaults.chairName)return;
+  if(state.meta.chairName&&!confirm(
+   "سيُستبدل اسم رئيس اللجنة الذي كتبته باسم حساب المفتش الأصلي. هل تريد المتابعة؟"))return;
+  commit(()=>editMeta(state,"chairName",defaults.chairName));
+  message("استُخدم اسم المفتش رئيسًا للجنة في هذه المسودة. احفظ المسودة في المهمة لتثبيت التعديل.");
+ });
+}
 function cloudDraftStatus(value){
  const status=$("cloud-draft-status");if(status)status.textContent=value;
 }
@@ -307,6 +343,7 @@ if(committeeCloudEnabled()){
       hydrateReportInspectorFromVerifiedProfile(target,inspectorProfile);
      clearVoiceDrafts();
      state=enriched.state;who="final";render();
+     showVerifiedInspectorSource(inspectorProfile);
      cloudDraftRevision=saved?.revision||0;
      cloudDraftReady=true;cloudDraftDirty=enriched.filled.length>0;
      $("cloud-draft-save")?.removeAttribute("disabled");
