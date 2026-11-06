@@ -408,12 +408,26 @@ function renderDashboard(){
  greeting.append(notice("هذه البيئة مستقلة عن قاعدة الإنتاج. العمليات التي تنفذها هنا تخص بيانات اختبار اصطناعية فقط."));
  greeting.append(element("p","تم التحقق من صفة المفتش المعتمد في مشروع الاختبار."));
  const row=element("div","","actions");
- if(profile?.federation_required===true&&activePrimarySession()){
+ if(profile?.federation_required===true){
+  const identity=inspectorProfileDefaults(profile);
+  const loaded=[
+   identity.chairName&&"الاسم واللقب",
+   identity.inspectorDistrict&&"المقاطعة المهنية",
+   identity.inspectorEmail&&"البريد الإلكتروني"
+  ].filter(Boolean);
+  greeting.append(notice(loaded.length?
+   "الملف المهني المتاح في QA: "+loaded.join("، ")+
+   ". قد تكون هذه البيانات قد زُومنت في دخول سابق، ولا تُستبدل مدخلاتك اليدوية في المهمة.":
+   "الملف المهني لم يُستكمل في QA بعد. يمكنك طلب مزامنته من حساب المفتش الرئيسي.","hint"));
+  greeting.append(notice("«تحديث البيانات» يعيد تحميل معلومات المهمة من QA فقط، ولا يحدّث الملف المهني من المنصة الرئيسية.","hint"));
   row.append(button("تحديث بيانات المفتش من حسابي الرئيسي",async()=>{
    const token=activePrimarySession();
-   if(!token)throw Error("انتهت جلسة المنصة الرئيسية. افتح حساب المفتش أولًا.");
+   if(!token){
+    announce("جلسة المنصة الرئيسية غير متاحة في هذا التبويب. ملفك ومهماتك في QA محفوظة ولم تُغيَّر. للمزامنة من جديد افتح حساب المفتش في المنصة الرئيسية في هذا المتصفح ثم عد؛ وإذا لم تُكتشف الجلسة، أعد الدخول إلى QA بحساب المفتش الرئيسي.",true);
+    return;
+   }
    await loginApprovedPrimary(token);
-   announce("حُدّث اسم المفتش ومقاطعته المهنية بعد التحقق من حسابه الرئيسي.");
+   announce("حُدّث ملف المفتش المهني في QA بعد التحقق من حسابه الرئيسي.");
   }));
  }
  row.append(button("تحديث البيانات",async()=>{issued=null;await refreshData();announce("تم تحديث بيانات المهمة.");}),
