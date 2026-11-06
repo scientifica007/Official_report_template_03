@@ -420,7 +420,7 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
   // the verified user's own RLS; NEVER accept caller-provided role flags.
   const url=PRIMARY_URL+"/rest/v1/inspector_profiles?"+
    new URLSearchParams({
-    select:"id,email,profession,approved,account_status",
+    select:"id,email,first_name,last_name,profession,district,work_district_id,is_admin,approved,account_status",
     id:"eq."+primaryUser.id
    }).toString();
   let rows:Record<string,unknown>[];
@@ -438,8 +438,37 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
   if(rows.length!==1||!p||p.id!==primaryUser.id||p.approved!==true||
      p.account_status!=="approved"||
      !["IFEP","ITP"].includes(String(p.profession||""))||
+     p.is_admin===true||
      String(p.email||"").toLowerCase().trim()!==email)
    return error("الدخول متاح للمفتشين البيداغوجيين المعتمدين فقط.",403);
+
+  // Only verified professional display fields enter QA; never import teacher
+  // records, production credentials, or production work-district UUIDs.
+  const firstName=typeof p.first_name==="string"?p.first_name.trim().slice(0,120):"";
+  const lastName=typeof p.last_name==="string"?p.last_name.trim().slice(0,120):"";
+  let districtLabel="";
+  const districtId=String(p.work_district_id||"");
+  if(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(districtId)){
+   const districtUrl=PRIMARY_URL+"/rest/v1/work_districts?"+
+    new URLSearchParams({select:"id,code,label",id:"eq."+districtId}).toString();
+   try{
+    const response=await fetch(districtUrl,{
+     headers:{apikey:PRIMARY_PUBLIC_KEY,Authorization:"Bearer "+primaryToken,
+      Accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(10000)
+    });
+    if(response.ok){
+     const items=await response.json();
+     if(Array.isArray(items)&&items.length===1&&items[0]?.id===districtId){
+      const code=String(items[0].code||"").trim();
+      const label=String(items[0].label||"").trim();
+      districtLabel=[label,code&&"("+code+")"].filter(Boolean).join(" ");
+     }
+    }
+   }catch(_){/* Unavailable district data stays blank, never inferred. */}
+  }else{
+   districtLabel=typeof p.district==="string"?p.district.trim():"";
+  }
+  districtLabel=districtLabel.slice(0,200);
 
   const db=admin();
   // QA Auth supplies the JWT and refresh token; we do not forge JWTs.
@@ -483,9 +512,9 @@ async function revoke(db:ReturnType<typeof admin>,actor:string,missionId:string,
   if(linkError)return error("تعذر ربط حساب المفتش بصورة آمنة.",503);
 
   const {error:updateError}=await db.from("inspector_profiles").upsert({
-   id:qaUser.id,email,
+   id:qaUser.id,email,first_name:firstName,last_name:lastName,district:districtLabel,
    profession:String(p.profession),approved:true,account_status:"approved",
-   federation_required:federationOnly,is_admin:current?.is_admin===true
+   federation_required:federationOnly,is_admin:false
   },{onConflict:"id"});
   if(updateError)return error("تعذر تهيئة ملف المفتش.",503);
   const {data:authResult,error:verifyError}=await userClient().auth.verifyOtp({

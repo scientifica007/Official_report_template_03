@@ -6,6 +6,7 @@ import {qrCanvas,downloadInvitationPdf} from "./invitation-pdf.mjs";
 import {GROUPS,suggestedWeights,validateWeights} from "../prototypes/titularisation-workbench/engine.mjs";
 import {MISSION_CONTEXT_FIELDS,missionContextDraft,applyMissionContextFields,serializeMissionContext} from "./mission-context.mjs";
 import {selectQAMission,validMissionId} from "./mission-navigation.mjs";
+import {orderQAWorkMissions,inspectorProfileDefaults,publishedQAInstitutionChoices} from "./workspace-sources.mjs";
 const config=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(config.supabaseUrl||"").replace(/\/+$/,"");
 const publicKey=String(config.publishableKey||"");
@@ -16,6 +17,7 @@ const seatNames={member1:"العضو الأول",member2:"العضو الثان�
 let session=null,profile=null,missions=[],selected="",seatRows=[],contributions=[],issued=null,busy=false;
 const requestedMissionFromLink=new URLSearchParams(globalThis.location?.search||"").get("mission");
 let contextRecord=null,contextFor="";
+let publishedInstitutions=[],institutionCatalogError="";
 let flash="",flashError=false;
 const element=(tag,text="",cls="")=>{
  const x=document.createElement(tag);if(text)x.textContent=text;if(cls)x.className=cls;return x;
@@ -201,7 +203,7 @@ function renderLogin(){
 async function refreshProfile(){
  if(!session?.userId){profile=null;return;}
  const list=await rows("inspector_profiles",{
-  select:"id,approved,account_status,is_admin,federation_required",id:"eq."+session.userId
+  select:"id,approved,account_status,is_admin,federation_required,first_name,last_name,email,profession,district,work_district_id",id:"eq."+session.userId
  });
  profile=list?.[0]||null;
  if(profile?.approved&&profile.federation_required===true){
@@ -214,9 +216,22 @@ async function refreshProfile(){
  }
 }
 async function refreshData(){
- missions=await rows("titularisation_missions",{
+ missions=orderQAWorkMissions(await rows("titularisation_missions",{
   select:"id,title,rubric_id,rubric_profile,status,expires_at,created_at",order:"created_at.desc",limit:"100"
- });
+ }));
+ // Source is QA-only and filtered by RLS. Never copy production institutions.
+ try{
+  const catalog=await rows("district_published_resources",{
+   select:"id,title,code,wilaya,resource_kind,publication_status",
+   resource_kind:"eq.institution",publication_status:"eq.published",
+   order:"title.asc",limit:"150"
+  });
+  publishedInstitutions=publishedQAInstitutionChoices(catalog);
+  institutionCatalogError="";
+ }catch(error){
+  publishedInstitutions=[];
+  institutionCatalogError="تعذر قراءة دليل المؤسسات المصرح به في QA: "+(error?.message||"خطأ اتصال");
+ }
  if(!missions.some(m=>m.id===selected))
   selected=selectQAMission(missions,selected,requestedMissionFromLink);
  await refreshDetails();
@@ -312,21 +327,63 @@ function renderMissionContext(container,mission){
  try{current=missionContextDraft(mission,contextRecord);}
  catch(err){box.append(notice(err.message,"notice error"));container.append(box);return;}
  const fields=element("div","","fields"),values={};
+ const defaults=inspectorProfileDefaults(profile);
  for(const {key,label} of MISSION_CONTEXT_FIELDS){
   const control=input("text",label);
-  control.value=current.meta[key]||"";control.maxLength=300;
-  control.autocomplete="off";values[key]=control;
+  control.value=current.meta[key]||(key==="chairName"?defaults.chairName||"":"");
+  control.maxLength=300;control.autocomplete="off";values[key]=control;
   fields.append(field(label,control));
  }
  box.append(fields);
+ const sourceBox=element("div","","catalog-choice");
+ sourceBox.append(element("h3","اختيار المؤسسة من السجل المشترك"));
+ const sourceSelect=element("select");
+ const free=element("option","إدخال اسم مؤسسة تجريبية يدويًا");
+ free.value="";sourceSelect.append(free);
+ for(const item of publishedInstitutions){
+  const option=element("option",item.title+
+   (item.code?" ("+item.code+")":"")+(item.wilaya?" — "+item.wilaya:""));
+  option.value=item.id;sourceSelect.append(option);
+ }
+ const previousRef=current.meta.institutionResourceId||"";
+ if(previousRef&&!publishedInstitutions.some(item=>item.id===previousRef)){
+  const unavailable=element("option","المؤسسة المرتبطة سابقًا غير متاحة لحسابك حاليًا");
+  unavailable.value=previousRef;unavailable.disabled=true;sourceSelect.append(unavailable);
+  sourceBox.append(notice("لم يعد ربط المؤسسة السابق متاحًا في دليل مقاطعتك. اختر مؤسسة مصرحًا بها أو الإدخال التجريبي اليدوي قبل الحفظ.","notice error"));
+ }
+ sourceSelect.value=previousRef;
+ const setSource=()=>{
+  const item=publishedInstitutions.find(x=>x.id===sourceSelect.value);
+  if(item){values.institution.value=item.title;values.institution.readOnly=true;}
+  else{values.institution.readOnly=false;}
+ };
+ sourceSelect.addEventListener("change",setSource);
+ setSource();
+ sourceBox.append(field("المؤسسات المنشورة والمتاحة لمقاطعة الحساب التجريبي",sourceSelect));
+ if(institutionCatalogError)sourceBox.append(notice(institutionCatalogError,"notice error"));
+ else if(!publishedInstitutions.length)
+  sourceBox.append(notice("لا توجد مؤسسات منشورة في دليل QA حاليًا. استعمل إدخالًا اصطناعيًا؛ لا تُنسخ مؤسسات الإنتاج إلى المختبر.","hint"));
+ else sourceBox.append(notice("قائمة المؤسسات محددة بالصلاحيات على الخادم. اختيار مؤسسة يحفظ معرّفها المرجعي مع اسمها في مسودة المهمة.","hint"));
+ box.append(sourceBox);
+ if(defaults.chairName||defaults.inspectorDistrict||defaults.inspectorEmail){
+  box.append(notice("بيانات حساب المفتش التجريبي: "+
+   [defaults.chairName&&"الاسم: "+defaults.chairName,
+    defaults.inspectorDistrict&&"المقاطعة: "+defaults.inspectorDistrict,
+    defaults.inspectorEmail&&"البريد: "+defaults.inspectorEmail].filter(Boolean).join(" · ")+
+   ". تُملأ الحقول الفارغة فقط عند الحفظ، دون استبدال بيانات كتبها المفتش. مقر المفتش وهاتفه غير متاحين في ملف الحساب الحالي.","hint"));
+ }
  const named=seatRows.filter(s=>s.display_name&&["member1","member2","member3"].includes(s.seat_code));
  if(named.length)box.append(notice("أسماء الأعضاء المستخرجة من روابط اللجنة: "+
   named.map(s=>seatNames[s.seat_code]+": "+s.display_name).join("، ")+
   ". تُدرج في الحقول الفارغة بالوثيقة عند حفظ البيانات دون محو أسماء حررها المفتش.","hint"));
  const save=button("حفظ بيانات الأستاذ والمؤسسة في المهمة",async()=>{
   const missionId=mission.id,expected=contextRecord?.revision||0;
+  const ref=sourceSelect.value;
+  if(ref&&!publishedInstitutions.some(item=>item.id===ref))
+   throw Error("لم تعد هذه المؤسسة متاحة في دليل مقاطعتك. غيّر الاختيار قبل الحفظ.");
   const edits=Object.fromEntries(MISSION_CONTEXT_FIELDS.map(({key})=>[key,values[key].value]));
-  const next=applyMissionContextFields(current,edits,seatRows);
+  edits.institutionResourceId=ref;
+  const next=applyMissionContextFields(current,edits,seatRows,profile);
   const revision=await rpc("save_titularisation_report_draft",{
    p_mission_id:missionId,p_payload:serializeMissionContext(next),
    p_expected_revision:expected
@@ -347,10 +404,18 @@ function renderMissionContext(container,mission){
  container.append(box);
 }
 function renderDashboard(){
- const greeting=wrapper("رئيس اللجنة — مختبر الحسابات المؤقتة");
+ const greeting=wrapper("رئيس اللجنة — فضاء متابعة مهمات الترسيم (QA)");
  greeting.append(notice("هذه البيئة مستقلة عن قاعدة الإنتاج. العمليات التي تنفذها هنا تخص بيانات اختبار اصطناعية فقط."));
  greeting.append(element("p","تم التحقق من صفة المفتش المعتمد في مشروع الاختبار."));
  const row=element("div","","actions");
+ if(profile?.federation_required===true&&activePrimarySession()){
+  row.append(button("تحديث بيانات المفتش من حسابي الرئيسي",async()=>{
+   const token=activePrimarySession();
+   if(!token)throw Error("انتهت جلسة المنصة الرئيسية. افتح حساب المفتش أولًا.");
+   await loginApprovedPrimary(token);
+   announce("حُدّث اسم المفتش ومقاطعته المهنية بعد التحقق من حسابه الرئيسي.");
+  }));
+ }
  row.append(button("تحديث البيانات",async()=>{issued=null;await refreshData();announce("تم تحديث بيانات المهمة.");}),
  button("تسجيل الخروج",async()=>{
   try{await request("/auth/v1/logout",{method:"POST",auth:true})}catch(_){}
@@ -359,8 +424,12 @@ function renderDashboard(){
  }));
  greeting.append(row);root.append(greeting);
 
- const create=wrapper("إنشاء مهمة ترسيم تجريبية");
- create.append(notice("يدعم المختبر شبكات 5 معايير و10 عناصر و14 مؤشرًا. الأوزان للـ14 مؤشرًا يحددها المفتش ويثبتها قبل الدعوات. هذه تجربة تقنية وليست اعتمادًا رسميًا؛ لا تستخدم بيانات ترسيم حقيقية."));
+ const create=wrapper("إنشاء مهمة ترسيم جديدة");
+ const createDisclosure=element("details","","qa-create-task");
+ createDisclosure.open=!missions.length;
+ createDisclosure.append(element("summary",missions.length?
+  "إنشاء مهمة ترسيم أخرى (اختياري)":"إنشاء أول مهمة ترسيم تجريبية"));
+ createDisclosure.append(notice("يدعم المختبر شبكات 5 معايير و10 عناصر و14 مؤشرًا. الأوزان للـ14 مؤشرًا يحددها المفتش ويثبتها قبل الدعوات. هذه تجربة تقنية وليست اعتمادًا رسميًا؛ لا تستخدم بيانات ترسيم حقيقية."));
  const form=element("form"),fields=element("div","","fields");
  const title=input("text","مثال: اختبار لجنة رقم 01");title.required=true;title.minLength=3;title.maxLength=200;
  const rubric=element("select");for(const [value,label] of [
@@ -385,10 +454,15 @@ function renderDashboard(){
   }catch(err){announce(err?.message||"تعذر إنشاء المهمة.",true)}
   finally{busy=false;render()}
  });
- create.append(form);root.append(create);
+ createDisclosure.append(form);create.append(createDisclosure);
 
- const choose=wrapper("متابعة المهمة");
- if(!missions.length){choose.append(notice("لا توجد مهام بعد. أنشئ مهمة اختبار باستخدام النموذج أعلاه."));root.append(choose);return;}
+ const choose=wrapper("متابعة المهمات الجارية والمحفوظة");
+ choose.id="qa-current-mission";
+ if(!missions.length){
+  choose.append(notice("لا توجد مهمات محفوظة بعد. أنشئ أول مهمة من القسم التالي."));
+  root.append(choose,create);return;
+ }
+ choose.append(notice("تعرض المهمات الجارية أولًا ثم المغلقة. يمكنك استئناف المهمة المحددة دون إنشاء مهمة أخرى.","hint"));
  const select=element("select");
  for(const m of missions){
   const opt=element("option",m.title+" — "+(m.status==="draft"?"جارية":"مغلقة"));
@@ -540,7 +614,7 @@ function renderDashboard(){
    issued=null;await refreshData();announce("أُغلقت المهمة. يمكن الآن إزالة حسابات الأعضاء.");
   },"danger"));
  }
- root.append(choose);
+ root.append(choose,create);
 }
 function renderIssued(parent){
  const box=element("div","","secret");box.setAttribute("role","status");

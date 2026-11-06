@@ -44,7 +44,7 @@ test("M5.11: server validates authentic primary session, APPROVAL, and only IFEP
  assert.match(edge,/async function federatedInspectorLogin\(primaryToken:string\)/);
  assert.match(edge,/main\.auth\.getUser\(primaryToken\)/);
  assert.match(edge,/primaryUser\.email_confirmed_at/);
- assert.match(edge,/select:"id,email,profession,approved,account_status"/);
+ assert.match(edge,/select:"id,email,first_name,last_name,profession,district,work_district_id,is_admin,approved,account_status"/);
  assert.match(edge,/Authorization:"Bearer "\+primaryToken/);
  assert.match(edge,/p\.approved!==true/);
  assert.match(edge,/p\.account_status!=="approved"/);
@@ -90,7 +90,7 @@ test("M5.11: only QA gains linkage table with fail-closed expiry and strict read
 
 test("M5.11: QR, member scoring, documents and official production configuration remain isolated",()=>{
  assert.match(html,/src="\.\/config\.js\?v=m511-primary-inspectors"/);
- assert.match(html,/src="\.\/app\.mjs\?v=p04-qa-mission-return-20261106"/);
+ assert.match(html,/src="\.\/app\.mjs\?v=p05-qa-task-first-20261106"/);
  assert.doesNotMatch(html,/src="\.\.\/cloud\.js"/);
  assert.match(edge,/if\(action==="federated_inspector_login"\)/);
  assert.doesNotMatch(qa,/document\.cookie\s*=/);

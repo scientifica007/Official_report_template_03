@@ -55,7 +55,8 @@ export const METADATA_GROUPS=Object.freeze([
  ]}
 ]);
 // Keep the B16 birthDate key as a hidden compatibility alias for previously saved JSON.
-const baseMetaKeys=["candidate","institution","rank","date","location","session","birthDate"];
+// Internal, optional catalog reference. Legacy report JSON files remain valid.
+const baseMetaKeys=["candidate","institution","institutionResourceId","rank","date","location","session","birthDate"];
 const metaKeys=new Set([...baseMetaKeys,...METADATA_GROUPS.flatMap(g=>g.fields.map(f=>f[0]))]);
 const emptyMeta=()=>({...Object.fromEntries([...metaKeys].map(k=>[k,""])),minutesScopeMode:"specialist"});
 const validDecisions=new Set(["","success","first","second"]);
@@ -84,7 +85,13 @@ export function editMeta(state,field,value){
  if(!metaKeys.has(field))throw Error("حقل تعريف غير معروف");
  if(field==="decision"&&!validDecisions.has(value))throw Error("قرار لجنة غير معروف");
  if(field==="minutesScopeMode"&&!validMinutesScopes.has(value))throw Error("صياغة فئة المحضر غير معروفة");
- const s=clone(state);s.meta[field]=cleanString(value,300);
+ const s=clone(state);
+ const cleaned=cleanString(value,300);
+ // Editing the free-text institution must never leave a stale catalog ID
+ // pointing to a different entity. Inspector may always use a manual name.
+ if(field==="institution"&&s.meta.institutionResourceId&&
+   cleaned!==s.meta.institution)s.meta.institutionResourceId="";
+ s.meta[field]=cleaned;
  // The single visible date field updates the legacy B16 minutes alias as well.
  if(field==="birth")s.meta.birthDate=s.meta.birth;
  s.serial++;return s;
