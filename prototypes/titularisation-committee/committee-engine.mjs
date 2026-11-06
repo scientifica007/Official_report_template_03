@@ -85,7 +85,13 @@ export function editMeta(state,field,value){
  if(!metaKeys.has(field))throw Error("حقل تعريف غير معروف");
  if(field==="decision"&&!validDecisions.has(value))throw Error("قرار لجنة غير معروف");
  if(field==="minutesScopeMode"&&!validMinutesScopes.has(value))throw Error("صياغة فئة المحضر غير معروفة");
- const s=clone(state);s.meta[field]=cleanString(value,300);
+ const s=clone(state);
+ const cleaned=cleanString(value,300);
+ // Editing the free-text institution must never leave a stale catalog ID
+ // pointing to a different entity. Inspector may always use a manual name.
+ if(field==="institution"&&s.meta.institutionResourceId&&
+   cleaned!==s.meta.institution)s.meta.institutionResourceId="";
+ s.meta[field]=cleaned;
  // The single visible date field updates the legacy B16 minutes alias as well.
  if(field==="birth")s.meta.birthDate=s.meta.birth;
  s.serial++;return s;
