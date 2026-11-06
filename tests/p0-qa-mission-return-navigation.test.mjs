@@ -61,7 +61,7 @@ test("P0 navigation: dashboard reselects requested mission and scrolls to its ed
  assert.match(qa,/location\?\.hash==="#qa-mission-context"/);
  assert.match(qa,/scrollIntoView\?\.\(\{block:"start"\}\)/);
  assert.match(entry,/app\.mjs\?v=p06-qa-profile-sync-status-20261106/);
- assert.match(html,/app\.mjs\?v=p04-qa-mission-return-20261106/);
+ assert.match(html,/app\.mjs\?v=p08-qa-inspector-prefill-20261106/);
 });
 
 test("P0 navigation: production editor, session, and report renderers remain untouched",()=>{
