@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>مختبر إعداد تقرير ومحضر الترسيم</title>
-<link rel="stylesheet" href="../../prototypes/titularisation-committee/style.css?v=m514-semantic-20261104"><link rel="stylesheet" href="../../shared/score-range.css?v=m510"><link rel="stylesheet" href="../../prototypes/titularisation-committee/print-layout-b5.css" media="print"><script src="../config.js" defer></script><script type="module" src="../../prototypes/titularisation-committee/app.mjs?v=p02-cloud-draft-20261105"></script></head>
+<link rel="stylesheet" href="../../prototypes/titularisation-committee/style.css?v=p04-qa-mission-return-20261106"><link rel="stylesheet" href="../../shared/score-range.css?v=m510"><link rel="stylesheet" href="../../prototypes/titularisation-committee/print-layout-b5.css" media="print"><script src="../config.js" defer></script><script type="module" src="../../prototypes/titularisation-committee/app.mjs?v=p04-qa-mission-return-20261106"></script></head>
 <body><header><small>QA — مشروع اختبار Supabase مستقل</small><h1>مختبر إعداد تقرير ومحضر لجنة الترسيم</h1>
 <p>أداة مساعدة للمفتش واللجنة، لا نظام اعتماد أو تصديق. تجربة ربط مساهمات الأعضاء السحابية المحفوظة بمحرر التقرير؛ لا تُستخدم بيانات إنتاج حقيقية.</p>
 <p class="warning">استخدم بيانات اصطناعية فقط. المعاينة الورقية قيد المطابقة المرجعية، وهي مسودة عمل لا تمثل إمضاءً أو ختمًا. النسخة الممضاة والمؤشر عليها ورقيًا وحدها المرجع المهني الرسمي.</p>
-<nav aria-label="روابط التنقل"><a href="../">العودة إلى منصة التفتيش والتقويم المهني</a> · <a href="../../prototypes/titularisation-workbench/">محرر التنقيط</a></nav></header>
+<nav aria-label="روابط التنقل"><span id="qa-return-nav" hidden><a id="qa-return-to-mission-top" href="../">العودة إلى مهمة الترسيم الحالية</a> · </span><a href="../">لوحة مهام لجنة الترسيم QA</a> · <a href="../../prototypes/titularisation-workbench/">محرر التنقيط</a></nav></header>
 <main><section class="panel"><h2>إعداد المهمة التجريبية</h2>
 <label>طريقة العمل<select id="mode"><option value="unified">تقييم موحد — الوضع الافتراضي</option>
 <option value="individual">مساهمات فردية</option></select></label>
@@ -24,6 +24,7 @@
 <div class="actions" id="cloud-draft-controls" hidden>
 <button id="cloud-draft-save" type="button">حفظ مسودة التقرير والمحضر في المهمة</button>
 <span id="cloud-draft-status" role="status" aria-live="polite">جارٍ التحقق من مسودة المهمة...</span>
+<a id="qa-return-to-mission-bottom" class="qa-mission-return-action" href="../" hidden>العودة إلى مهمة الترسيم الحالية</a>
 </div>
 <p id="message" role="status" aria-live="polite"></p></section>
 <section class="panel"><h2>معطيات المهمة</h2><div id="meta" class="meta-grid"></div></section>

@@ -14,6 +14,7 @@ import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
 import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft} from "./committee-cloud-bridge.mjs";
+import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/mission-navigation.mjs";
 let state=freshCommittee(),who="final";
 let synthesisReview=null; // Created only after an owner-authorized QA import.
 const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
@@ -22,6 +23,27 @@ const openedMetaGroups=new Set();
 const $=id=>document.getElementById(id);
 const linkedMissionId=qaReport?new URLSearchParams(location.search).get("mission"):"";
 let cloudDraftRevision=0,cloudDraftReady=false,cloudDraftDirty=false,cloudDraftBusy=false;
+function connectQAMissionReturn(){
+ // A mission UUID is only a locator. Never put the session token in the URL.
+ if(!qaReport||!validMissionId(linkedMissionId))return;
+ const destination=returnToQAMissionHref(linkedMissionId);
+ for(const id of ["qa-return-to-mission-top","qa-return-to-mission-bottom"]){
+  const link=$(id);
+  if(!link)continue;
+  link.href=destination;link.hidden=false;
+  link.addEventListener("click",event=>{
+   if(cloudDraftBusy){
+    event.preventDefault();
+    message("جارٍ حفظ المسودة؛ تحقّق من نجاح الحفظ قبل العودة إلى المهمة.");
+   }else if(cloudDraftDirty&&!confirm(
+    "توجد تعديلات على التقرير والمحضر لم تُحفظ في المهمة. هل تريد العودة دون حفظ هذه التعديلات؟")){
+    event.preventDefault();
+   }
+  });
+ }
+ const group=$("qa-return-nav");if(group)group.hidden=false;
+}
+connectQAMissionReturn();
 function cloudDraftStatus(value){
  const status=$("cloud-draft-status");if(status)status.textContent=value;
 }

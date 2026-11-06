@@ -5,6 +5,7 @@
 import {qrCanvas,downloadInvitationPdf} from "./invitation-pdf.mjs";
 import {GROUPS,suggestedWeights,validateWeights} from "../prototypes/titularisation-workbench/engine.mjs";
 import {MISSION_CONTEXT_FIELDS,missionContextDraft,applyMissionContextFields,serializeMissionContext} from "./mission-context.mjs";
+import {selectQAMission,validMissionId} from "./mission-navigation.mjs";
 const config=window.REPORT03_CLOUD_CONFIG||{};
 const base=String(config.supabaseUrl||"").replace(/\/+$/,"");
 const publicKey=String(config.publishableKey||"");
@@ -13,6 +14,7 @@ const root=document.getElementById("qa-app");
 const seats=["member1","member2","member3"];
 const seatNames={member1:"العضو الأول",member2:"العضو الثاني",member3:"العضو الثالث"};
 let session=null,profile=null,missions=[],selected="",seatRows=[],contributions=[],issued=null,busy=false;
+const requestedMissionFromLink=new URLSearchParams(globalThis.location?.search||"").get("mission");
 let contextRecord=null,contextFor="";
 let flash="",flashError=false;
 const element=(tag,text="",cls="")=>{
@@ -215,7 +217,8 @@ async function refreshData(){
  missions=await rows("titularisation_missions",{
   select:"id,title,rubric_id,rubric_profile,status,expires_at,created_at",order:"created_at.desc",limit:"100"
  });
- if(!missions.some(m=>m.id===selected))selected=missions[0]?.id||"";
+ if(!missions.some(m=>m.id===selected))
+  selected=selectQAMission(missions,selected,requestedMissionFromLink);
  await refreshDetails();
 }
 async function refreshDetails(){
@@ -393,6 +396,12 @@ function renderDashboard(){
  }
  select.addEventListener("change",async()=>{
   selected=select.value;issued=null;
+  // Keep a bookmarkable selected mission without leaking the QA session token.
+  if(validMissionId(selected)&&globalThis.history?.replaceState&&globalThis.location?.href){
+   const url=new URL(globalThis.location.href);
+   url.searchParams.set("mission",selected);
+   globalThis.history.replaceState(null,"",url.pathname+url.search+url.hash);
+  }
   try{await refreshDetails();announce("تم اختيار المهمة.");}catch(e){announce(e.message,true)}
   render();
  });
@@ -611,5 +620,9 @@ async function startQAPortal(){
   root.replaceChildren(notice("تعذر تحميل واجهة المختبر. حدّث الصفحة، وإذا تكرر الخطأ أبلغني به.", "notice error"));
   console.error("QA portal startup failed",err);
  }
+ // Returning from the editor should land at the same selected mission,
+ // without interfering with the old recoverable startup error handling.
+ if(globalThis.location?.hash==="#qa-mission-context"&&selected)
+  root.querySelector?.("#qa-mission-context")?.scrollIntoView?.({block:"start"});
 }
 await startQAPortal();
