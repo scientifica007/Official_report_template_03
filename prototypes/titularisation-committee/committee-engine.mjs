@@ -55,7 +55,8 @@ export const METADATA_GROUPS=Object.freeze([
  ]}
 ]);
 // Keep the B16 birthDate key as a hidden compatibility alias for previously saved JSON.
-const baseMetaKeys=["candidate","institution","rank","date","location","session","birthDate"];
+// Internal, optional catalog reference. Legacy report JSON files remain valid.
+const baseMetaKeys=["candidate","institution","institutionResourceId","rank","date","location","session","birthDate"];
 const metaKeys=new Set([...baseMetaKeys,...METADATA_GROUPS.flatMap(g=>g.fields.map(f=>f[0]))]);
 const emptyMeta=()=>({...Object.fromEntries([...metaKeys].map(k=>[k,""])),minutesScopeMode:"specialist"});
 const validDecisions=new Set(["","success","first","second"]);
