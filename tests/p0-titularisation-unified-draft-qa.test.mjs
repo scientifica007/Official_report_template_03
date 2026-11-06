@@ -89,9 +89,9 @@ test("P0.2: QA browser bridge reuses QA-only inspector session and handles revis
 });
 
 test("P0.2: production feature is not silently enabled or mixed with QA identities",()=>{
- assert.match(bridge,/c\.qaOnly!==true\|\|!committeeCloudEnabled\(\)/);
+ assert.match(bridge,/if\(!committeeCloudEnabled\(\)\|\|\(c\.qaOnly!==true&&!productionWorkspace\(\)\)\)/);
  assert.match(editor,/const qaReport=.*qaOnly===true/);
- assert.match(editor,/const linkedMissionId=qaReport\?/);
+ assert.match(editor,/const linkedMissionId=missionBoundReport\?/);
  assert.match(bridge,/const QA_SESSION="scientifica_committee_qa_session_v1"/);
  assert.doesNotMatch(sql,/update public\.inspector_profiles|delete from public\.titularisation_missions|truncate/i);
  assert.match(qaReport,/مشروع اختبار Supabase مستقل/);
