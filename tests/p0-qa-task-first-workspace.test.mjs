@@ -83,6 +83,10 @@ test("P0 draft: optional institution UUID shares report JSON while preserving or
  assert.equal(fallback.meta.institutionResourceId,"");
  assert.equal(fallback.meta.institution,"مؤسسة تجريبية");
  assert.throws(()=>applyMissionContextFields(current,{...values,institutionResourceId:"bogus"},[],profile),/معرّف/);
+ const manuallyRenamed=editMeta(updated,"institution","مؤسسة حرة جديدة");
+ assert.equal(manuallyRenamed.meta.institutionResourceId,"");
+ assert.equal(manuallyRenamed.meta.institution,"مؤسسة حرة جديدة");
+ assert.equal(editMeta(updated,"institution","مؤسسة أ").meta.institutionResourceId,a);
  assert.deepEqual(restoreCommittee(JSON.parse(stringifyCommittee(current))).meta.institutionResourceId,"");
 });
 
