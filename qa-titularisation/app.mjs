@@ -408,6 +408,14 @@ function renderDashboard(){
  greeting.append(notice("هذه البيئة مستقلة عن قاعدة الإنتاج. العمليات التي تنفذها هنا تخص بيانات اختبار اصطناعية فقط."));
  greeting.append(element("p","تم التحقق من صفة المفتش المعتمد في مشروع الاختبار."));
  const row=element("div","","actions");
+ if(profile?.federation_required===true&&activePrimarySession()){
+  row.append(button("تحديث بيانات المفتش من حسابي الرئيسي",async()=>{
+   const token=activePrimarySession();
+   if(!token)throw Error("انتهت جلسة المنصة الرئيسية. افتح حساب المفتش أولًا.");
+   await loginApprovedPrimary(token);
+   announce("حُدّث اسم المفتش ومقاطعته المهنية بعد التحقق من حسابه الرئيسي.");
+  }));
+ }
  row.append(button("تحديث البيانات",async()=>{issued=null;await refreshData();announce("تم تحديث بيانات المهمة.");}),
  button("تسجيل الخروج",async()=>{
   try{await request("/auth/v1/logout",{method:"POST",auth:true})}catch(_){}
