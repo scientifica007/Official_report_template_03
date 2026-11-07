@@ -148,6 +148,10 @@ export async function create(raw,get,form){
   throw Error("أُنشئت المهمة لكن لم نتمكن من استرجاعها. حدّث القائمة؛ لا تنشئ نسخة ثانية.");
  return id;
 }
+export function rememberWeights(missionId,weights){
+ if(tasks.some(t=>t.id===missionId&&isAnalytical(t)&&!weightsPinned(t)))
+  weightDrafts.set(missionId,weights);
+}
 export async function freeze(raw,get,missionId,weights){
  const task=tasks.find(t=>t.id===missionId&&t.status==="draft"&&isAnalytical(t));
  if(!task||weightsPinned(task))throw Error("لا يمكن تعديل ملف الأوزان في هذه المهمة.");
