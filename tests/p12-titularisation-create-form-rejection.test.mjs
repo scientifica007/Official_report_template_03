@@ -91,6 +91,22 @@ test("P1.2: server authorization errors preserve the chosen title, rubric and in
  assert.ok(retained.includes('value="'+RUBRICS.analytical14.id+'" selected'));
 });
 
+test("P1.2: switching inspector accounts drops private unsaved form state and cached tasks",async()=>{
+ const first="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+ const second="bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+ workspace.syncInspectorScope(first);
+ catalogVisible=true;
+ await workspace.refresh(get);
+ workspace.rememberMissionFormField("prod-tit-title","مسودة من حساب المفتش الأول");
+ workspace.rememberMissionFormField("prod-tit-institution",institution);
+ assert.match(workspace.render({profile:{is_admin:false}}),/مسودة من حساب المفتش الأول/);
+ workspace.syncInspectorScope(second);
+ const secondPage=workspace.render({profile:{is_admin:false}});
+ assert.doesNotMatch(secondPage,/مسودة من حساب المفتش الأول/);
+ assert.ok(!secondPage.includes('value="'+institution+'" selected'));
+ assert.match(secondPage,/مهمات الترسيم الجارية والمحفوظة \(0\)/);
+});
+
 test("P1.2: capture all form fields before async module import and preserve backend RLS",()=>{
  const cloud=readFileSync("cloud.js","utf8");
  const module=readFileSync("titularisation/production-workspace.mjs","utf8");
