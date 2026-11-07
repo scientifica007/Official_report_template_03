@@ -31,7 +31,7 @@ const productionTaskRequested=new URLSearchParams(location.search).get('titulari
 async function ensureProductionTitularisation(){
  if(!productionTitularisationEnabled)throw Error('مسار الترسيم الإنتاجي غير مفعل.');
  if(!productionTitularisationModule)
-  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p11-analytical14-20261107');
+  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p12-create-form-20261107');
  return productionTitularisationModule;
 }
 let committeeMissions=[],committeeSeats=[],committeeContributions=[];
@@ -1382,6 +1382,8 @@ if(reportLogout)reportLogout.addEventListener('click',async()=>{
 });
 root.addEventListener('submit',e=>{if(e.target.id==='cloud-auth-form')onAuthSubmit(e)});
 root.addEventListener('input',e=>{
+ if(productionTitularisationEnabled)
+  productionTitularisationModule?.rememberMissionFormField(e.target.id,e.target.value);
  const contribField=e.target.dataset?.contribField;
  if(contribField&&['itemId','kind','body'].includes(contribField)){
   const d=contributionDraft();
@@ -1396,6 +1398,8 @@ root.addEventListener('input',e=>{
  if(group&&key&&institutionDraft[group])institutionDraft[group][key]=e.target.value;
 });
 root.addEventListener('change',async e=>{
+ if(productionTitularisationEnabled)
+  productionTitularisationModule?.rememberMissionFormField(e.target.id,e.target.value);
  if(e.target.id==='cloud-select'){useSharedInstitution(e.target.value);render();return}
  if(e.target.id==='committee-select'){
   committeeSelectedId=committeeMissions.some(x=>x.id===e.target.value)?e.target.value:'';
@@ -1466,12 +1470,15 @@ root.addEventListener('click',async e=>{
    const workspace=await ensureProductionTitularisation();
    await workspace.refresh(get);feedback='تم تحديث مهمات الترسيم.';
   }else if(action==='prod-tit-create'){
-   const workspace=await ensureProductionTitularisation();
-   await workspace.create(raw,get,{
+   // Snapshot all fields synchronously, before the first await. An unrelated
+   // session refresh can re-render the portal while an asynchronous import runs.
+   const fields={
     title:document.getElementById('prod-tit-title')?.value,
     rubric:document.getElementById('prod-tit-rubric')?.value,
     institutionId:document.getElementById('prod-tit-institution')?.value
-   });
+   };
+   const workspace=await ensureProductionTitularisation();
+   await workspace.create(raw,get,fields);
    feedback='أُنشئت المهمة في حساب المفتش مع المؤسسة المنشورة. يمكنك استئناف التقرير والمحضر.';
   }else if(action==='prod-tit-freeze'){
    const workspace=await ensureProductionTitularisation();
