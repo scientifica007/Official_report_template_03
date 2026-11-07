@@ -32,6 +32,9 @@ async function ensureProductionTitularisation(){
  if(!productionTitularisationEnabled)throw Error('مسار الترسيم الإنتاجي غير مفعل.');
  if(!productionTitularisationModule)
   productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p12-create-form-20261107');
+ // A browser tab may be used by different approved accounts. Drafted titles,
+ // chosen institutions and pending analytical weights must not cross accounts.
+ productionTitularisationModule.syncInspectorScope(session?.user?.id||profile?.id);
  return productionTitularisationModule;
 }
 let committeeMissions=[],committeeSeats=[],committeeContributions=[];
