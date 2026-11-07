@@ -31,7 +31,7 @@ const productionTaskRequested=new URLSearchParams(location.search).get('titulari
 async function ensureProductionTitularisation(){
  if(!productionTitularisationEnabled)throw Error('مسار الترسيم الإنتاجي غير مفعل.');
  if(!productionTitularisationModule)
-  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p1-prod-inspector-20261106');
+  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p11-analytical14-20261107');
  return productionTitularisationModule;
 }
 let committeeMissions=[],committeeSeats=[],committeeContributions=[];
@@ -1473,6 +1473,19 @@ root.addEventListener('click',async e=>{
     institutionId:document.getElementById('prod-tit-institution')?.value
    });
    feedback='أُنشئت المهمة في حساب المفتش مع المؤسسة المنشورة. يمكنك استئناف التقرير والمحضر.';
+  }else if(action==='prod-tit-freeze'){
+   const workspace=await ensureProductionTitularisation();
+   const missionId=button.dataset.missionId;
+   const weights={};
+   for(const item of document.querySelectorAll('[data-prod-tit-weight]')){
+    const value=item.value.trim();
+    weights[item.dataset.prodTitWeight]=value===''?'':Number(value);
+   }
+   workspace.rememberWeights(missionId,weights);
+   if(confirm('ستُثبت أوزان المؤشرات الأربعة عشر في هذه المهمة نهائيًا. بعد التثبيت لا يمكن تعديلها. هل تؤكد؟')){
+    await workspace.freeze(raw,get,missionId,weights);
+    feedback='ثبتت الأوزان بعد التحقق الخادمي. أصبح بإمكانك فتح التقرير والمحضر بهذه الشبكة.';
+   }else feedback='لم تُثبَّت الأوزان؛ احتُفظ بالقيم التي أدخلتها.';
   }else if(action==='prod-tit-open'){
    const workspace=await ensureProductionTitularisation();
    workspace.open(button.dataset.missionId);
