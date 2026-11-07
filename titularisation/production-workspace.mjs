@@ -9,6 +9,25 @@ const clean=s=>String(s??"").trim();
 const html=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 let tasks=[],institutions=[],selected="",error="";
+const missionFormDraft={title:"",rubric:RUBRICS.grouped5.id,institutionId:""};
+const missionFieldIds=Object.freeze({
+ "prod-tit-title":"title",
+ "prod-tit-rubric":"rubric",
+ "prod-tit-institution":"institutionId"
+});
+export function rememberMissionFormField(id,value){
+ const field=missionFieldIds[id];
+ if(field)missionFormDraft[field]=String(value??"");
+}
+function rememberMissionForm(form){
+ for(const field of Object.values(missionFieldIds))
+  missionFormDraft[field]=String(form?.[field]??"");
+}
+function clearMissionForm(){
+ missionFormDraft.title="";
+ missionFormDraft.rubric=RUBRICS.grouped5.id;
+ missionFormDraft.institutionId="";
+}
 const weightDrafts=new Map();
 const rubricLabels={
  [RUBRICS.grouped5.id]:"خمسة معايير",
@@ -111,12 +130,15 @@ export function render({profile}){
  (active?.status==="draft"&&isAnalytical(active)?weightForm(active):"")+
  '<section class="portal-widget"><details '+(!ordered.length?'open':'')+'><summary><strong>إنشاء مهمة ترسيم جديدة</strong></summary>'+
  '<p>تُعرض المؤسسات المنشورة التي تسمح بها مقاطعتك أو منحك المهنية. لا تُنشأ سجلات مؤسسات مكررة.</p>'+
- '<div class="portal-form-grid"><label>عنوان المهمة<input id="prod-tit-title" type="text" maxlength="200" placeholder="ترسيم أستاذ — المؤسسة — التاريخ"></label>'+
- '<label>شبكة التقييم<select id="prod-tit-rubric"><option value="lesson_grouped_5_v1">خمسة معايير</option>'+
- '<option value="lesson_inspector_10_v1">عشرة عناصر</option>'+
- '<option value="lesson_derived_indicators_v1">14 مؤشرًا — بأوزان يحددها المفتش</option></select></label>'+
+ '<div class="portal-form-grid"><label>عنوان المهمة<input id="prod-tit-title" type="text" maxlength="200" value="'+html(missionFormDraft.title)+'" placeholder="ترسيم أستاذ — المؤسسة — التاريخ"></label>'+
+ '<label>شبكة التقييم<select id="prod-tit-rubric">'+
+ Object.entries(rubricLabels).map(([id,label])=>
+ '<option value="'+html(id)+'"'+(id===missionFormDraft.rubric?' selected':'')+'>'+
+  html(label)+(id===RUBRICS.analytical14.id?' — بأوزان يحددها المفتش':'')+'</option>').join("")+
+ '</select></label>'+
  '<label>المؤسسة<select id="prod-tit-institution"><option value="">— اختر المؤسسة —</option>'+
- institutions.map(r=>'<option value="'+html(r.id)+'">'+
+ institutions.map(r=>'<option value="'+html(r.id)+'"'+
+  (r.id===missionFormDraft.institutionId?' selected':'')+'>'+
   html(r.title+' ('+r.code+') — '+r.wilaya)+'</option>').join("")+
  '</select></label></div>'+
  (institutions.length?
@@ -130,19 +152,26 @@ export function render({profile}){
  return output;
 }
 export async function create(raw,get,form){
- const title=clean(form.title);
- const rubric=clean(form.rubric);
- const institutionId=clean(form.institutionId);
- if(title.length<3||title.length>200||
-  !["lesson_grouped_5_v1","lesson_inspector_10_v1","lesson_derived_indicators_v1"].includes(rubric)||
-  !institutions.some(r=>r.id===institutionId))
-  throw Error("أدخل عنوان المهمة واختر الشبكة والمؤسسة المصرح بها.");
+ rememberMissionForm(form);
+ const title=clean(form?.title);
+ const rubric=clean(form?.rubric);
+ const institutionId=clean(form?.institutionId);
+ if(title.length<3||title.length>200)
+  throw Error("عنوان المهمة مطلوب ويجب أن يتكون من 3 إلى 200 حرف.");
+ if(!Object.hasOwn(rubricLabels,rubric))
+  throw Error("شبكة التقييم غير معروفة؛ اختر إحدى الشبكات الثلاث.");
+ // Only syntactic shape is checked in the browser. The server is the single
+ // authority for district access and the published-institution relationship.
+ // A stale local catalog must not reject a legitimate selected resource UUID.
+ if(!UUID.test(institutionId))
+  throw Error("لم يُلتقط معرّف المؤسسة المختارة. أعد اختيار المؤسسة من القائمة.");
  const id=await raw("POST","/rest/v1/rpc/create_titularisation_mission",{
   p_title:title,p_rubric_id:rubric,p_institution_resource_id:institutionId
  },true);
  if(typeof id!=="string"||!UUID.test(id))
-  throw Error("لم يؤكد الخادم إنشاء المهمة.");
+  throw Error("لم يؤكد الخادم إنشاء المهمة. حدّث قائمة المهمات قبل إعادة المحاولة.");
  selected=id;
+ clearMissionForm();
  await refresh(get);
  if(!tasks.some(m=>m.id===id))
   throw Error("أُنشئت المهمة لكن لم نتمكن من استرجاعها. حدّث القائمة؛ لا تنشئ نسخة ثانية.");
