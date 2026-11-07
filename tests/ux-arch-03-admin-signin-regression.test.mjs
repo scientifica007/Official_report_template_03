@@ -116,7 +116,7 @@ test("UX-ARCH-03: main sidebar only shows Admin management navigation for admins
  assert.match(portal,/if\(page==='site_admin'\)[\s\S]*if\(!profile\?\.is_admin\)return;/);
  assert.match(portal,/window\.location\.assign\('\.\/prototypes\/ux-arch-03\/admin\/'\)/);
  assert.doesNotMatch(portal,/location\.(?:href|assign)\([^)]*access_token/);
- assert.match(source("index.html"),/cloud\.js\?v=p11-analytical14-20261107/);
+ assert.match(source("index.html"),/cloud\.js\?v=p12-create-form-20261107/);
 });
 test("UX-ARCH-03: direct Admin login UI uses password input and verifies role on server",()=>{
  const admin=source("prototypes/ux-arch-03/admin/app.mjs");
