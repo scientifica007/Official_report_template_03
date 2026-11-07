@@ -100,7 +100,7 @@ test("P1 report: new production mission seeds pinned institution without changin
  assert.match(editor,/control\.readOnly=true/);
  assert.match(html,/src="\.\.\/\.\.\/cloud-config\.js"/);
  assert.match(html,/محرر التقرير والمحضر المرتبط بمهمة الترسيم في حساب المفتش الأصلي/);
- assert.match(html,/app\.mjs\?v=p1-prod-inspector-20261106/);
+ assert.match(html,/app\.mjs\?v=p11-analytical14-20261107/);
  assert.doesNotMatch(html,/مشروع اختبار Supabase مستقل/);
 });
 
