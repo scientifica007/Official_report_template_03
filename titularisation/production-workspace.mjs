@@ -29,6 +29,15 @@ function clearMissionForm(){
  missionFormDraft.institutionId="";
 }
 const weightDrafts=new Map();
+let scopedInspectorId="";
+export function syncInspectorScope(id){
+ const next=UUID.test(String(id||""))?String(id):"";
+ if(scopedInspectorId===next)return;
+ scopedInspectorId=next;
+ tasks=[];institutions=[];selected="";error="";
+ weightDrafts.clear();
+ clearMissionForm();
+}
 const rubricLabels={
  [RUBRICS.grouped5.id]:"خمسة معايير",
  [RUBRICS.inspector10.id]:"عشرة عناصر",
