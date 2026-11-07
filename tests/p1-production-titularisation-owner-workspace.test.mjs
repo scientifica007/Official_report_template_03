@@ -117,7 +117,7 @@ test("P1 two-tenant separation: production never imports QA members; QA remains 
  assert.match(cloud,/ensureProductionTitularisation\(\)/);
  assert.match(cfg,/titularisationWorkspaceEnabled: true/);
  assert.match(cfg,/temporaryCommitteeEnabled: false/);
- assert.match(read("index.html"),/cloud\.js\?v=p1-prod-inspector-20261106/);
+ assert.match(read("index.html"),/cloud\.js\?v=p11-analytical14-20261107/);
  const standalone=read("prototypes/titularisation-committee/index.html");
  assert.doesNotMatch(standalone,/titularisationWorkspaceEnabled/);
 });
