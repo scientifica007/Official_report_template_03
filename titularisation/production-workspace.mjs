@@ -134,7 +134,7 @@ export function render({profile}){
  '<label>شبكة التقييم<select id="prod-tit-rubric">'+
  Object.entries(rubricLabels).map(([id,label])=>
  '<option value="'+html(id)+'"'+(id===missionFormDraft.rubric?' selected':'')+'>'+
-  html(label)+(id===RUBRICS.analytical14.id?' — بأوزان يحددها المفتش':'')+'</option>').join("")+
+  html(id===RUBRICS.analytical14.id?'14 مؤشرًا — بأوزان يحددها المفتش':label)+'</option>').join("")+
  '</select></label>'+
  '<label>المؤسسة<select id="prod-tit-institution"><option value="">— اختر المؤسسة —</option>'+
  institutions.map(r=>'<option value="'+html(r.id)+'"'+
