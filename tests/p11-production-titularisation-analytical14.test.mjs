@@ -69,7 +69,7 @@ test("P1.1 UI: all three networks offered; 14 requires group-by-group weight con
  assert.match(html,/توزيع أوزان المؤشرات الأربعة عشر/);
  assert.equal((html.match(/data-prod-tit-weight="/g)||[]).length,14);
  for(const g of GROUPS)assert.match(html,new RegExp(g.label));
- assert.doesNotMatch(html,/data-cloud-action="prod-tit-open" data-mission-id="'+analyticalId+'"/);
+ assert.equal(html.includes('data-cloud-action="prod-tit-open" data-mission-id="'+analyticalId+'"'),false);
  assert.throws(()=>workspace.open(analyticalId),/غير متاحة/);
  assert.equal(tasks.find(t=>t.id===oldId).rubric_id,RUBRICS.grouped5.id);
 });
@@ -93,7 +93,7 @@ test("P1.1 UI: invalid weights rejected locally; valid freeze goes through backe
  assert.equal(received.auth,true);
  const page=workspace.render({profile:{is_admin:false}});
  assert.match(page,/الأوزان مثبتة على الخادم/);
- assert.match(page,/data-cloud-action="prod-tit-open" data-mission-id="'+analyticalId+'"/);
+ assert.equal(page.includes('data-cloud-action="prod-tit-open" data-mission-id="'+analyticalId+'"'),true);
  assert.equal((page.match(/data-prod-tit-weight="/g)||[]).length,0);
  await assert.rejects(workspace.freeze(raw,get,analyticalId,weights),/لا يمكن تعديل/);
  const previousWindow=globalThis.window;
