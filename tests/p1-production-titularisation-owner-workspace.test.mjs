@@ -67,7 +67,7 @@ test("P1 production: list authorized tasks, create mission using server-side cat
  assert.doesNotMatch(view,/رابط.*عضو.*إصدار/);
  await assert.rejects(workspace.create(raw,get,{
   title:"مهمة",rubric:"lesson_grouped_5_v1",institutionId:"not-assigned"
- }),/اختر/);
+ }),/معرّف المؤسسة المختارة/);
 });
 
 test("P1 production: only mission UUID enters report URL, not inspector credentials",()=>{
