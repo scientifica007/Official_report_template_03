@@ -295,9 +295,9 @@ function renderEditor(){
  };
  updateScoreProgress();
  attachVoiceDictation(card);
- save.addEventListener("click",()=>persist(false));
+ save.addEventListener("click",()=>persist(false,save));
  send.addEventListener("click",()=>{
-  if(confirm(submitted?"سيُسجل هذا كتعديل جديد على المساهمة المرسلة، وستُحفظ النسخة السابقة. هل تؤكد؟":"هل تؤكد إرسال مساهمتك؟ يمكنك تصحيحها لاحقًا قبل إغلاق المهمة."))persist(true);
+  if(confirm(submitted?"سيُسجل هذا كتعديل جديد على المساهمة المرسلة، وستُحفظ النسخة السابقة. هل تؤكد؟":"هل تؤكد إرسال مساهمتك؟ يمكنك تصحيحها لاحقًا قبل إغلاق المهمة."))persist(true,send);
  });
  logout.addEventListener("click",()=>{
   if(dirty&&!confirm("توجد تعديلات لم تُحفظ. هل تريد تسجيل الخروج؟"))return;
@@ -305,9 +305,12 @@ function renderEditor(){
   renderLogin();
  });
 }
-async function persist(finalize){
+async function persist(finalize,button){
  if(busy)return;
- busy=true;statusText("جارٍ الحفظ على الخادم...");
+ busy=true;
+ const originalLabel=button?.textContent;
+ if(button){button.disabled=true;button.textContent="جارٍ الحفظ...";}
+ statusText("جارٍ الحفظ على الخادم...");
  try{
   // Re-check native input range validation before requesting the RPC.
   const fields=[...shell.querySelectorAll('input[type="number"]')];
