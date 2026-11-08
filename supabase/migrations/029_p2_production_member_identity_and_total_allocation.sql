@@ -33,7 +33,9 @@ begin
  values(p_mission_id,p_seat_code,g,f,v,left(concat_ws(' ',nullif(g,''),nullif(f,'')),160))
  on conflict(mission_id,seat_code) do update
  set given_name=excluded.given_name,family_name=excluded.family_name,
-  member_role=excluded.member_role,display_name=excluded.display_name,updated_at=now();
+  member_role=excluded.member_role,
+  display_name=case when excluded.display_name='' then public.titularisation_seats.display_name
+   else excluded.display_name end,updated_at=now();
  return true;
 end $owner$;
 revoke all on function public.set_prod_titularisation_seat_identity(uuid,text,text,text,text)
