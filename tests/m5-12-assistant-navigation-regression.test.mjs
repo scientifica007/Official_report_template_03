@@ -23,7 +23,7 @@ test("M5.12 discoverability: inspector dashboard exposes an explicit private ass
 
 test("M5.12 discoverability: helper path requires actual import and successful owner check",()=>{
  assert.match(inspector,/const assistantRequested=qaReport&&new URLSearchParams\(location\.search\)\.get\("assistant"\)==="1"/);
- assert.match(inspector,/if\(qaReport\)\{\s*try\{\s*const \{loadInspectorSynthesisSources\}/);
+ assert.match(inspector,/if\(missionBoundReport\)\{\s*try\{\s*const \{loadInspectorSynthesisSources\}/);
  assert.match(inspector,/await synthesisReview\.activate\(id\)/);
  assert.match(inspector,/if\(!synthesisReview\.panel\.hidden\)\{/);
  assert.match(inspector,/synthesisReview\.panel\.scrollIntoView\?\./);
