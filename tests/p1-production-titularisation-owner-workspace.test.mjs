@@ -98,7 +98,7 @@ test("P1 report: new production mission seeds pinned institution without changin
  assert.match(editor,/target\.meta\.institutionResourceId!==mission\.institution_resource_id/);
  assert.match(editor,/if\(prodReport\)\$\("members"\)\.hidden=true/);
  assert.match(editor,/control\.readOnly=true/);
- assert.match(html,/src="\.\.\/\.\.\/cloud-config\.js"/);
+ assert.match(html,/src="\.\.\/\.\.\/cloud-config\.js\?v=p2-committee-20261108"/);
  assert.match(html,/محرر التقرير والمحضر المرتبط بمهمة الترسيم في حساب المفتش الأصلي/);
  assert.match(html,/app\.mjs\?v=p2-committee-20261108/);
  assert.doesNotMatch(html,/مشروع اختبار Supabase مستقل/);
