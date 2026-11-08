@@ -130,7 +130,7 @@ test("P2 modified modules parse and production cache busting is explicit",()=>{
   assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path]));
  }
  assert.match(text("index.html"),/cloud\.js\?v=p2-committee-20261108/);
- assert.match(text("titularisation/report/index.html"),/app\.mjs\?v=p2-committee-20261108/);
+ assert.match(text("titularisation/report/index.html"),/app\.mjs\?v=p2-prod-synth-20261108/);
 });
 
 test("P2 member draft save provides one visible, accessible confirmation after server success",()=>{

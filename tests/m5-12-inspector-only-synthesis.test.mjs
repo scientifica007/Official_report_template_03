@@ -98,7 +98,7 @@ test("M5.12: source revision or member correction invalidates preview fingerprin
  assert.notEqual(sourceFingerprint(first),sourceFingerprint(third));
 });
 
-test("M5.12: source input must be QA owner-only, unique submitted seats, valid notes",()=>{
+test("M5.12: source input must be verified inspector-only, unique submitted seats, valid notes",()=>{
  for(const invalid of [
   {...source([]),owner_only:false},
   {...source([]),qa_only:false},
@@ -142,7 +142,7 @@ test("M5.12: inspector page loads review only after authorized contribution impo
 
 test("M5.12: explicit inspector decision, stale-source check and untouched score/print engines",()=>{
  const ui=read("prototypes/titularisation-committee/inspector-synthesis-ui.mjs");
- assert.match(ui,/if\(latest\.owner_only!==true\|\|latest\.qa_only!==true/);
+ assert.match(ui,/latest\.qa_only!==true&&latest\.production_owner!==true/);
  assert.match(ui,/sourceFingerprint\(latest\)!==snapshot\.sourceFingerprint/);
  assert.match(ui,/getState\(\)\.serial!==generatedSerial/);
  assert.match(ui,/getWho\(\)!=="final"/);
@@ -155,4 +155,24 @@ test("M5.12: explicit inspector decision, stale-source check and untouched score
   "prototypes/titularisation-committee/inspector-synthesis-ui.mjs",
   "prototypes/titularisation-committee/committee-cloud-bridge.mjs"
  ])assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path],{stdio:"pipe"}));
+});
+
+test("P2 production: owner-scoped synthesis accepts production without QA flag",()=>{
+ const original=source([["member1",note({
+  lesson:{g1_1:"أحسن الأستاذ تنظيم الحصة"},
+  general:"يحتاج الأستاذ إلى تحسين توزيع الوقت"
+ })]],"lesson_derived_indicators_v1");
+ const production={...original,qa_only:false,production_owner:true};
+ production.rows[0].revision=13;
+ const result=synthesizeInspectorNotes(production);
+ assert.ok(result.fields.some(field=>field.key==="lesson:g1_1"));
+ assert.ok(result.fields.some(field=>field.key==="field:general"));
+ assert.equal(result.fields.find(field=>field.key==="lesson:g1_1").sources[0].revision,13);
+ for(const invalid of [
+  {...production,owner_only:false},
+  {...production,qa_only:false,production_owner:false},
+  {...production,qa_only:false,production_owner:undefined},
+  {...production,rows:[...production.rows,production.rows[0]]},
+  {...production,rows:[{...production.rows[0],seat_code:"outsider"}]}
+ ])assert.throws(()=>synthesizeInspectorNotes(invalid));
 });
