@@ -18,7 +18,7 @@ import {hydrateReportInspectorFromVerifiedProfile} from "../../qa-titularisation
 import {inspectorProfileDefaults} from "../../qa-titularisation/workspace-sources.mjs";
 import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/mission-navigation.mjs";
 let state=freshCommittee(),who="final";
-let synthesisReview=null; // Created only after an owner-authorized QA import.
+let synthesisReview=null; // Created after owner-authorized mission import (production RLS or QA).
 const qaReport=typeof window!=="undefined"&&window.REPORT03_CLOUD_CONFIG?.qaOnly===true;
 const prodReport=typeof window!=="undefined"&&
  window.REPORT03_CLOUD_CONFIG?.qaOnly!==true&&
@@ -253,7 +253,7 @@ if(missionBoundReport&&linkedMissionId){
 if(committeeCloudEnabled()){
  const panel=$("committee-cloud-bridge"),picker=$("committee-cloud-mission");
  if(panel&&picker){
-  panel.hidden=prodReport;
+  panel.hidden=false;
   const info=v=>{$("committee-cloud-status").textContent=v;};
   picker.addEventListener("change",()=>synthesisReview?.reset());
   $("committee-cloud-refresh").addEventListener("click",async()=>{
@@ -294,10 +294,9 @@ if(committeeCloudEnabled()){
     clearVoiceDrafts();
     state=next.state;flagCloudDraftDirty();who="final";render();
     info("استُوردت "+next.seats.length+" مساهمة مرسلة بعد التحقق. بقيت بيانات المفتش النهائية كما هي.");
-    // No synthesis UI is created unless an inspector OWNER-only QA response
-    // succeeds. Member accounts, local simulations, and production cannot
-    // activate the tool, even by forging a browser role flag.
-    if(qaReport){
+    // The assistant is exposed only after the inspector's OWNER-scoped
+    // contribution read succeeds. A bearer member link has no such role.
+    if(missionBoundReport){
      try{
       const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs");
       const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=m513-editorial-20261104");
@@ -326,7 +325,7 @@ if(committeeCloudEnabled()){
    }catch(err){info(err.message)}
   });
   if(missionBoundReport){
-   if(qaReport)$("committee-cloud-refresh").click();
+   $("committee-cloud-refresh").click();
    // When launched from an inspector's mission, make the saved mission
    // the single source of truth even BEFORE the user clicks import. The
    // initial empty grouped-five draft must not ask for duplicate weights.
@@ -389,7 +388,7 @@ if(committeeCloudEnabled()){
        "المهمة جاهزة. تم التحقق من ملف المفتش؛ احفظ مسودة التقرير بعد التحرير.");
      }
      picker.value=linked;picker.disabled=true;
-     info((prodReport?"المهمة الإنتاجية متاحة للمفتش دون حسابات أعضاء في هذه المرحلة. ":"")+"تم تحميل شبكة المهمة وأوزانها، واستُعيدت مسودة المفتش إن كانت محفوظة. استيراد مساهمات اللجنة يتم دون تغيير العلامات والنصوص النهائية للمفتش."+
+     info((prodReport?"المهمة الإنتاجية المرتبطة بمقاعد أعضاء اللجنة متاحة للمفتش. ":"")+"تم تحميل شبكة المهمة وأوزانها، واستُعيدت مسودة المفتش إن كانت محفوظة. استيراد مساهمات اللجنة يتم دون تغيير العلامات والنصوص النهائية للمفتش."+
       (assistantRequested?" ستظهر لوحة مساعد المفتش بعد الاستيراد.":""));
     }).catch(err=>{
      cloudDraftReady=false;
