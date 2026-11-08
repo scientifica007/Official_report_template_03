@@ -378,7 +378,7 @@ async function persist(finalize,button){
  statusText("جارٍ الحفظ على الخادم...");
  try{
   // Re-check native input range validation before requesting the RPC.
-  const fields=[...shell.querySelectorAll('input[type="number"]')];
+  const fields=[...shell.querySelectorAll('.assessment input[type="number"]')];
   if(fields.some(x=>!x.checkValidity()))throw Error("تحقق من صحة العلامات وحدودها.");
   // The UI disables send for missing marks, but the check is repeated at the
   // action boundary. The database independently enforces the same invariant.
