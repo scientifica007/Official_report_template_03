@@ -132,3 +132,17 @@ test("P2 modified modules parse and production cache busting is explicit",()=>{
  assert.match(text("index.html"),/cloud\.js\?v=p2-committee-20261108/);
  assert.match(text("titularisation/report/index.html"),/app\.mjs\?v=p2-committee-20261108/);
 });
+
+test("P2 member draft save provides one visible, accessible confirmation after server success",()=>{
+ const member=text("committee-member/app.mjs");
+ const shell=text("titularisation/member/index.html");
+ assert.doesNotMatch(member,/n\.id="member-status"/);
+ assert.match(member,/saveFeedback\.id="member-status"/);
+ assert.match(member,/saveFeedback\.setAttribute\("role","status"\)/);
+ assert.match(member,/saveFeedback\.setAttribute\("aria-live","polite"\)/);
+ assert.match(member,/card\.append\(bar,saveFeedback\)/);
+ assert.match(member,/statusText\("جارٍ الحفظ على الخادم\.\.\."\)/);
+ assert.match(member,/contributionRevision\+"\."\)/);
+ assert.match(member,/statusText\("فشل الحفظ: "\+error\.message,"error"\)/);
+ assert.match(shell,/app\.mjs\?v=p2-save-feedback-20261108/);
+});
