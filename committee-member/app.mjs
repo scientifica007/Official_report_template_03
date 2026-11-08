@@ -107,8 +107,9 @@ function renderLogin(){
  shell.replaceChildren();
  const box=el("section");box.className="card login";
  if(productionMember){
-  box.append(el("h1","رابط مساهمة لجنة الترسيم"),
-   message("الرابط غير متاح أو انتهت صلاحيته. اطلب من رئيس اللجنة رابطًا مباشرًا جديدًا؛ لا يلزم اسم مستخدم أو كلمة مرور.",true));
+  const feedback=message("الرابط غير متاح أو انتهت صلاحيته. اطلب من رئيس اللجنة رابطًا مباشرًا جديدًا؛ لا يلزم اسم مستخدم أو كلمة مرور.",true);
+  feedback.id="member-status";feedback.setAttribute("role","alert");
+  box.append(el("h1","رابط مساهمة لجنة الترسيم"),feedback);
   shell.append(box);return;
  }
  box.append(el("h1","الدخول إلى مساهمة اللجنة"),
@@ -121,6 +122,7 @@ function renderLogin(){
  const submit=el("button","تسجيل الدخول");submit.type="submit";
  form.append(label("اسم المستخدم",username),label("كلمة المرور",password),submit);
  const feedback=message("لا تضع كلمة المرور في الرابط أو في ملف JSON.");
+ feedback.id="member-status";feedback.setAttribute("role","status");
  form.addEventListener("submit",async event=>{
   event.preventDefault();if(busy)return;
   busy=true;submit.disabled=true;feedback.textContent="جارٍ التحقق...";
