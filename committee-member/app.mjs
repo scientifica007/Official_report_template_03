@@ -1,7 +1,7 @@
 // M5.1 — separate, seat-scoped inspector-committee contributor interface.
 // Public HTML is not an authorization boundary; Supabase RLS and authenticated
 // RPC enforce the permission for EACH contribution and read.
-import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,distributePhaseTotal,totals,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
+import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,distributePhaseTotal,totals,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs?v=p2-phase-total-20261108";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../shared/voice-dictation.mjs";
 import {createPairedScore} from "../shared/score-range.mjs";
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
