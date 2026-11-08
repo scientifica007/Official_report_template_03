@@ -189,9 +189,51 @@ function addScoreField(area,phase,item,onScoreChange,scoreFields){
  scoreFields.set(phase+":"+item.id,{score,row,hint});
  area.append(row);
 }
+function renderSeatIdentity(){
+ const panel=el("section");panel.className="card member-identity";
+ panel.append(el("h2","بيانات عضو اللجنة"),
+  el("p","يمكنك إدراج اسمك ولقبك وصفتك المهنية وتصحيحها، ولو سبق لرئيس اللجنة إدخالها. حفظ هذه البيانات مستقل عن تنقيطك."));
+ const fields={};
+ for(const [key,title,limit] of [
+  ["given_name","الاسم",100],["family_name","اللقب",100],
+  ["member_role","الصفة المهنية",160]]){
+  const input=el("input");input.type="text";input.maxLength=limit;
+  input.value=seat[key]||"";
+  fields[key]=input;
+  panel.append(label(title,input));
+ }
+ const save=el("button","حفظ بياناتي الشخصية");save.type="button";
+ const feedback=message("تستطيع تعديل بياناتك مجددًا ما دامت المهمة مفتوحة.");
+ feedback.setAttribute("role","status");feedback.setAttribute("aria-live","polite");
+ save.addEventListener("click",async()=>{
+  if(busy)return;
+  if(!confirm("هل تؤكد حفظ الاسم واللقب والصفة المهنية لهذا المقعد فقط؟"))return;
+  busy=true;save.disabled=true;feedback.textContent="جارٍ حفظ بيانات العضو...";
+  try{
+   const token=await ensureToken();
+   const identity={
+    p_given_name:fields.given_name.value.trim(),
+    p_family_name:fields.family_name.value.trim(),
+    p_member_role:fields.member_role.value.trim()
+   };
+   const success=await request("/rest/v1/rpc/save_prod_titularisation_member_identity",{
+    method:"POST",body:{p_mission_id:requestedMission,p_seat_code:requestedSeat,p_token:token,...identity}});
+   if(success!==true)throw Error("لم يؤكد الخادم حفظ البيانات");
+   seat.given_name=identity.p_given_name;
+   seat.family_name=identity.p_family_name;
+   seat.member_role=identity.p_member_role;
+   seat.display_name=[seat.given_name,seat.family_name].filter(Boolean).join(" ");
+   feedback.textContent="تم حفظ الاسم واللقب والصفة على الخادم بنجاح؛ لا تتغير علاماتك أو مراجعات مساهمتك.";
+   feedback.className="notice";
+  }catch(error){feedback.textContent="فشل الحفظ: "+error.message;feedback.className="alert";}
+  finally{busy=false;save.disabled=false;}
+ });
+ panel.append(save,feedback);return panel;
+}
 function renderEditor(){
  dismissVoiceDictation();
  shell.replaceChildren(header());
+ if(productionMember)shell.append(renderSeatIdentity());
  const card=el("section");card.className="card";
  card.append(el("h2","تقدير الأداء المهني"),
   el("p","هذه مساهمتك أنت فقط. يستطيع رئيس اللجنة الاطلاع عليها بعد حفظها. لا تتغير مساهمات بقية الأعضاء."));
