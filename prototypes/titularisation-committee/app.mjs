@@ -299,7 +299,7 @@ if(committeeCloudEnabled()){
     if(missionBoundReport){
      try{
       const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs");
-      const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=p2-prod-20261108");
+      const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=p2-prod-owner-20261108");
       if(!synthesisReview)synthesisReview=mountInspectorSynthesis({
        anchor:panel,loadSources:loadInspectorSynthesisSources,
        getState:()=>state,getWho:()=>who,
