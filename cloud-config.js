@@ -9,6 +9,7 @@ window.REPORT03_CLOUD_CONFIG = Object.freeze({
   // M5.1 secure temporary-member backend must pass server/RLS tests before enabling.
   temporaryCommitteeEnabled: false,
   // P1: owner-only production titularisation mission and report draft.
-  // Committee member invitations remain disabled until their security review.
-  titularisationWorkspaceEnabled: true
+  // P2: bearer-capability committee seats scoped to a production mission; no temporary Auth users.
+  titularisationWorkspaceEnabled: true,
+  titularisationCommitteeEnabled: true
 });

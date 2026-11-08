@@ -31,7 +31,7 @@ const productionTaskRequested=new URLSearchParams(location.search).get('titulari
 async function ensureProductionTitularisation(){
  if(!productionTitularisationEnabled)throw Error('مسار الترسيم الإنتاجي غير مفعل.');
  if(!productionTitularisationModule)
-  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p12-create-form-20261107');
+  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p2-committee-20261108');
  // A browser tab may be used by different approved accounts. Drafted titles,
  // chosen institutions and pending analytical weights must not cross accounts.
  productionTitularisationModule.syncInspectorScope(session?.user?.id||profile?.id);
@@ -1496,6 +1496,36 @@ root.addEventListener('click',async e=>{
     await workspace.freeze(raw,get,missionId,weights);
     feedback='ثبتت الأوزان بعد التحقق الخادمي. أصبح بإمكانك فتح التقرير والمحضر بهذه الشبكة.';
    }else feedback='لم تُثبَّت الأوزان؛ احتُفظ بالقيم التي أدخلتها.';
+  }else if(action==='prod-tit-issue-seat'){
+   // Read the name before await: re-renders must not change invitation data.
+   const seat=button.dataset.seat,missionId=button.dataset.missionId;
+   const name=document.getElementById('prod-tit-seat-name-'+seat)?.value||'';
+   if(confirm('إصدار رابط جديد لهذا المقعد يلغي أي رابط سابق له، مع إبقاء المساهمات المحفوظة. هل تؤكد؟')){
+    const workspace=await ensureProductionTitularisation();
+    await workspace.issueSeat(raw,get,missionId,seat,name);
+    feedback='صدر رابط مباشر خاص بالعضو. انسخه أو نزّل بطاقة PDF الآن؛ لا يُعرض السر بعد مغادرة الصفحة.';
+   }else feedback='لم يُغيّر رابط العضو.';
+  }else if(action==='prod-tit-revoke-seat'){
+   if(confirm('سيُلغى رابط هذا العضو فورًا مع الاحتفاظ بجميع مساهماته. هل تؤكد؟')){
+    const workspace=await ensureProductionTitularisation();
+    await workspace.revokeSeat(raw,get,button.dataset.missionId,button.dataset.seat);
+    feedback='أُلغي رابط العضو؛ بقيت مساهماته ومراجعاتها محفوظة.';
+   }
+  }else if(action==='prod-tit-copy-link'){
+   const workspace=await ensureProductionTitularisation();
+   const link=workspace.currentIssuedInvitation();
+   if(!link)throw Error('لم يعد رابط الدعوة متاحًا؛ أصدر رابطًا جديدًا.');
+   await navigator.clipboard.writeText(link.url);
+   feedback='نُسخ رابط العضو إلى الحافظة.';
+  }else if(action==='prod-tit-download-invite'){
+   const workspace=await ensureProductionTitularisation();
+   const info=workspace.currentIssuedInvitation();
+   if(!info)throw Error('لم يعد رابط الدعوة متاحًا؛ أصدر رابطًا جديدًا.');
+   const {downloadInvitationPdf}=await import('./qa-titularisation/invitation-pdf.mjs');
+   const labels={member1:'العضو الأول',member2:'العضو الثاني',member3:'العضو الثالث'};
+   downloadInvitationPdf({url:info.url,title:info.title,
+    seat:labels[info.seat],expiresAt:info.expiresAt});
+   feedback='أُنشئت بطاقة الدعوة مع QR ورابط مباشر للمقعد.';
   }else if(action==='prod-tit-open'){
    const workspace=await ensureProductionTitularisation();
    workspace.open(button.dataset.missionId);

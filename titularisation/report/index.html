@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>تقرير ومحضر الترسيم — مهمة المفتش</title>
-<link rel="stylesheet" href="../../prototypes/titularisation-committee/style.css?v=p04-qa-mission-return-20261106"><link rel="stylesheet" href="../../shared/score-range.css?v=m510"><link rel="stylesheet" href="../../prototypes/titularisation-committee/print-layout-b5.css" media="print"><script src="../../cloud-config.js" defer></script><script type="module" src="../../prototypes/titularisation-committee/app.mjs?v=p1-prod-inspector-20261106"></script></head>
+<link rel="stylesheet" href="../../prototypes/titularisation-committee/style.css?v=p04-qa-mission-return-20261106"><link rel="stylesheet" href="../../shared/score-range.css?v=m510"><link rel="stylesheet" href="../../prototypes/titularisation-committee/print-layout-b5.css" media="print"><script src="../../cloud-config.js?v=p2-committee-20261108" defer></script><script type="module" src="../../prototypes/titularisation-committee/app.mjs?v=p2-committee-20261108"></script></head>
 <body><header><small>المنصة الرئيسية — حساب المفتش المهني</small><h1>إعداد تقرير ومحضر الترسيم</h1>
 <p>محرر التقرير والمحضر المرتبط بمهمة الترسيم في حساب المفتش الأصلي. تُحفظ مسودة الوثيقتين في سجل المهمة نفسه مع حفظ أرقام المراجعات.</p>
 <p class="warning">هذه مسودة قابلة للتحرير وليست اعتمادًا إلكترونيًا أو إمضاءً أو ختمًا. النسخة الورقية الموقعة والمؤشر عليها من اللجنة هي المرجع المهني الرسمي.</p>
@@ -12,7 +12,7 @@
 <label>شبكة الحصة<select id="rubric"><option value="grouped5">شبكة الخمسة</option>
 <option value="inspector10">شبكة العشرة</option><option value="analytical14">شبكة 14 مؤشرًا</option></select></label>
 <label>المحرر النشط<select id="who"></select></label>
-<p class="small">هذه المهمة في المرحلة الحالية خاصة بالمفتش صاحب الحساب. مساهمات أعضاء اللجنة ستُدمج لاحقًا بعد تهيئة حساباتهم وصلاحياتهم الإنتاجية؛ لا تُستخدم روابط QA.</p>
+<p class="small">المهمة مرتبطة بحساب المفتش وبمقاعد أعضاء اللجنة في الإنتاج. استدعِ مساهمات الأعضاء المرسلة من المهمة نفسها، دون ملفات JSON يدوية. مساهمات QA معزولة ولا تُستورد هنا.</p>
 <div class="actions"><button id="save" type="button">تصدير مسودة JSON</button>
 <label class="file-label">استيراد JSON<input id="load" type="file" accept=".json,application/json"></label>
 <span class="export-label">التقرير:</span>
@@ -33,7 +33,7 @@
 <button id="qa-chair-use-profile-name" type="button" hidden>استخدام اسمي من الحساب الرئيسي رئيسًا للجنة</button>
 <p class="small">يُجلب الاسم والمقاطعة والبريد من الملف المهني المتاح. مقر المفتش وهاتفه يُتركان فارغين إذا لم يتوفرا في الحساب.</p>
 </div><div id="meta" class="meta-grid"></div></section>
-<section id="committee-cloud-bridge" class="panel" hidden><h2>مساهمات اللجنة (المرحلة اللاحقة)</h2><p>التعاون مع أعضاء اللجنة غير مفعل بعد في مهام الإنتاج؛ لا تستورد ملفات المختبر QA إلى هذه المهمة.</p><div class="actions"><button type="button" id="committee-cloud-refresh">عرض مهامي</button><select id="committee-cloud-mission" aria-label="اختيار مهمة الترسيم"><option value="">— اختر مهمة —</option></select><button type="button" id="committee-cloud-import">استيراد المساهمات المرسلة</button></div><p id="committee-cloud-status" role="status" aria-live="polite"></p></section>
+<section id="committee-cloud-bridge" class="panel" hidden><h2>مساهمات أعضاء اللجنة — المهمة الحالية</h2><p>تُقرأ مساهمات الأعضاء المرسلة من نفس مهمة الترسيم، وتُحفظ منفصلة عن العلامات والتقديرات التي يحررها المفتش. بعد المراجعة، يقرر المفتش ما يُدرج في النص النهائي.</p><div class="actions"><button type="button" id="committee-cloud-refresh">عرض مهامي</button><select id="committee-cloud-mission" aria-label="اختيار مهمة الترسيم"><option value="">— اختر مهمة —</option></select><button type="button" id="committee-cloud-import">استيراد المساهمات المرسلة</button></div><p id="committee-cloud-status" role="status" aria-live="polite"></p></section>
 <section id="weights" class="panel"></section>
 <section id="editor" class="panel"></section>
 <section id="members" class="panel"></section>
