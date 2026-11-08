@@ -294,3 +294,7 @@ button.demo-fill-button:hover{background:#f5dfa6}
 @media(max-width:620px){
  .qa-mission-return-action:not([hidden]){width:100%}
 }
+
+.phase-total-allocation{border:1px solid #bdd8c9;border-inline-start:4px solid #277051;background:#f6faf7;border-radius:9px;padding:12px;margin:12px 0 16px}
+.phase-total-allocation label.field{max-width:330px}
+.phase-total-allocation button{margin:5px 0}
