@@ -90,6 +90,8 @@ test("P2 production member reuses same scoring engine, direct bearer links, and 
  assert.match(member,/load_prod_titularisation_member/);
  assert.match(member,/save_prod_titularisation_member/);
  assert.match(member,/p_expected_revision:contributionRevision/);
+ assert.match(member,/productionMember\?"_"\+requestedMission\+"_"
+\+requestedSeat/);
  assert.match(member,/missingMandatoryScores\(payload\.grading\)/);
  assert.match(member,/if\(productionMember\)\{/);
  assert.match(member,/history\.replaceState\(null,"",location\.pathname\+location\.search\)/);
