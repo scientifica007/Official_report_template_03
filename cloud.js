@@ -1496,13 +1496,20 @@ root.addEventListener('click',async e=>{
     await workspace.freeze(raw,get,missionId,weights);
     feedback='ثبتت الأوزان بعد التحقق الخادمي. أصبح بإمكانك فتح التقرير والمحضر بهذه الشبكة.';
    }else feedback='لم تُثبَّت الأوزان؛ احتُفظ بالقيم التي أدخلتها.';
-  }else if(action==='prod-tit-issue-seat'){
-   // Read the name before await: re-renders must not change invitation data.
+  }else if(action==='prod-tit-save-seat-identity'||action==='prod-tit-issue-seat'){
+   // Snapshot editable fields before an asynchronous refresh/re-render.
    const seat=button.dataset.seat,missionId=button.dataset.missionId;
-   const name=document.getElementById('prod-tit-seat-name-'+seat)?.value||'';
-   if(confirm('إصدار رابط جديد لهذا المقعد يلغي أي رابط سابق له، مع إبقاء المساهمات المحفوظة. هل تؤكد؟')){
+   const given=document.getElementById('prod-tit-seat-given-'+seat)?.value||'';
+   const family=document.getElementById('prod-tit-seat-family-'+seat)?.value||'';
+   const role=document.getElementById('prod-tit-seat-role-'+seat)?.value||'';
+   if(action==='prod-tit-save-seat-identity'){
     const workspace=await ensureProductionTitularisation();
-    await workspace.issueSeat(raw,get,missionId,seat,name);
+    await workspace.saveSeatIdentity(raw,get,missionId,seat,given,family,role);
+    feedback='حُفظ الاسم واللقب والصفة المهنية في سجل المقعد؛ يستطيع العضو تعديلها من رابطه.';
+   }else if(confirm('إصدار رابط جديد لهذا المقعد يلغي أي رابط سابق له، مع إبقاء المساهمات المحفوظة. هل تؤكد؟')){
+    const workspace=await ensureProductionTitularisation();
+    await workspace.saveSeatIdentity(raw,get,missionId,seat,given,family,role);
+    await workspace.issueSeat(raw,get,missionId,seat,[given,family].filter(Boolean).join(' ').trim());
     feedback='صدر رابط مباشر خاص بالعضو. انسخه أو نزّل بطاقة PDF الآن؛ لا يُعرض السر بعد مغادرة الصفحة.';
    }else feedback='لم يُغيّر رابط العضو.';
   }else if(action==='prod-tit-revoke-seat'){
