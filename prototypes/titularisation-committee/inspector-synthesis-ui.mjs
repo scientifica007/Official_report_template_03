@@ -1,5 +1,5 @@
-// M5.12 inspector-only QA review. Never imported by committee-member/app.mjs.
-// This UI is mounted ONLY after an owner-authorized Edge response was verified.
+// Inspector-only owner review, QA or production. Never imported by committee-member/app.mjs.
+// QA uses an owner-verified Edge response; production uses owner-scoped RLS.
 // Never copy source attributions into the proposed report text.
 import {node,clear} from "./dom.mjs";
 import {synthesizeInspectorNotes,sourceFingerprint} from "./inspector-synthesis.mjs?v=m514-semantic-20261104";
@@ -44,10 +44,11 @@ export function mountInspectorSynthesis({
   reset();
   if(!missionId||getMissionId()!==missionId)return;
   const stamp=sequence;
-  // Owner verification takes place in QA Edge, never from a browser role flag.
+  // Owner verification comes from QA Edge or from production owner-scoped RLS.
   const source=await loadSources(missionId);
   if(stamp!==sequence||getMissionId()!==missionId)return;
-  if(source.owner_only!==true||source.qa_only!==true||
+  if(source.owner_only!==true||
+     (source.qa_only!==true&&source.production_owner!==true)||
      source.mission_id!==missionId)throw Error("لا توجد صلاحية تركيب لهذه المهمة.");
   activeMission=missionId;
   base();panel.hidden=false;
@@ -64,7 +65,8 @@ export function mountInspectorSynthesis({
    if(getWho()!=="final")throw Error("اختر «المفتش — الصيغة النهائية» أولًا.");
    const source=await loadSources(activeMission);
    if(stamp!==sequence||!activeMission||getMissionId()!==activeMission)return;
-   if(source.owner_only!==true||source.qa_only!==true||
+   if(source.owner_only!==true||
+     (source.qa_only!==true&&source.production_owner!==true)||
       source.mission_id!==activeMission)throw Error("انتهت صلاحية الوصول للمهمة.");
    if(getState().rubricId!==source.rubric_id)
     throw Error("شبكة المحرر لا تطابق المهمة؛ أعد استيراد مساهمات المهمة.");
