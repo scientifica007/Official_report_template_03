@@ -2,7 +2,7 @@
 // QA uses an owner-verified Edge response; production uses owner-scoped RLS.
 // Never copy source attributions into the proposed report text.
 import {node,clear} from "./dom.mjs";
-import {synthesizeInspectorNotes,sourceFingerprint} from "./inspector-synthesis.mjs?v=m514-semantic-20261104";
+import {synthesizeInspectorNotes,sourceFingerprint} from "./inspector-synthesis.mjs?v=p2-prod-owner-20261108";
 import {auditInspectorDraft} from "./inspector-prose-quality.mjs";
 
 export function mountInspectorSynthesis({
@@ -238,7 +238,8 @@ export function mountInspectorSynthesis({
    const latest=await loadSources(activeMission);
    if(sequence!==stamp||proposal!==snapshot||getMissionId()!==activeMission)
     throw Error("تغيرت المهمة أثناء التحقق. أعد فتح المساعد من مهمتك.");
-   if(latest.owner_only!==true||latest.qa_only!==true||
+   if(latest.owner_only!==true||
+      (latest.qa_only!==true&&latest.production_owner!==true)||
       sourceFingerprint(latest)!==snapshot.sourceFingerprint)
     throw Error("عُدّلت مساهمات اللجنة بعد التحليل. أعد تكوين المقترحات.");
    if(getState().serial!==generatedSerial)
