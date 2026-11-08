@@ -1,7 +1,7 @@
 // M5.1 — separate, seat-scoped inspector-committee contributor interface.
 // Public HTML is not an authorization boundary; Supabase RLS and authenticated
 // RPC enforce the permission for EACH contribution and read.
-import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
+import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,distributePhaseTotal,totals,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../shared/voice-dictation.mjs";
 import {createPairedScore} from "../shared/score-range.mjs";
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
@@ -220,6 +220,29 @@ function renderEditor(){
  for(const [phase,title,rows] of [
   ["lesson","تقييم الحصة التدريسية",lessonItems(payload.grading)],
   ["discussion","تقييم المناقشة",DISCUSSION]]){
+  const cap=phase==="lesson"?40:20;
+  const allocate=el("section");allocate.className="total-allocation";
+  const totalLabel=el("label");
+  const totalInput=el("input");totalInput.type="number";totalInput.step="0.5";
+  totalInput.min="0";totalInput.max=String(cap);totalInput.inputMode="decimal";
+  const existing=totals(payload.grading)[phase];
+  totalInput.value=existing.complete?String(existing.total):"";
+  totalLabel.append(el("span","العلامة الكلية لل"+(phase==="lesson"?"حصة البيداغوجية":"مناقشة")+" من "+cap),totalInput);
+  const applyTotal=el("button","توزيع العلامة الكلية على المؤشرات");
+  applyTotal.type="button";
+  const allocationFeedback=el("p","توزيع حسابي وفق الأوزان وبخطوة نصف نقطة، قابل للتعديل؛ لا يمثل تقييمًا مباشرًا لكل مؤشر.");
+  allocationFeedback.className="notice";
+  applyTotal.addEventListener("click",()=>{
+   if(!totalInput.checkValidity()||totalInput.value===""){totalInput.reportValidity();return;}
+   if(!confirm("ستُستبدل علامات "+(phase==="lesson"?"الحصة":"المناقشة")+
+    " الحالية بتوزيع نسبي لأوزان المؤشرات. ستحفظ النتيجة فقط عند الضغط على حفظ/إرسال. هل تؤكد؟"))return;
+   try{
+    payload.grading=distributePhaseTotal(payload.grading,phase,totalInput.value);
+    dirty=true;renderEditor();statusText("وُزعت العلامة الكلية لهذا الامتحان؛ توجد تعديلات غير محفوظة.");
+   }catch(error){allocationFeedback.textContent=error.message;allocationFeedback.className="alert";}
+  });
+  allocate.append(totalLabel,applyTotal,allocationFeedback);
+  card.append(allocate);
   const group=el("details");group.open=true;
   group.append(el("summary",title));
   const grid=el("div");grid.className="assessments";
