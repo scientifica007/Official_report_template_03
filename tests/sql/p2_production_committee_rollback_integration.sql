@@ -51,8 +51,7 @@ begin
  if not denied then raise exception 'Incomplete final accepted';end if;
  select jsonb_object_agg(key,1) into scores_l from jsonb_each_text(m.rubric_profile->'weights')
  where value::numeric>0;
- select jsonb_object_agg(item_id,1) into scores_d from public.titularisation_score_caps
- where rubric_id='lesson_grouped_5_v1' and phase='discussion' and cap>0;
+ scores_d:='{"d1":1,"d2":1,"d3":1,"d4":1,"d5":1,"d6":1,"d7":1}'::jsonb;
  complete:=jsonb_set(draft,'{grading,scores}',jsonb_build_object('lesson',scores_l,'discussion',scores_d));
  rev:=public.save_prod_titularisation_member(test_id,'member1',token,complete,1,true);
  if rev<>2 then raise exception 'Complete final rev2 error';end if;
