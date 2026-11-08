@@ -11,6 +11,8 @@ const shell=document.getElementById("member-app");
 const params=new URLSearchParams(location.search);
 const requestedMission=params.get("mission")||"";
 const requestedSeat=params.get("seat")||"";
+const productionMember=location.pathname.includes("/titularisation/member/")&&cfg.qaOnly!==true;
+let contributionRevision=0;
 const allowedSeats=new Set(["member1","member2","member3"]);
 const storageKey="titularisation_member_session_v1_"+(base.match(/^https:\/\/([^.]+)/)?.[1]||"unconfigured");
 let session=null,mission=null,seat=null,payload=null,submitted=false,dirty=false,busy=false;
@@ -21,7 +23,7 @@ const statusText=(message)=>{
  if(node)node.textContent=message;
 };
 function configured(){
- return cfg.temporaryCommitteeEnabled===true&&/^https:\/\//.test(base)&&key.length>20&&
+ return (productionMember?cfg.titularisationCommitteeEnabled===true:cfg.temporaryCommitteeEnabled===true)&&/^https:\/\//.test(base)&&key.length>20&&
   /^[0-9a-f-]{36}$/i.test(requestedMission)&&allowedSeats.has(requestedSeat);
 }
 function saveSession(value){
@@ -34,8 +36,9 @@ function saveSession(value){
 function restoreSession(){
  try{
   const raw=JSON.parse(sessionStorage.getItem(storageKey)||"null");
-  if(raw?.access_token&&raw?.refresh_token&&raw.mission_id===requestedMission&&
-   raw.seat_code===requestedSeat)session=raw;
+  if(raw?.mission_id===requestedMission&&raw?.seat_code===requestedSeat&&
+   (productionMember?/^[a-f0-9]{64}$/.test(raw.capability||""):
+    Boolean(raw.access_token&&raw.refresh_token)))session=raw;
  }catch(_){}
 }
 async function request(path,options={}){
@@ -50,6 +53,11 @@ async function request(path,options={}){
  return data;
 }
 async function ensureToken(){
+ if(productionMember){
+  if(!/^[a-f0-9]{64}$/.test(session?.capability||""))
+   throw Error("رابط الدعوة غير متاح؛ اطلب رابطًا جديدًا من رئيس اللجنة.");
+  return session.capability;
+ }
  if(!session?.refresh_token)throw Error("سجل الدخول أولًا");
  if(Date.now()<(session.expires_at_ms||0)-60000)return session.access_token;
  const result=await request("/auth/v1/token?grant_type=refresh_token",{
@@ -63,6 +71,14 @@ async function ensureToken(){
 }
 async function rpc(name,args){
  const bearer=await ensureToken();
+ if(productionMember){
+  if(name!=="save_titularisation_member_contribution")
+   throw Error("عملية غير متاحة لمقعد الإنتاج.");
+  return request("/rest/v1/rpc/save_prod_titularisation_member",{
+   method:"POST",body:{p_mission_id:requestedMission,p_seat_code:requestedSeat,
+    p_token:bearer,p_payload:args.p_payload,p_expected_revision:contributionRevision,
+    p_submit:args.p_submit}});
+ }
  return request("/rest/v1/rpc/"+name,{method:"POST",bearer,body:args});
 }
 async function list(table,filters,columns){
@@ -89,6 +105,11 @@ function header(){
 function renderLogin(){
  shell.replaceChildren();
  const box=el("section");box.className="card login";
+ if(productionMember){
+  box.append(el("h1","رابط مساهمة لجنة الترسيم"),
+   message("الرابط غير متاح أو انتهت صلاحيته. اطلب من رئيس اللجنة رابطًا مباشرًا جديدًا؛ لا يلزم اسم مستخدم أو كلمة مرور.",true));
+  shell.append(box);return;
+ }
  box.append(el("h1","الدخول إلى مساهمة اللجنة"),
   el("p","أدخل اسم المستخدم وكلمة المرور اللذين سلّمهما لك رئيس اللجنة. الرابط وحده لا يمنح حق الدخول."));
  const form=el("form");
@@ -287,10 +308,15 @@ async function persist(finalize){
    if(missing.length)throw Error("لا يمكن الإرسال النهائي: "+
     missing.length+" علامة ناقصة. "+missing.map(x=>x.label).join("، "));
   }
-  await rpc("save_titularisation_member_contribution",{
+  const next=await rpc("save_titularisation_member_contribution",{
    p_mission_id:requestedMission,p_seat_code:requestedSeat,
    p_payload:payload,p_submit:finalize
   });
+  if(productionMember){
+   if(!Number.isSafeInteger(next)||next!==contributionRevision+1)
+    throw Error("تعذر تأكيد رقم المراجعة. حدّث مساهمتك قبل إعادة الحفظ.");
+   contributionRevision=next;
+  }
   dirty=false;submitted=finalize;
   if(finalize)renderEditor();
   else statusText("حُفظت مساهمتك على الخادم.");
@@ -298,17 +324,26 @@ async function persist(finalize){
  finally{busy=false}
 }
 async function load(){
- const [missions,seats,submissions]=await Promise.all([
-  list("titularisation_missions",{id:"eq."+requestedMission},"id,title,rubric_id,rubric_profile,status,expires_at"),
-  list("titularisation_seats",{mission_id:"eq."+requestedMission,seat_code:"eq."+requestedSeat},
-   "seat_code,display_name,status,expires_at"),
-  list("titularisation_contributions",{mission_id:"eq."+requestedMission,seat_code:"eq."+requestedSeat},
-   "payload,status,revision,submitted_at")
- ]);
- mission=missions?.[0]||null;seat=seats?.[0]||null;
+ let saved;
+ if(productionMember){
+  const token=await ensureToken();
+  const data=await request("/rest/v1/rpc/load_prod_titularisation_member",{
+   method:"POST",body:{p_mission_id:requestedMission,p_seat_code:requestedSeat,p_token:token}});
+  mission=data?.mission||null;seat=data?.seat||null;saved=data?.saved||null;
+  contributionRevision=saved?.revision||0;
+ }else{
+  const [missions,seats,submissions]=await Promise.all([
+   list("titularisation_missions",{id:"eq."+requestedMission},"id,title,rubric_id,rubric_profile,status,expires_at"),
+   list("titularisation_seats",{mission_id:"eq."+requestedMission,seat_code:"eq."+requestedSeat},
+    "seat_code,display_name,status,expires_at"),
+   list("titularisation_contributions",{mission_id:"eq."+requestedMission,seat_code:"eq."+requestedSeat},
+    "payload,status,revision,submitted_at")
+  ]);
+  mission=missions?.[0]||null;seat=seats?.[0]||null;
+  saved=submissions?.[0]||null;
+ }
  if(!mission||!seat||mission.status!=="draft"||seat.status!=="active")
   throw Error("لا توجد مهمة نشطة أو انتهت صلاحية الحساب.");
- const saved=submissions?.[0]||null;
  if(mission.rubric_id===RUBRICS.analytical14.id&&mission.rubric_profile?.frozen!==true)
   throw Error("رئيس اللجنة لم يثبت أوزان المؤشرات الأربعة عشر بعد.");
  const grading=newDraft(mission.rubric_id);
@@ -339,6 +374,12 @@ async function begin(){
  restoreSession();
  if(session){
   try{await load();return;}catch(_){saveSession(null)}
+ }
+ if(inviteKey&&productionMember){
+  shell.replaceChildren(message("جارٍ التحقق من رابط اللجنة المباشر..."));
+  saveSession({capability:inviteKey,mission_id:requestedMission,seat_code:requestedSeat});
+  try{await load();return}
+  catch(error){saveSession(null);renderLogin();statusText("تعذر استعمال الرابط: "+error.message);return}
  }
  if(inviteKey){
   shell.replaceChildren(message("جارٍ تسجيل الدخول من رابط الدعوة المباشر..."));
