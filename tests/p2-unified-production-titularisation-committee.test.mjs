@@ -129,8 +129,8 @@ test("P2 modified modules parse and production cache busting is explicit",()=>{
  "prototypes/titularisation-committee/inspector-synthesis-ui.mjs"]){
   assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",path]));
  }
- assert.match(text("index.html"),/cloud\.js\?v=p2-committee-20261108/);
- assert.match(text("titularisation/report/index.html"),/app\.mjs\?v=p2-prod-synth-20261108/);
+ assert.match(text("index.html"),/cloud\.js\?v=p2-identity-20261108/);
+ assert.match(text("titularisation/report/index.html"),/app\.mjs\?v=p2-phase-total-20261108/);
 });
 
 test("P2 member draft save provides one visible, accessible confirmation after server success",()=>{
@@ -144,5 +144,5 @@ test("P2 member draft save provides one visible, accessible confirmation after s
  assert.match(member,/statusText\("جارٍ الحفظ على الخادم\.\.\."\)/);
  assert.match(member,/productionMember\?" — المراجعة "\+contributionRevision/);
  assert.match(member,/statusText\("فشل الحفظ: "\+error\.message,"error"\)/);
- assert.match(shell,/app\.mjs\?v=p2-save-feedback-20261108/);
+ assert.match(shell,/app\.mjs\?v=p2-identity-total-20261108/);
 });
