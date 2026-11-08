@@ -82,7 +82,8 @@ export function sourceFingerprint(source){
   .map(row=>[row.seat_code,row.revision,row.submitted_at,row.notes])]);
 }
 export function synthesizeInspectorNotes(source){
- if(!plain(source)||source.owner_only!==true||source.qa_only!==true||
+ if(!plain(source)||source.owner_only!==true||
+  (source.qa_only!==true&&source.production_owner!==true)||
   typeof source.mission_id!=="string"||!Array.isArray(source.rows)||
   source.rows.length>3)throw Error("مصادر التركيب لم تجتز تحقق المفتش.");
  const definitions=labelRows(source.rubric_id);
