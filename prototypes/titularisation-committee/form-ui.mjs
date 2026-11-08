@@ -1,5 +1,5 @@
-import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-workbench/engine.mjs";
-import {SEATS,assistance,proposedFinal,selectRounding,resetFinalNote,editScore,assignPhaseTotal,editNote,submit,reopen,fillDemoMember,hasMemberContent} from "./committee-engine.mjs";
+import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-workbench/engine.mjs?v=p2-phase-total-20261108";
+import {SEATS,assistance,proposedFinal,selectRounding,resetFinalNote,editScore,assignPhaseTotal,editNote,submit,reopen,fillDemoMember,hasMemberContent} from "./committee-engine.mjs?v=p2-phase-total-20261108";
 import {node,clear,action,textValue} from "./dom.mjs";
 import {suggestedAppreciation} from "./document-rules.mjs";
 import {createPairedScore} from "../../shared/score-range.mjs";
