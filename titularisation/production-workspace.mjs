@@ -293,7 +293,7 @@ export async function saveSeatIdentity(raw,get,missionId,seat,given,family,role)
 export async function issueSeat(raw,get,missionId,seat,name){
  if(!seatCodes.includes(seat)||!tasks.some(m=>m.id===missionId&&m.status==="draft"&&
    (!isAnalytical(m)||weightsPinned(m))))throw Error("مقعد أو مهمة غير صالحين.");
- const displayName=clean(name);
+ const displayName=clean(name)||committeeSeats.find(x=>x.seat_code===seat)?.display_name||"";
  if(displayName.length>160)throw Error("اسم العضو أطول من 160 حرفًا.");
  const result=await raw("POST","/rest/v1/rpc/issue_prod_titularisation_invitation",{
   p_mission_id:missionId,p_seat_code:seat,p_display_name:displayName
