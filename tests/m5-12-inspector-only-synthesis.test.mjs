@@ -128,7 +128,7 @@ test("M5.12: inspector-only backend must validate owner before reading submitted
 
 test("M5.12: inspector page loads review only after authorized contribution import",()=>{
  const app=read("prototypes/titularisation-committee/app.mjs");
- assert.match(app,/if\(qaReport\)\{\s*try\{\s*const \{loadInspectorSynthesisSources\}/);
+ assert.match(app,/if\(missionBoundReport\)\{\s*try\{\s*const \{loadInspectorSynthesisSources\}/);
  assert.match(app,/await synthesisReview\.activate\(id\)/);
  assert.match(app,/state=editNote\(state,"final",field,text,itemId\)/);
  assert.match(app,/synthesisReview\?\.reset\(\)/);
