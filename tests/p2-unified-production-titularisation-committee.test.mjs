@@ -142,7 +142,7 @@ test("P2 member draft save provides one visible, accessible confirmation after s
  assert.match(member,/saveFeedback\.setAttribute\("aria-live","polite"\)/);
  assert.match(member,/card\.append\(bar,saveFeedback\)/);
  assert.match(member,/statusText\("جارٍ الحفظ على الخادم\.\.\."\)/);
- assert.match(member,/contributionRevision\+"\."\)/);
+ assert.match(member,/productionMember\?" — المراجعة "\+contributionRevision/);
  assert.match(member,/statusText\("فشل الحفظ: "\+error\.message,"error"\)/);
  assert.match(shell,/app\.mjs\?v=p2-save-feedback-20261108/);
 });
