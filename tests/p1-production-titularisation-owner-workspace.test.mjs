@@ -100,7 +100,7 @@ test("P1 report: new production mission seeds pinned institution without changin
  assert.match(editor,/control\.readOnly=true/);
  assert.match(html,/src="\.\.\/\.\.\/cloud-config\.js\?v=p2-committee-20261108"/);
  assert.match(html,/محرر التقرير والمحضر المرتبط بمهمة الترسيم في حساب المفتش الأصلي/);
- assert.match(html,/app\.mjs\?v=p2-prod-synth-20261108/);
+ assert.match(html,/app\.mjs\?v=p2-phase-total-20261108/);
  assert.doesNotMatch(html,/مشروع اختبار Supabase مستقل/);
 });
 
@@ -117,7 +117,7 @@ test("P1 two-tenant separation: production never imports QA members; QA remains 
  assert.match(cloud,/ensureProductionTitularisation\(\)/);
  assert.match(cfg,/titularisationWorkspaceEnabled: true/);
  assert.match(cfg,/temporaryCommitteeEnabled: false/);
- assert.match(read("index.html"),/cloud\.js\?v=p2-committee-20261108/);
+ assert.match(read("index.html"),/cloud\.js\?v=p2-identity-20261108/);
  const standalone=read("prototypes/titularisation-committee/index.html");
  assert.doesNotMatch(standalone,/titularisationWorkspaceEnabled/);
 });
