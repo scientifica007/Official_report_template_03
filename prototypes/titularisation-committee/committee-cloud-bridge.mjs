@@ -72,9 +72,8 @@ export async function loadCloudCommitteeSubmissions(id){
   select:productionWorkspace()?"id,title,rubric_id,rubric_profile,status,institution_resource_id,institution_name_snapshot":"id,title,rubric_id,rubric_profile,status",id:"eq."+id
  });
  if(missions.length!==1)throw Error("المهمة غير متاحة لحساب المفتش الحالي.");
- // P1 production pilot has no issued committee seats or contribution table.
- // Never read QA contribution records with a production token.
- if(productionWorkspace())return {mission:missions[0],rows:[]};
+ // Production and QA are distinct projects. The current inspector token is
+ // used ONLY against its own project's owner-scoped contribution RLS.
  const rows=await read("titularisation_contributions",{
   select:"seat_code,payload,status,revision,submitted_at",
   mission_id:"eq."+id,status:"eq.submitted",order:"seat_code.asc"
@@ -132,6 +131,20 @@ export function mergeSubmittedCloudMembers(original,mission,rows){
  */
 export async function loadInspectorSynthesisSources(missionId){
  const c=cfg();
+ if(productionWorkspace()){
+  if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(missionId))
+   throw Error("معرّف المهمة غير صالح.");
+  const {mission,rows}=await loadCloudCommitteeSubmissions(missionId);
+  const sourceRows=rows.map(row=>({
+   seat_code:row.seat_code,revision:row.revision,submitted_at:row.submitted_at,
+   notes:row.payload?.notes||null
+  }));
+  if(sourceRows.some(row=>!row.notes||typeof row.notes!=="object"||
+    Array.isArray(row.notes)||JSON.stringify(row.notes).length>180000))
+   throw Error("تقديرات إحدى المساهمات غير صالحة للتركيب.");
+  return {mission_id:missionId,rubric_id:mission.rubric_id,
+   rows:sourceRows,owner_only:true,production_owner:true};
+ }
  if(c.qaOnly!==true||c.temporaryCommitteeEnabled!==true||
     c.supabaseUrl!=="https://npxwshvcrowbfoiqyrwx.supabase.co")
   throw Error("التركيب الذكي متاح للمفتش في QA فقط.");
