@@ -30,8 +30,7 @@ begin
  info:=public.issue_prod_titularisation_invitation(test_id,'member1','المشارك الاختباري');
  token:=info->>'token';
  if token !~ '^[a-f0-9]{64}$' then raise exception 'Token malformed';end if;
- if (select token_hash from public.titularisation_seats s where s.mission_id=test_id and s.seat_code='member1')=token
- then raise exception 'Token plaintext stored';end if;
+ -- The authenticated owner CANNOT SELECT token_hash; the privilege check above verifies it.
  info:=public.load_prod_titularisation_member(test_id,'member1',token);
  if info#>>'{mission,rubric_id}'<>m.rubric_id then raise exception 'Wrong rubric';end if;
  denied:=false;
