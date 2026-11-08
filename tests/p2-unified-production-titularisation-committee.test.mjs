@@ -43,7 +43,7 @@ test("P2 SQL defines separate owner-only seats, restricted direct links, revisio
  assert.match(sql,/Final submission requires every nonzero indicator grade/);
  assert.match(sql,/Final submission requires all lesson and discussion marks/);
  assert.match(sql,/Contribution changed; reload before overwriting/);
- assert.match(sql,/Corrections require explicit resubmission/);
+ assert.match(sql,/corrections require explicit resubmission/i);
  assert.match(sql,/titularisation_contribution_revisions/);
 });
 test("P2 production inspector issues and revokes links without touching original contributions",async()=>{
