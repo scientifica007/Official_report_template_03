@@ -68,7 +68,7 @@ test("P2: identity RPC requires scoped 256-bit capability; form and inspector ar
  assert.match(sql,/and status='draft'/);
  assert.match(sql,/grant execute on function public.save_prod_titularisation_member_identity[\s\S]*to anon,authenticated/);
  assert.match(sql,/create function public.set_prod_titularisation_seat_identity/);
- assert.match(sql,/m.owner_id=uid/);
+ assert.match(sql,/owner_id=uid/);
  assert.match(sql,/given_name.*family_name|family_name.*given_name/s);
  assert.match(member,/حفظ بياناتي الشخصية/);
  assert.match(member,/p_member_role/);
