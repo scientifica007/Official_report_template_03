@@ -31,7 +31,7 @@ const productionTaskRequested=new URLSearchParams(location.search).get('titulari
 async function ensureProductionTitularisation(){
  if(!productionTitularisationEnabled)throw Error('مسار الترسيم الإنتاجي غير مفعل.');
  if(!productionTitularisationModule)
-  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p2-committee-20261108');
+  productionTitularisationModule=await import('./titularisation/production-workspace.mjs?v=p2-identity-20261108');
  // A browser tab may be used by different approved accounts. Drafted titles,
  // chosen institutions and pending analytical weights must not cross accounts.
  productionTitularisationModule.syncInspectorScope(session?.user?.id||profile?.id);
