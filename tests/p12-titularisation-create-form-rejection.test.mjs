@@ -118,6 +118,6 @@ test("P1.2: capture all form fields before async module import and preserve back
  assert.match(module,/UUID\.test\(institutionId\)/);
  assert.doesNotMatch(module,/!institutions\.some\(r=>r\.id===institutionId\)/);
  assert.match(module,/const id=await raw\("POST","\/rest\/v1\/rpc\/create_titularisation_mission"/);
- assert.match(index,/cloud\.js\?v=p12-create-form-20261107/);
- assert.match(cloud,/production-workspace\.mjs\?v=p12-create-form-20261107/);
+ assert.match(index,/cloud\.js\?v=p2-committee-20261108/);
+ assert.match(cloud,/production-workspace\.mjs\?v=p2-committee-20261108/);
 });
