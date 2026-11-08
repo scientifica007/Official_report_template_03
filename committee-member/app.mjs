@@ -19,9 +19,9 @@ const storageKey="titularisation_member_session_v1_"+(base.match(/^https:\/\/([^
 let session=null,mission=null,seat=null,payload=null,submitted=false,dirty=false,busy=false;
 const el=(tag,content="")=>{const e=document.createElement(tag);e.textContent=content;return e};
 const label=(title,node)=>{const wrap=el("label");wrap.append(el("span",title),node);return wrap};
-const statusText=(message)=>{
+const statusText=(text,kind="notice")=>{
  const node=document.getElementById("member-status");
- if(node)node.textContent=message;
+ if(node){node.textContent=text;node.className=(kind==="error"?"alert":"notice")+" save-feedback";}
 };
 function configured(){
  return (productionMember?cfg.titularisationCommitteeEnabled===true:cfg.temporaryCommitteeEnabled===true)&&/^https:\/\//.test(base)&&key.length>20&&
@@ -90,7 +90,7 @@ async function list(table,filters,columns){
 const newNotes=()=>({lesson:{},discussion:{},lessonSummary:"",discussionSummary:"",
  general:"",recommendations:""});
 function message(text,alert=false){
- const n=el("p",text);n.className=alert?"alert":"notice";n.id="member-status";
+ const n=el("p",text);n.className=alert?"alert":"notice";
  return n;
 }
 function header(){
