@@ -5,7 +5,7 @@ import {
  SCHEMA as SCORE_SCHEMA, RUBRICS, DISCUSSION, GROUPS, newDraft, lessonItems,
  withScore, distributePhaseTotal, withWeight, withSuggestions, freezeWeights, validateWeights, sameWeightProfile,
  validateImport as importScores, totals
-} from "../titularisation-workbench/engine.mjs";
+} from "../titularisation-workbench/engine.mjs?v=p2-phase-total-20261108";
 
 export const COMMITTEE_SCHEMA="titularisation-committee-lab-v1";
 export const SEATS=Object.freeze([
