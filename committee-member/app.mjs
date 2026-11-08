@@ -19,9 +19,9 @@ const storageKey="titularisation_member_session_v1_"+(base.match(/^https:\/\/([^
 let session=null,mission=null,seat=null,payload=null,submitted=false,dirty=false,busy=false;
 const el=(tag,content="")=>{const e=document.createElement(tag);e.textContent=content;return e};
 const label=(title,node)=>{const wrap=el("label");wrap.append(el("span",title),node);return wrap};
-const statusText=(message)=>{
+const statusText=(text,kind="notice")=>{
  const node=document.getElementById("member-status");
- if(node)node.textContent=message;
+ if(node){node.textContent=text;node.className=(kind==="error"?"alert":"notice")+" save-feedback";}
 };
 function configured(){
  return (productionMember?cfg.titularisationCommitteeEnabled===true:cfg.temporaryCommitteeEnabled===true)&&/^https:\/\//.test(base)&&key.length>20&&
@@ -90,7 +90,7 @@ async function list(table,filters,columns){
 const newNotes=()=>({lesson:{},discussion:{},lessonSummary:"",discussionSummary:"",
  general:"",recommendations:""});
 function message(text,alert=false){
- const n=el("p",text);n.className=alert?"alert":"notice";n.id="member-status";
+ const n=el("p",text);n.className=alert?"alert":"notice";
  return n;
 }
 function header(){
@@ -107,8 +107,9 @@ function renderLogin(){
  shell.replaceChildren();
  const box=el("section");box.className="card login";
  if(productionMember){
-  box.append(el("h1","رابط مساهمة لجنة الترسيم"),
-   message("الرابط غير متاح أو انتهت صلاحيته. اطلب من رئيس اللجنة رابطًا مباشرًا جديدًا؛ لا يلزم اسم مستخدم أو كلمة مرور.",true));
+  const feedback=message("الرابط غير متاح أو انتهت صلاحيته. اطلب من رئيس اللجنة رابطًا مباشرًا جديدًا؛ لا يلزم اسم مستخدم أو كلمة مرور.",true);
+  feedback.id="member-status";feedback.setAttribute("role","alert");
+  box.append(el("h1","رابط مساهمة لجنة الترسيم"),feedback);
   shell.append(box);return;
  }
  box.append(el("h1","الدخول إلى مساهمة اللجنة"),
@@ -121,6 +122,7 @@ function renderLogin(){
  const submit=el("button","تسجيل الدخول");submit.type="submit";
  form.append(label("اسم المستخدم",username),label("كلمة المرور",password),submit);
  const feedback=message("لا تضع كلمة المرور في الرابط أو في ملف JSON.");
+ feedback.id="member-status";feedback.setAttribute("role","status");
  form.addEventListener("submit",async event=>{
   event.preventDefault();if(busy)return;
   busy=true;submit.disabled=true;feedback.textContent="جارٍ التحقق...";
@@ -244,7 +246,15 @@ function renderEditor(){
  send.className="primary";
  const logout=el("button","تسجيل الخروج");logout.type="button";
  bar.append(save,send,logout);
- card.append(bar,message("احتفظ بمسودتك محفوظة قبل مغادرة الصفحة."));
+ const saveFeedback=message(productionMember&&contributionRevision>0?
+  "استُعيدت مساهمتك المحفوظة على الخادم — المراجعة "+contributionRevision+".":
+  "اضغط «حفظ مساهمتي» لتأكيد حفظ العلامات والملاحظات قبل مغادرة الصفحة.");
+ saveFeedback.id="member-status";
+ saveFeedback.classList.add("save-feedback");
+ saveFeedback.setAttribute("role","status");
+ saveFeedback.setAttribute("aria-live","polite");
+ saveFeedback.setAttribute("aria-atomic","true");
+ card.append(bar,saveFeedback);
  shell.append(card);
  // An already-submitted seat stays editable until mission close; the
  // previous version is archived server-side on each explicit correction.
@@ -285,9 +295,9 @@ function renderEditor(){
  };
  updateScoreProgress();
  attachVoiceDictation(card);
- save.addEventListener("click",()=>persist(false));
+ save.addEventListener("click",()=>persist(false,save));
  send.addEventListener("click",()=>{
-  if(confirm(submitted?"سيُسجل هذا كتعديل جديد على المساهمة المرسلة، وستُحفظ النسخة السابقة. هل تؤكد؟":"هل تؤكد إرسال مساهمتك؟ يمكنك تصحيحها لاحقًا قبل إغلاق المهمة."))persist(true);
+  if(confirm(submitted?"سيُسجل هذا كتعديل جديد على المساهمة المرسلة، وستُحفظ النسخة السابقة. هل تؤكد؟":"هل تؤكد إرسال مساهمتك؟ يمكنك تصحيحها لاحقًا قبل إغلاق المهمة."))persist(true,send);
  });
  logout.addEventListener("click",()=>{
   if(dirty&&!confirm("توجد تعديلات لم تُحفظ. هل تريد تسجيل الخروج؟"))return;
@@ -295,9 +305,12 @@ function renderEditor(){
   renderLogin();
  });
 }
-async function persist(finalize){
+async function persist(finalize,button){
  if(busy)return;
- busy=true;statusText("جارٍ الحفظ على الخادم...");
+ busy=true;
+ const originalLabel=button?.textContent;
+ if(button){button.disabled=true;button.textContent="جارٍ الحفظ...";}
+ statusText("جارٍ الحفظ على الخادم...");
  try{
   // Re-check native input range validation before requesting the RPC.
   const fields=[...shell.querySelectorAll('input[type="number"]')];
@@ -320,9 +333,16 @@ async function persist(finalize){
   }
   dirty=false;submitted=finalize;
   if(finalize)renderEditor();
-  else statusText("حُفظت مساهمتك على الخادم.");
- }catch(error){statusText("فشل الحفظ: "+error.message)}
- finally{busy=false}
+  else statusText("تم حفظ مسودة مساهمتك على الخادم بنجاح"+
+   (productionMember?" — المراجعة "+contributionRevision:"")+".");
+ }catch(error){statusText("فشل الحفظ: "+error.message,"error")}
+ finally{
+  busy=false;
+  if(button?.isConnected){
+   button.textContent=originalLabel;
+   button.disabled=!finalize&&submitted;
+  }
+ }
 }
 async function load(){
  let saved;

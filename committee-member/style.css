@@ -24,6 +24,8 @@ summary{cursor:pointer;font-weight:700;padding:6px}.assessments{display:grid;gap
 .jump-to-missing:focus-visible{outline:3px solid #b46b18;outline-offset:2px}
 .login{max-width:520px;margin:auto}.notice{color:#1f6253;background:#eef8f4;padding:10px;border-radius:7px}
 .alert{color:#91321e;background:#fff0ea;padding:10px;border-radius:7px}
+.save-feedback{font-weight:700;border-inline-start:4px solid #1b6151;line-height:1.8}
+.save-feedback.alert{border-inline-start-color:#91321e}
 footer{text-align:center;padding:24px;color:#60736d;font-size:12px}
 .voice-launch{background:#e5f3eb;color:#1b5841;margin:5px 0 10px}
 .voice-dictation-panel{padding:13px;background:#eff7f3;border:1px solid #bad4c5;border-radius:9px;margin:12px 0}
