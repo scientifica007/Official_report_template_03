@@ -246,7 +246,15 @@ function renderEditor(){
  send.className="primary";
  const logout=el("button","تسجيل الخروج");logout.type="button";
  bar.append(save,send,logout);
- card.append(bar,message("احتفظ بمسودتك محفوظة قبل مغادرة الصفحة."));
+ const saveFeedback=message(productionMember&&contributionRevision>0?
+  "استُعيدت مساهمتك المحفوظة على الخادم — المراجعة "+contributionRevision+".":
+  "اضغط «حفظ مساهمتي» لتأكيد حفظ العلامات والملاحظات قبل مغادرة الصفحة.");
+ saveFeedback.id="member-status";
+ saveFeedback.classList.add("save-feedback");
+ saveFeedback.setAttribute("role","status");
+ saveFeedback.setAttribute("aria-live","polite");
+ saveFeedback.setAttribute("aria-atomic","true");
+ card.append(bar,saveFeedback);
  shell.append(card);
  // An already-submitted seat stays editable until mission close; the
  // previous version is archived server-side on each explicit correction.
