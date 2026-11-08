@@ -310,3 +310,35 @@ test("M5.14 UI: same-field contradictory judgment keeps original quotes but disa
  assert.ok(!find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش"));
  assert.equal(x.applied.length,0);
 });
+
+test("P2 production: owner can generate and insert synthesis without QA marker",async()=>{
+ const x=setup(async()=>{
+  const verified=fixture("أحسن الأستاذ تنظيم الحصة");
+  verified.qa_only=false;
+  verified.production_owner=true;
+  verified.rows[0].revision=13;
+  return verified;
+ });
+ await x.controller.activate(id);
+ assert.equal(x.controller.panel.hidden,false);
+ await find(x.controller.panel,e=>e.textContent==="تكوين مقترحات التقديرات").emit("click");
+ const insert=find(x.controller.panel,e=>e.textContent==="إدراج هذه الصياغة في تقدير المفتش");
+ assert.ok(insert,"production synthesis should generate an editable proposal");
+ await insert.emit("click");
+ assert.equal(x.applied.length,1,"the production insertion recheck must accept the owner source");
+ assert.equal(x.applied[0].field,"lesson");
+ assert.equal(x.applied[0].item,"g1");
+});
+
+test("P2 production: sources without verified owner remain inaccessible",async()=>{
+ const x=setup(async()=>{
+  const unverifiable=fixture();
+  unverifiable.qa_only=false;
+  unverifiable.production_owner=true;
+  unverifiable.owner_only=false;
+  return unverifiable;
+ });
+ await assert.rejects(x.controller.activate(id),/صلاحية/);
+ assert.equal(x.controller.panel.hidden,true);
+ assert.equal(x.applied.length,0);
+});
