@@ -64,7 +64,7 @@ test("P1 production: list authorized tasks, create mission using server-side cat
  view=workspace.render({profile:{is_admin:false}});
  assert.ok(view.indexOf("مهمات الترسيم الجارية")<view.indexOf("إنشاء مهمة ترسيم جديدة"));
  assert.match(view,/فتح التقرير والمحضر واستئناف المسودة/);
- assert.doesNotMatch(view,/رابط.*عضو.*إصدار/);
+ assert.match(view,/data-cloud-action="prod-tit-issue-seat"/);
  await assert.rejects(workspace.create(raw,get,{
   title:"مهمة",rubric:"lesson_grouped_5_v1",institutionId:"not-assigned"
  }),/معرّف المؤسسة المختارة/);
@@ -100,7 +100,7 @@ test("P1 report: new production mission seeds pinned institution without changin
  assert.match(editor,/control\.readOnly=true/);
  assert.match(html,/src="\.\.\/\.\.\/cloud-config\.js"/);
  assert.match(html,/محرر التقرير والمحضر المرتبط بمهمة الترسيم في حساب المفتش الأصلي/);
- assert.match(html,/app\.mjs\?v=p1-prod-inspector-20261106/);
+ assert.match(html,/app\.mjs\?v=p2-committee-20261108/);
  assert.doesNotMatch(html,/مشروع اختبار Supabase مستقل/);
 });
 
@@ -108,7 +108,7 @@ test("P1 two-tenant separation: production never imports QA members; QA remains 
  const bridge=read("prototypes/titularisation-committee/committee-cloud-bridge.mjs");
  const cloud=read("cloud.js");
  const cfg=read("cloud-config.js");
- assert.match(bridge,/productionWorkspace\(\)\)return \{mission:missions\[0\],rows:\[\]\}/);
+ assert.match(bridge,/const rows=await read\("titularisation_contributions"/);
  assert.match(bridge,/const QA_SESSION="scientifica_committee_qa_session_v1"/);
  assert.match(bridge,/official_report03_cloud_session_v1/);
  assert.match(bridge,/read\("inspector_profiles"/);
@@ -117,7 +117,7 @@ test("P1 two-tenant separation: production never imports QA members; QA remains 
  assert.match(cloud,/ensureProductionTitularisation\(\)/);
  assert.match(cfg,/titularisationWorkspaceEnabled: true/);
  assert.match(cfg,/temporaryCommitteeEnabled: false/);
- assert.match(read("index.html"),/cloud\.js\?v=p12-create-form-20261107/);
+ assert.match(read("index.html"),/cloud\.js\?v=p2-committee-20261108/);
  const standalone=read("prototypes/titularisation-committee/index.html");
  assert.doesNotMatch(standalone,/titularisationWorkspaceEnabled/);
 });
