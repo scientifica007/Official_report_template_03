@@ -333,9 +333,16 @@ async function persist(finalize,button){
   }
   dirty=false;submitted=finalize;
   if(finalize)renderEditor();
-  else statusText("حُفظت مساهمتك على الخادم.");
- }catch(error){statusText("فشل الحفظ: "+error.message)}
- finally{busy=false}
+  else statusText("تم حفظ مسودة مساهمتك على الخادم بنجاح"+
+   (productionMember?" — المراجعة "+contributionRevision:"")+".");
+ }catch(error){statusText("فشل الحفظ: "+error.message,"error")}
+ finally{
+  busy=false;
+  if(button?.isConnected){
+   button.textContent=originalLabel;
+   button.disabled=!finalize&&submitted;
+  }
+ }
 }
 async function load(){
  let saved;
