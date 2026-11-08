@@ -9,6 +9,9 @@ const clean=s=>String(s??"").trim();
 const html=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 let tasks=[],institutions=[],selected="",error="";
+let committeeSeats=[],committeeContributions=[],committeeError="",issued=null;
+const seatCodes=["member1","member2","member3"];
+const seatLabels={member1:"العضو الأول",member2:"العضو الثاني",member3:"العضو الثالث"};
 const missionFormDraft={title:"",rubric:RUBRICS.grouped5.id,institutionId:""};
 const missionFieldIds=Object.freeze({
  "prod-tit-title":"title",
@@ -34,7 +37,7 @@ export function syncInspectorScope(id){
  const next=UUID.test(String(id||""))?String(id):"";
  if(scopedInspectorId===next)return;
  scopedInspectorId=next;
- tasks=[];institutions=[];selected="";error="";
+ tasks=[];institutions=[];selected="";error="";committeeSeats=[];committeeContributions=[];issued=null;committeeError="";
  weightDrafts.clear();
  clearMissionForm();
 }
@@ -76,10 +79,50 @@ function weightForm(mission){
   '<div class="portal-actions"><button type="button" class="btn primary" data-cloud-action="prod-tit-freeze" data-mission-id="'+html(mission.id)+'">تحقق من الأوزان وثبتها للمهمة</button></div>'+
   '</section>';
 }
+function committeeSection(mission){
+ const ready=mission.status==="draft"&&(!isAnalytical(mission)||weightsPinned(mission));
+ let out='<section class="portal-widget" id="prod-tit-committee"><h3>لجنة الترسيم — ثلاثة مقاعد مرتبطة بالمهمة</h3>'+
+  '<p>هذه المقاعد والمساهمات تخص المهمة الإنتاجية نفسها. لكل عضو رابط مباشر خاص، صالح سبعة أيام بحد أقصى؛ إعادة إصدار الرابط تلغي السابق دون حذف المساهمات. كل العلامات مطلوبة عند الإرسال النهائي؛ الملاحظات اختيارية، والتصحيحات تحفظ المراجعة السابقة.</p>';
+ if(committeeError)out+='<p class="cloud-warning">'+html(committeeError)+'</p>';
+ if(!ready)out+='<p class="cloud-warning">ثبّت شبكة المؤشرات أولًا قبل إصدار دعوات أعضاء اللجنة.</p>';
+ out+='<div class="portal-form-grid">';
+ for(const code of seatCodes){
+  const row=committeeSeats.find(x=>x.seat_code===code);
+  const contrib=committeeContributions.find(x=>x.seat_code===code);
+  const active=row?.status==="active"&&Date.parse(row.expires_at||0)>Date.now();
+  const status=contrib?.status==="submitted"?"مرسلة — مراجعة "+contrib.revision:
+   contrib?.status==="draft"?"مسودة محفوظة — مراجعة "+contrib.revision:"لم تُحفظ مساهمة بعد";
+  out+='<div class="portal-widget" style="margin:0"><h4>'+seatLabels[code]+'</h4>'+
+   '<p>حالة الرابط: '+html(active?"نشط حتى "+new Date(row.expires_at).toLocaleString("ar-DZ"):
+    row?.status==="revoked"?"ملغى":row?.status==="active"?"منتهي":"لم يُصدر")+
+    '</p><p>المساهمة: '+html(status)+'</p>'+
+   '<label>اسم العضو (اختياري)<input id="prod-tit-seat-name-'+code+'" maxlength="160" value="'+html(row?.display_name||"")+'"></label>'+
+   (ready?'<div class="portal-actions"><button class="btn primary" type="button" data-cloud-action="prod-tit-issue-seat" data-seat="'+code+'" data-mission-id="'+html(mission.id)+'">'+
+     (active?"إعادة إصدار الرابط":"إصدار رابط العضو")+'</button>'+
+     (active?'<button class="btn subtle" type="button" data-cloud-action="prod-tit-revoke-seat" data-seat="'+code+'" data-mission-id="'+html(mission.id)+'">إلغاء الرابط</button>':"")+
+     '</div>':"")+'</div>';
+ }
+ out+='</div>';
+ if(issued?.missionId===mission.id){
+  out+='<section class="portal-widget"><h4>الرابط الجديد — '+seatLabels[issued.seat]+'</h4>'+
+   '<p class="cloud-tip">انسخ الرابط أو اطبع بطاقة الدعوة. الرابط سري ولا يُعرض مجددًا بعد مغادرة الصفحة؛ يمكنك إصدار رابط جديد عند الحاجة دون فقد المساهمات.</p>'+
+   '<label>رابط العضو المباشر<input id="prod-tit-issued-url" readonly dir="ltr" value="'+html(issued.url)+'"></label>'+
+   '<div class="portal-actions"><button class="btn subtle" type="button" data-cloud-action="prod-tit-copy-link">نسخ الرابط</button>'+
+   '<button class="btn subtle" type="button" data-cloud-action="prod-tit-download-invite">تنزيل بطاقة QR وPDF</button></div></section>';
+ }
+ out+='</section>';return out;
+}
+export function currentIssuedInvitation(){
+ if(!issued||issued.missionId!==selected)return null;
+ return {...issued,title:tasks.find(m=>m.id===selected)?.title||"مهمة ترسيم"};
+}
+
 const requested=new URLSearchParams(typeof location!=="undefined"?location.search:"").get("titularisation");
 export function currentTaskId(){return selected}
 export function choose(id){
- selected=tasks.some(t=>t.id===id)?id:"";
+ const next=tasks.some(t=>t.id===id)?id:"";
+ if(next!==selected)issued=null;
+ selected=next;
 }
 export async function refresh(get){
  try{
@@ -103,6 +146,26 @@ export async function refresh(get){
   if(!tasks.some(t=>t.id===selected)){
    selected=UUID.test(requested||"")&&tasks.some(t=>t.id===requested)?
     requested:tasks[0]?.id||"";
+  }
+  if(issued?.missionId!==selected)issued=null;
+  committeeSeats=[];committeeContributions=[];committeeError="";
+  if(selected){
+   try{
+    const [sr,cr]=await Promise.all([
+     get("titularisation_seats",{
+      select:"mission_id,seat_code,display_name,status,expires_at,revoked_at",
+      mission_id:"eq."+selected,order:"seat_code.asc",limit:"3"
+     }),
+     get("titularisation_contributions",{
+      select:"mission_id,seat_code,status,revision,submitted_at",
+      mission_id:"eq."+selected,order:"seat_code.asc",limit:"3"
+     })
+    ]);
+    committeeSeats=(Array.isArray(sr)?sr:[]).filter(row=>
+     row.mission_id===selected&&seatCodes.includes(row.seat_code));
+    committeeContributions=(Array.isArray(cr)?cr:[]).filter(row=>
+     row.mission_id===selected&&seatCodes.includes(row.seat_code));
+   }catch(e){committeeError="تعذر تحميل مساهمات اللجنة: "+(e?.message||"خطأ اتصال")}
   }
   error="";
  }catch(e){
@@ -137,6 +200,7 @@ export function render({profile}){
  }else output+='<p>لا توجد مهمات ترسيم مسجلة في حسابك حتى الآن.</p>';
  output+='<div class="portal-actions"><button type="button" class="btn subtle" data-cloud-action="prod-tit-refresh">تحديث المهمات والمؤسسات</button></div></section>'+
  (active?.status==="draft"&&isAnalytical(active)?weightForm(active):"")+
+ (active?.status==="draft"?committeeSection(active):"")+
  '<section class="portal-widget"><details '+(!ordered.length?'open':'')+'><summary><strong>إنشاء مهمة ترسيم جديدة</strong></summary>'+
  '<p>تُعرض المؤسسات المنشورة التي تسمح بها مقاطعتك أو منحك المهنية. لا تُنشأ سجلات مؤسسات مكررة.</p>'+
  '<div class="portal-form-grid"><label>عنوان المهمة<input id="prod-tit-title" type="text" maxlength="200" value="'+html(missionFormDraft.title)+'" placeholder="ترسيم أستاذ — المؤسسة — التاريخ"></label>'+
@@ -155,8 +219,8 @@ export function render({profile}){
  '<p class="cloud-warning">لا توجد مؤسسة منشورة متاحة ضمن صلاحيات هذا الحساب. يمكن للمسؤول إدراج مؤسستك أو منحك الوصول إليها.</p>')+
  '</details></section>'+
  '<section class="portal-widget"><h3>خطوات الترسيم ضمن النظام الموحد</h3>'+
- '<p>هذه المرحلة تدعم إنشاء المهمة، اختيار المؤسسة، حفظ واستئناف مسودة التقرير والمحضر وإصدارهما من محرك الوثائق نفسه.</p>'+
- '<p class="portal-template-warning">روابط أعضاء اللجنة والتقييمات التشاركية لا تزال في بيئة QA الاختبارية، ولا يمكن ربطها بمهمة الإنتاج في هذه المرحلة. لا تستخدم بيانات إنتاج في QA.</p>'+
+ '<p>تحضير المهمة ← توزيع مقاعد اللجنة وإصدار روابطها ← استلام مساهمات الأعضاء ← مراجعة المفتش وتركيب التقديرات ← حفظ وإصدار التقرير والمحضر في نفس المهمة.</p>'+
+ '<p class="portal-template-warning">حسابات وروابط المختبر QA مستقلة تمامًا؛ استخدم روابط الأعضاء التي تصدرها المهمة الإنتاجية هنا فقط.</p>'+
  '</section>';
  return output;
 }
@@ -208,6 +272,34 @@ export async function freeze(raw,get,missionId,weights){
  if(!tasks.some(t=>t.id===missionId&&weightsPinned(t)))
   throw Error("أكد الخادم التثبيت، لكن تعذّر إعادة قراءة المهمة؛ حدّث القائمة قبل المتابعة.");
  return pinned;
+}
+export async function issueSeat(raw,get,missionId,seat,name){
+ if(!seatCodes.includes(seat)||!tasks.some(m=>m.id===missionId&&m.status==="draft"&&
+   (!isAnalytical(m)||weightsPinned(m))))throw Error("مقعد أو مهمة غير صالحين.");
+ const displayName=clean(name);
+ if(displayName.length>160)throw Error("اسم العضو أطول من 160 حرفًا.");
+ const result=await raw("POST","/rest/v1/rpc/issue_prod_titularisation_invitation",{
+  p_mission_id:missionId,p_seat_code:seat,p_display_name:displayName
+ },true);
+ if(!/^[a-f0-9]{64}$/.test(result?.token||"")||result.seat_code!==seat||
+  !Number.isFinite(Date.parse(result?.expires_at||"")))
+  throw Error("لم يؤكد الخادم إصدار رابط العضو.");
+ const url=new URL("./titularisation/member/?mission="+encodeURIComponent(missionId)+
+  "&seat="+encodeURIComponent(seat),window.location.href);
+ url.hash="access="+result.token;
+ issued={missionId,seat,url:url.href,expiresAt:result.expires_at};
+ await refresh(get);
+ return currentIssuedInvitation();
+}
+export async function revokeSeat(raw,get,missionId,seat){
+ if(!seatCodes.includes(seat)||!tasks.some(m=>m.id===missionId))throw Error("مقعد غير معروف.");
+ const ok=await raw("POST","/rest/v1/rpc/revoke_prod_titularisation_invitation",{
+  p_mission_id:missionId,p_seat_code:seat
+ },true);
+ if(ok!==true)throw Error("لم يؤكد الخادم إلغاء الرابط.");
+ if(issued?.missionId===missionId&&issued.seat===seat)issued=null;
+ await refresh(get);
+ return true;
 }
 export function open(id){
  if(!UUID.test(id)||!tasks.some(t=>t.id===id&&t.status==="draft"&&
