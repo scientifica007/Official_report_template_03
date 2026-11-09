@@ -85,7 +85,7 @@ function memberNotes(d,phase){
  if(!entries.length)return "";
  let out=p("ملاحظات الأعضاء الأصلية — للمراجعة ولا تحل محل تقدير المفتش",{size:24,before:110});
  for(const item of entries)
-  out+=p(item.author+" — "+item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
+  out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
  return out;
 }
 function signatures(d,spacious=false){
@@ -211,6 +211,7 @@ function minutes(d){
  b+=p("المعيَّن(ة) في رتبة: "+d.metaValue("rank"));
  b+=p("بمؤسسة: "+d.metaValue("institution"));
  b+=p("الولاية: "+d.metaValue("wilaya"));
+ if(d.draftResultsWarning)b+=p("تنبيه: "+d.draftResultsWarning,{size:24,before:70,after:60});
  b+=p(d.minutesResultsIntro,{before:120});
  b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
   "      التقدير العام: "+(d.displayedAppreciation||placeholder));
