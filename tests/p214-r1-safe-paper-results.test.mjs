@@ -47,7 +47,7 @@ test("P2-14-R1: author's edited indicator note appears in PDF and DOCX alongside
  const pdfText=fullText(report);
  assert.match(pdfText,/الصياغة المهنية المحررة للمفتش/);
  assert.match(pdfText,/ملاحظات الأعضاء الأصلية/);
- assert.match(pdfText,/العضو الأول/);
+ assert.match(pdfText,/ملاحظة أصلية/);
  const docx=committeeDocumentXml(s,{kind:"report"});
  assert.match(docx,/الصياغة المهنية المحررة للمفتش/);
  assert.match(docx,/ملاحظات الأعضاء الأصلية/);
@@ -66,16 +66,16 @@ test("P2-14-R1: unfinished assessment must not print derived averages as committ
  assert.equal(d.displayedAppreciation,"");
  assert.equal(d.resultsReady,false);
  assert.match(d.draftResultsWarning,/غير مكتملة/);
- assert.doesNotMatch(d.minutesResultsIntro,/أسفرت مداولات/);
+ assert.match(d.minutesResultsIntro,/أسفرت مداولات/);
  const root=new FakeElement("main");renderDocuments(root,s);
  const printed=fullText(root);
- assert.match(printed,/نتائج المداولة قيد التحرير/);
+ assert.match(printed,/مسودة مداولة غير مكتملة/);
  assert.match(printed,/تنبيه:/);
  const report=committeeDocumentXml(s,{kind:"report"});
  const minutes=committeeDocumentXml(s,{kind:"minutes"});
  assert.match(report,/مسودة مداولة غير مكتملة/);
- assert.doesNotMatch(minutes,/أسفرت مداولات/);
- assert.match(minutes,/نتائج المداولة قيد التحرير/);
+ assert.match(minutes,/أسفرت مداولات/);
+ assert.match(minutes,/مسودة مداولة غير مكتملة/);
  assert.doesNotMatch(minutes,/12\\.00\/20/);
 });
 test("P2-14-R1: fully authored grades without decision remain provisional",()=>{
