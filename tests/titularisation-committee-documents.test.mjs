@@ -88,7 +88,7 @@ test("individual member prose stays internal until actually authored by inspecto
  s=submit(s,"member1");
  const d=buildReferenceDocuments(s);
  assert.equal(d.prose.general,"");
- assert.equal(d.lessonRows[0].score,2);
+ assert.equal(d.lessonRows[0].score,null,"member mean stays an editor proposal, not a printed mark");
  assert.match(d.scoreWarning,/اقتراحًا حسابيًا/);
  assert.match(d.textWarning,/للمراجعة/);
  assert.doesNotMatch(committeeDocumentXml(s),/مصدر العضو — لا يُنسب/);
