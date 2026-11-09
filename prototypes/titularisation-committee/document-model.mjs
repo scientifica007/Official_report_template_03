@@ -5,7 +5,7 @@
 import {documentData,SEATS} from "./committee-engine.mjs";
 import {minutesScopeText} from "./document-language.mjs";
 import {dateInArabicWords,reportFooter,reportMonthYear,suggestedAppreciation,struckChoices} from "./document-rules.mjs";
-import {RUBRICS,GROUPS,DISCUSSION,lessonItems} from "../titularisation-workbench/engine.mjs";
+import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-workbench/engine.mjs";
 export const REFERENCE_ID="specialist-reference-2015-draft-v1";
 export const DECISIONS=Object.freeze([
  ["","— لم يُحدد بعد —"],["success","ناجح(ة)"],
@@ -67,8 +67,26 @@ function memberPhaseObservations(state,phase){
  }
  return results;
 }
+// Document figures must come from scores explicitly authored by the inspector.
+// The editor may still show reversible per-indicator proposals from members.
+function authoredPhaseProse(state,phase){
+ const summary=note(state.final.notes[phase==="lesson"?"lessonSummary":"discussionSummary"]);
+ const labels=new Map((phase==="lesson"?
+  lessonItems(state.final.grading):DISCUSSION).map(item=>[item.id,item.label]));
+ const details=Object.entries(state.final.notes[phase]||{})
+  .filter(([id,value])=>labels.has(id)&&note(value))
+  .map(([id,value])=>labels.get(id)+": "+note(value));
+ return [summary,...details].filter(Boolean).join("\n");
+}
 export function buildReferenceDocuments(state){
- const data=documentData(state),m=data.meta,r=data.result;
+ const data=documentData(state),m=data.meta;
+ const authoredTotals=totals(state.final.grading);
+ const authoredScores=state.final.grading.scores;
+ const decisionRecorded=["success","first","second"].includes(m.decision);
+ const resultsReady=authoredTotals.complete&&decisionRecorded;
+ const draftResultsWarning=!authoredTotals.complete?
+  "مسودة مداولة غير مكتملة: لم يُثبت المفتش جميع العلامات النهائية؛ لا تُعرض المقترحات الحسابية بوصفها نتائج.":
+  !decisionRecorded?"مسودة مداولة غير مكتملة: لم يُحدد قرار اللجنة بعد.":"";
  const rubric=Object.values(RUBRICS).find(x=>x.id===state.rubricId);
  if(!rubric)throw Error("شبكة تنقيط غير معروفة");
  const isSpecialist=/متخصص/.test(val(m.rank));
@@ -76,14 +94,14 @@ export function buildReferenceDocuments(state){
   "تقرير التفتيش قصد ترسيم الأساتذة المتخصصين في التكوين والتعليم المهنيين":
   "تقرير التفتيش قصد ترسيم أساتذة التكوين المهني — مسودة غير معتمدة لهذه الرتبة";
  const rows=state.rubricId===RUBRICS.analytical14.id?
-  GROUPS.map(g=>scoredGroup(g,data.finalGrades.lesson,state.final.grading.profile)):
+  GROUPS.map(g=>scoredGroup(g,authoredScores.lesson,state.final.grading.profile)):
   state.rubricId===RUBRICS.grouped5.id?
   GROUPS.map(g=>({id:g.id,label:g.label,cap:g.cap,
-   score:data.finalGrades.lesson[g.id],indicators:g.items.map(x=>x.label)})):
+   score:authoredScores.lesson[g.id]??null,indicators:g.items.map(x=>x.label)})):
   lessonItems(state.final.grading).map(row=>({id:row.id,label:row.label,
-   cap:row.cap,score:data.finalGrades.lesson[row.id],indicators:[]}));
+   cap:row.cap,score:authoredScores.lesson[row.id]??null,indicators:[]}));
  const conversation=DISCUSSION.map(row=>({
-  ...row,score:data.finalGrades.discussion[row.id]
+  ...row,score:authoredScores.discussion[row.id]??null
  }));
  const suggestedScores=Object.values(data.proposedSources.lesson).length+
   Object.values(data.proposedSources.discussion).length;
@@ -98,7 +116,10 @@ export function buildReferenceDocuments(state){
   {label:"رئيس اللجنة (المفتش)",name:metaValue(m,"chairName"),role:
    isSpecialist?"مفتش التكوين والتعليم المهنيين":"صفة الرئيس بحسب التنظيم المعمول به"}
  ];
- const grade20=typeof r.total60==="number"?r.total60/3:null;
+ // An actual calculated 20-point result is printable only after all scores
+ // and a human committee decision have been entered. This is not e-approval.
+ const grade20=resultsReady?authoredTotals.total60/3:null;
+ const manualGeneral=note(state.final.notes.general);
  return {
   referenceId:REFERENCE_ID,meta:m,rubricId:state.rubricId,rubricLabel:rubric.label,
   minutesScope:minutesScopeText(m),
@@ -106,9 +127,13 @@ export function buildReferenceDocuments(state){
   examVenue:val(m.location)||val(m.examCenter),
   reportFooter:(page,total=5)=>reportFooter(m,page,total),
   decisionChoices:struckChoices(m.decision),
-  proposedAppreciation:suggestedAppreciation(grade20),
-  displayedAppreciation:note(state.final.notes.general)||suggestedAppreciation(grade20),
-  appreciationIsSuggestion:!note(state.final.notes.general)&&!!suggestedAppreciation(grade20),
+  proposedAppreciation:authoredTotals.complete?suggestedAppreciation(authoredTotals.score20):"",
+  displayedAppreciation:manualGeneral||(resultsReady?suggestedAppreciation(grade20):""),
+  appreciationIsSuggestion:!manualGeneral&&resultsReady&&!!suggestedAppreciation(grade20),
+  resultsReady,draftResultsWarning,
+  minutesResultsIntro:resultsReady?
+   "أسفرت مداولات لجنة الامتحان عن النتائج الآتية:":
+   "نتائج المداولة قيد التحرير؛ ليست نتائج نهائية معتمدة:",
   specialistReferenceApplicable:isSpecialist,
   referenceScopeWarning:isSpecialist?"":
    "القالب المرجعي الذي قُدم يخص الأساتذة المتخصصين؛ يلزم التحقق من نموذج هذه الرتبة قبل اعتماده.",
@@ -147,15 +172,15 @@ export function buildReferenceDocuments(state){
    lesson:memberPhaseObservations(state,"lesson"),
    discussion:memberPhaseObservations(state,"discussion")
   },
-  marks:{lesson:r.lesson.total,discussion:r.discussion.total,total60:r.total60,total20:grade20,
-   complete:r.complete},
+  marks:{lesson:authoredTotals.lesson.total,discussion:authoredTotals.discussion.total,
+   total60:authoredTotals.total60,total20:grade20,complete:authoredTotals.complete},
   lessonRows:rows,discussionRows:conversation,
   // The printed report uses *inspector-authored* prose only. The lengthy
   // member-source compilation remains in the existing editor as assistance.
   prose:{
-   lesson:note(state.final.notes.lessonSummary),
-   discussion:note(state.final.notes.discussionSummary),
-   general:note(state.final.notes.general),
+   lesson:authoredPhaseProse(state,"lesson"),
+   discussion:authoredPhaseProse(state,"discussion"),
+   general:manualGeneral,
    recommendations:note(state.final.notes.recommendations)
   },
   decision:DECISIONS.find(x=>x[0]===m.decision)?.[1]||DECISIONS[0][1],
