@@ -66,7 +66,7 @@ function assessment(page,finalText,observations){
  section.append(node("p","ملاحظات الأعضاء الأصلية — للمراجعة ولا تحل محل تقدير المفتش","reference-original-contributions-label"));
  for(const item of observations){
   const line=node("p","","reference-original-contribution");
-  add(line,node("strong",item.author+" — "+item.criterion+": "),node("span",printableAssessmentText(item.text)));
+  add(line,node("strong",item.criterion+": "),node("span",printableAssessmentText(item.text)));
   section.append(line);
  }
  page.append(section);
@@ -194,6 +194,7 @@ function minutes(article,d){
  textLine(body,"الولاية:",d.metaValue("wilaya"));
  pg.append(body);
 
+ if(d.draftResultsWarning)textLine(pg,"تنبيه:",d.draftResultsWarning,"reference-draft-results-notice");
  heading(pg,d.minutesResultsIntro);
  textLine(pg,"العلامة النهائية:",mark(d.marks.total20)+" /20");
  textLine(pg,"التقدير العام:",d.displayedAppreciation);
