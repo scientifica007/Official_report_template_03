@@ -47,7 +47,7 @@ test("P2-14-R1: author's edited indicator note appears in PDF and DOCX alongside
  const pdfText=fullText(report);
  assert.match(pdfText,/الصياغة المهنية المحررة للمفتش/);
  assert.match(pdfText,/ملاحظات الأعضاء الأصلية/);
- assert.match(pdfText,/ملاحظة أصلية/);
+ assert.match(pdfText,/الملاحظة الأصلية/);
  const docx=committeeDocumentXml(s,{kind:"report"});
  assert.match(docx,/الصياغة المهنية المحررة للمفتش/);
  assert.match(docx,/ملاحظات الأعضاء الأصلية/);
