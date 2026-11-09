@@ -1,7 +1,7 @@
 // M5.1 — separate, seat-scoped inspector-committee contributor interface.
 // Public HTML is not an authorization boundary; Supabase RLS and authenticated
 // RPC enforce the permission for EACH contribution and read.
-import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs";
+import {RUBRICS,DISCUSSION,newDraft,lessonItems,withScore,distributePhaseTotal,totals,missingMandatoryScores,sameWeightProfile} from "../prototypes/titularisation-workbench/engine.mjs?v=p2-phase-total-20261108";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../shared/voice-dictation.mjs";
 import {createPairedScore} from "../shared/score-range.mjs";
 const cfg=window.REPORT03_CLOUD_CONFIG||{};
@@ -189,9 +189,51 @@ function addScoreField(area,phase,item,onScoreChange,scoreFields){
  scoreFields.set(phase+":"+item.id,{score,row,hint});
  area.append(row);
 }
+function renderSeatIdentity(){
+ const panel=el("section");panel.className="card member-identity";
+ panel.append(el("h2","بيانات عضو اللجنة"),
+  el("p","يمكنك إدراج اسمك ولقبك وصفتك المهنية وتصحيحها، ولو سبق لرئيس اللجنة إدخالها. حفظ هذه البيانات مستقل عن تنقيطك."));
+ const fields={};
+ for(const [key,title,limit] of [
+  ["given_name","الاسم",100],["family_name","اللقب",100],
+  ["member_role","الصفة المهنية",160]]){
+  const input=el("input");input.type="text";input.maxLength=limit;
+  input.value=seat[key]||"";
+  fields[key]=input;
+  panel.append(label(title,input));
+ }
+ const save=el("button","حفظ بياناتي الشخصية");save.type="button";
+ const feedback=message("تستطيع تعديل بياناتك مجددًا ما دامت المهمة مفتوحة.");
+ feedback.setAttribute("role","status");feedback.setAttribute("aria-live","polite");
+ save.addEventListener("click",async()=>{
+  if(busy)return;
+  if(!confirm("هل تؤكد حفظ الاسم واللقب والصفة المهنية لهذا المقعد فقط؟"))return;
+  busy=true;save.disabled=true;feedback.textContent="جارٍ حفظ بيانات العضو...";
+  try{
+   const token=await ensureToken();
+   const identity={
+    p_given_name:fields.given_name.value.trim(),
+    p_family_name:fields.family_name.value.trim(),
+    p_member_role:fields.member_role.value.trim()
+   };
+   const success=await request("/rest/v1/rpc/save_prod_titularisation_member_identity",{
+    method:"POST",body:{p_mission_id:requestedMission,p_seat_code:requestedSeat,p_token:token,...identity}});
+   if(success!==true)throw Error("لم يؤكد الخادم حفظ البيانات");
+   seat.given_name=identity.p_given_name;
+   seat.family_name=identity.p_family_name;
+   seat.member_role=identity.p_member_role;
+   seat.display_name=[seat.given_name,seat.family_name].filter(Boolean).join(" ");
+   feedback.textContent="تم حفظ الاسم واللقب والصفة على الخادم بنجاح؛ لا تتغير علاماتك أو مراجعات مساهمتك.";
+   feedback.className="notice";
+  }catch(error){feedback.textContent="فشل الحفظ: "+error.message;feedback.className="alert";}
+  finally{busy=false;save.disabled=false;}
+ });
+ panel.append(save,feedback);return panel;
+}
 function renderEditor(){
  dismissVoiceDictation();
  shell.replaceChildren(header());
+ if(productionMember)shell.append(renderSeatIdentity());
  const card=el("section");card.className="card";
  card.append(el("h2","تقدير الأداء المهني"),
   el("p","هذه مساهمتك أنت فقط. يستطيع رئيس اللجنة الاطلاع عليها بعد حفظها. لا تتغير مساهمات بقية الأعضاء."));
@@ -220,6 +262,29 @@ function renderEditor(){
  for(const [phase,title,rows] of [
   ["lesson","تقييم الحصة التدريسية",lessonItems(payload.grading)],
   ["discussion","تقييم المناقشة",DISCUSSION]]){
+  const cap=phase==="lesson"?40:20;
+  const allocate=el("section");allocate.className="total-allocation";
+  const totalLabel=el("label");
+  const totalInput=el("input");totalInput.type="number";totalInput.step="0.5";
+  totalInput.min="0";totalInput.max=String(cap);totalInput.inputMode="decimal";
+  const existing=totals(payload.grading)[phase];
+  totalInput.value=existing.complete?String(existing.total):"";
+  totalLabel.append(el("span","العلامة الكلية لل"+(phase==="lesson"?"حصة البيداغوجية":"مناقشة")+" من "+cap),totalInput);
+  const applyTotal=el("button","توزيع العلامة الكلية على المؤشرات");
+  applyTotal.type="button";
+  const allocationFeedback=el("p","توزيع حسابي وفق الأوزان وبخطوة نصف نقطة، قابل للتعديل؛ لا يمثل تقييمًا مباشرًا لكل مؤشر.");
+  allocationFeedback.className="notice";
+  applyTotal.addEventListener("click",()=>{
+   if(!totalInput.checkValidity()||totalInput.value===""){totalInput.reportValidity();return;}
+   if(!confirm("ستُستبدل علامات "+(phase==="lesson"?"الحصة":"المناقشة")+
+    " الحالية بتوزيع نسبي لأوزان المؤشرات. ستحفظ النتيجة فقط عند الضغط على حفظ/إرسال. هل تؤكد؟"))return;
+   try{
+    payload.grading=distributePhaseTotal(payload.grading,phase,totalInput.value);
+    dirty=true;renderEditor();statusText("وُزعت العلامة الكلية لهذا الامتحان؛ توجد تعديلات غير محفوظة.");
+   }catch(error){allocationFeedback.textContent=error.message;allocationFeedback.className="alert";}
+  });
+  allocate.append(totalLabel,applyTotal,allocationFeedback);
+  card.append(allocate);
   const group=el("details");group.open=true;
   group.append(el("summary",title));
   const grid=el("div");grid.className="assessments";
@@ -313,7 +378,7 @@ async function persist(finalize,button){
  statusText("جارٍ الحفظ على الخادم...");
  try{
   // Re-check native input range validation before requesting the RPC.
-  const fields=[...shell.querySelectorAll('input[type="number"]')];
+  const fields=[...shell.querySelectorAll('.assessment input[type="number"]')];
   if(fields.some(x=>!x.checkValidity()))throw Error("تحقق من صحة العلامات وحدودها.");
   // The UI disables send for missing marks, but the check is repeated at the
   // action boundary. The database independently enforces the same invariant.

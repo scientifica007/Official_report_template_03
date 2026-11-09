@@ -34,3 +34,9 @@ footer{text-align:center;padding:24px;color:#60736d;font-size:12px}
 .voice-status{font-size:13px;color:#236450}
 @media(max-width:650px){.assessment{display:block}.assessment strong{display:block}.assessment input{max-width:none}.brand{flex-direction:column;align-items:flex-start}}
 @media print{main,.brand,footer{display:none}}
+
+.member-identity,.total-allocation{border-inline-start:4px solid #337c65;background:#f8fbf9}
+.member-identity input{max-width:640px}
+.total-allocation{border:1px solid #c4dcce;border-inline-start:4px solid #337c65;padding:13px;border-radius:9px;margin:16px 0}
+.total-allocation input[type=number]{max-width:160px;text-align:center;direction:ltr}
+.total-allocation button,.member-identity button{margin:8px 0}

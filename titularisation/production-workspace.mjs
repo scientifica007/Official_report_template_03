@@ -96,7 +96,11 @@ function committeeSection(mission){
    '<p>حالة الرابط: '+html(active?"نشط حتى "+new Date(row.expires_at).toLocaleString("ar-DZ"):
     row?.status==="revoked"?"ملغى":row?.status==="active"?"منتهي":"لم يُصدر")+
     '</p><p>المساهمة: '+html(status)+'</p>'+
-   '<label>اسم العضو (اختياري)<input id="prod-tit-seat-name-'+code+'" maxlength="160" value="'+html(row?.display_name||"")+'"></label>'+
+   '<p>اسم العرض الحالي: '+html(row?.display_name||"غير محدد")+'</p>'+
+   '<label>الاسم<input id="prod-tit-seat-given-'+code+'" maxlength="100" value="'+html(row?.given_name||"")+'"></label>'+
+   '<label>اللقب<input id="prod-tit-seat-family-'+code+'" maxlength="100" value="'+html(row?.family_name||"")+'"></label>'+
+   '<label>الصفة المهنية<input id="prod-tit-seat-role-'+code+'" maxlength="160" value="'+html(row?.member_role||"")+'"></label>'+
+   '<div class="portal-actions"><button class="btn subtle" type="button" data-cloud-action="prod-tit-save-seat-identity" data-seat="'+code+'" data-mission-id="'+html(mission.id)+'">حفظ بيانات العضو</button></div>'+
    (ready?'<div class="portal-actions"><button class="btn primary" type="button" data-cloud-action="prod-tit-issue-seat" data-seat="'+code+'" data-mission-id="'+html(mission.id)+'">'+
      (active?"إعادة إصدار الرابط":"إصدار رابط العضو")+'</button>'+
      (active?'<button class="btn subtle" type="button" data-cloud-action="prod-tit-revoke-seat" data-seat="'+code+'" data-mission-id="'+html(mission.id)+'">إلغاء الرابط</button>':"")+
@@ -153,7 +157,7 @@ export async function refresh(get){
    try{
     const [sr,cr]=await Promise.all([
      get("titularisation_seats",{
-      select:"mission_id,seat_code,display_name,status,expires_at,revoked_at",
+      select:"mission_id,seat_code,display_name,given_name,family_name,member_role,status,expires_at,revoked_at",
       mission_id:"eq."+selected,order:"seat_code.asc",limit:"3"
      }),
      get("titularisation_contributions",{
@@ -273,10 +277,23 @@ export async function freeze(raw,get,missionId,weights){
   throw Error("أكد الخادم التثبيت، لكن تعذّر إعادة قراءة المهمة؛ حدّث القائمة قبل المتابعة.");
  return pinned;
 }
+export async function saveSeatIdentity(raw,get,missionId,seat,given,family,role){
+ if(!seatCodes.includes(seat)||!tasks.some(m=>m.id===missionId&&m.status==="draft"))
+  throw Error("المهمة أو المقعد غير متاحين.");
+ const first=clean(given),last=clean(family),capacity=clean(role);
+ if(first.length>100||last.length>100||capacity.length>160)
+  throw Error("تجاوز الاسم أو اللقب أو الصفة الحد المسموح.");
+ const confirmed=await raw("POST","/rest/v1/rpc/set_prod_titularisation_seat_identity",{
+  p_mission_id:missionId,p_seat_code:seat,p_given_name:first,p_family_name:last,p_member_role:capacity
+ },true);
+ if(confirmed!==true)throw Error("تعذر تأكيد حفظ بيانات العضو.");
+ await refresh(get);
+ return true;
+}
 export async function issueSeat(raw,get,missionId,seat,name){
  if(!seatCodes.includes(seat)||!tasks.some(m=>m.id===missionId&&m.status==="draft"&&
    (!isAnalytical(m)||weightsPinned(m))))throw Error("مقعد أو مهمة غير صالحين.");
- const displayName=clean(name);
+ const displayName=clean(name)||committeeSeats.find(x=>x.seat_code===seat)?.display_name||"";
  if(displayName.length>160)throw Error("اسم العضو أطول من 160 حرفًا.");
  const result=await raw("POST","/rest/v1/rpc/issue_prod_titularisation_invitation",{
   p_mission_id:missionId,p_seat_code:seat,p_display_name:displayName

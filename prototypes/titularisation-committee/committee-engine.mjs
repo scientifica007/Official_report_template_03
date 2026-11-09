@@ -3,9 +3,9 @@
  * It reuses the accepted scoring engine without altering its existing interface. */
 import {
  SCHEMA as SCORE_SCHEMA, RUBRICS, DISCUSSION, GROUPS, newDraft, lessonItems,
- withScore, withWeight, withSuggestions, freezeWeights, validateWeights, sameWeightProfile,
+ withScore, distributePhaseTotal, withWeight, withSuggestions, freezeWeights, validateWeights, sameWeightProfile,
  validateImport as importScores, totals
-} from "../titularisation-workbench/engine.mjs";
+} from "../titularisation-workbench/engine.mjs?v=p2-phase-total-20261108";
 
 export const COMMITTEE_SCHEMA="titularisation-committee-lab-v1";
 export const SEATS=Object.freeze([
@@ -132,6 +132,12 @@ export function editScore(state,who,phase,id,value){
  const s=clone(state),c=contribution(s,who);
  if(c.submitted&&who!=="final")throw Error("المساهمة أرسلت؛ افتحها أولًا");
  c.grading=withScore(c.grading,phase,id,value);s.serial++;return s;
+}
+export function assignPhaseTotal(state,who,phase,value){
+ const s=clone(state),c=contribution(s,who);
+ if(c.submitted&&who!=="final")throw Error("المساهمة مرسلة؛ أعد فتحها أولًا");
+ c.grading=distributePhaseTotal(c.grading,phase,value);
+ s.serial++;return s;
 }
 export function editNote(state,who,field,value,itemId=null){
  const s=clone(state),c=contribution(s,who);

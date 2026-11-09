@@ -183,6 +183,44 @@ export function withScore(draft,phase,id,raw){
  next.scores[phase][id]=n;
  return next;
 }
+/**
+ * Deterministic optional bulk-entry helper. Distributes a chosen phase total
+ * proportionally to FROZEN indicator caps, in 0.5 increments. It is a numerical
+ * draft, NOT an observation of the individual competency indicators.
+ * Largest remainders break ties by rubric order. Only the chosen phase changes.
+ */
+export function distributePhaseTotal(draft,phase,rawTotal){
+ if(phase!=="lesson"&&phase!=="discussion")throw Error("امتحان غير معروف");
+ if(isAnalytical(draft)&&(!draft.profile?.frozen||
+   !validateWeights(draft.profile.weights).valid))
+  throw Error("ثبّت الأوزان الصحيحة قبل توزيع العلامة الشاملة");
+ const items=phase==="lesson"?lessonItems(draft):DISCUSSION;
+ const expectedCap=phase==="lesson"?40:20;
+ const unit=halfUnits(numericInput(rawTotal));
+ if(unit===null||unit>expectedCap*2)
+  throw Error("العلامة الشاملة يجب أن تكون بين 0 و"+expectedCap+" وبخطوة 0.5");
+ const weighted=items.filter(x=>x.cap>0);
+ const maxUnits=weighted.reduce((n,x)=>n+Math.round(x.cap*2),0);
+ if(maxUnits!==expectedCap*2)throw Error("مجموع الأوزان لا يساوي سقف الامتحان");
+ const assigned=weighted.map((item,index)=>{
+  const capUnits=Math.round(item.cap*2);
+  const exact=unit*capUnits/maxUnits;
+  return {id:item.id,index,capUnits,value:Math.floor(exact),remainder:exact-Math.floor(exact)};
+ });
+ let remaining=unit-assigned.reduce((n,x)=>n+x.value,0);
+ const order=[...assigned].sort((a,b)=>b.remainder-a.remainder||a.index-b.index);
+ for(const row of order){
+  if(remaining===0)break;
+  if(row.value<row.capUnits){row.value++;remaining--;}
+ }
+ if(remaining!==0)throw Error("تعذر موازنة توزيع العلامة الشاملة");
+ const next=copy(draft);
+ next.scores[phase]={};
+ for(const row of assigned)next.scores[phase][row.id]=row.value/2;
+ if(next.scores[phase]&&Object.values(next.scores[phase]).reduce((n,v)=>n+v,0)!==unit/2)
+  throw Error("مجموع العلامات الموزعة غير مطابق للعلامة المختارة");
+ return next;
+}
 function phaseTotal(draft,phase,items){
  const marks=draft.scores[phase]||{};
  let sum=0,required=0,entered=0;

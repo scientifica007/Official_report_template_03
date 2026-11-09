@@ -128,7 +128,7 @@ test("P1.1 session/QA isolation and scripts remain intact",()=>{
  assert.match(portal,/workspace\.rememberWeights\(missionId,weights\)/);
   assert.match(read("titularisation/production-workspace.mjs"),/freeze_titularisation_analytical_weights/);
  assert.match(cfg,/temporaryCommitteeEnabled: false/);
- assert.match(bridge,/const rows=await read\("titularisation_contributions"/);
+ assert.match(bridge,/const rowsPromise=read\("titularisation_contributions"/);
  for(const p of ["titularisation/production-workspace.mjs","cloud.js"]){
   assert.doesNotThrow(()=>execFileSync(process.execPath,["--check",p]));
  }

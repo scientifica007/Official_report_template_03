@@ -74,11 +74,16 @@ export async function loadCloudCommitteeSubmissions(id){
  if(missions.length!==1)throw Error("المهمة غير متاحة لحساب المفتش الحالي.");
  // Production and QA are distinct projects. The current inspector token is
  // used ONLY against its own project's owner-scoped contribution RLS.
- const rows=await read("titularisation_contributions",{
+ const rowsPromise=read("titularisation_contributions",{
   select:"seat_code,payload,status,revision,submitted_at",
   mission_id:"eq."+id,status:"eq.submitted",order:"seat_code.asc"
  });
- return {mission:missions[0],rows};
+ const identityPromise=productionWorkspace()?read("titularisation_seats",{
+  select:"seat_code,display_name,given_name,family_name,member_role",
+  mission_id:"eq."+id,order:"seat_code.asc",limit:"3"
+ }):Promise.resolve([]);
+ const [rows,seatIdentities]=await Promise.all([rowsPromise,identityPromise]);
+ return {mission:missions[0],rows,seatIdentities};
 }
 function deepClone(value){return JSON.parse(JSON.stringify(value))}
 export function prepareCloudCommitteeDraft(mission){
@@ -94,7 +99,7 @@ export function prepareCloudCommitteeDraft(mission){
  }
  return restoreCommittee(state);
 }
-export function mergeSubmittedCloudMembers(original,mission,rows){
+export function mergeSubmittedCloudMembers(original,mission,rows,seatIdentities=[]){
  if(!mission||mission.rubric_id!==original.rubricId)
   throw Error("شبكة المهمة السحابية تختلف عن الشبكة الحالية.");
  if(!Array.isArray(rows))throw Error("مساهمات غير صالحة.");
@@ -106,6 +111,20 @@ export function mergeSubmittedCloudMembers(original,mission,rows){
  }
  const copy=deepClone(original);
  copy.mode="individual";
+ if(!Array.isArray(seatIdentities))throw Error("بيانات هوية أعضاء اللجنة غير صالحة.");
+ const seenIdentities=new Set();
+ for(const identity of seatIdentities){
+  if(!identity||!["member1","member2","member3"].includes(identity.seat_code)||
+    seenIdentities.has(identity.seat_code))
+   throw Error("بيانات هوية عضو مكررة أو غير معروفة.");
+  seenIdentities.add(identity.seat_code);
+  const {given_name="",family_name="",member_role="",display_name=""}=identity;
+  if([given_name,family_name,member_role,display_name].some(x=>typeof x!=="string"))
+   throw Error("بيانات هوية العضو غير صالحة.");
+  const fullName=[given_name.trim(),family_name.trim()].filter(Boolean).join(" ")||display_name.trim();
+  if(fullName)copy.meta[identity.seat_code+"Name"]=fullName.slice(0,300);
+  if(member_role.trim())copy.meta[identity.seat_code+"Role"]=member_role.trim().slice(0,300);
+ }
  const applied=new Set();
  for(const row of rows){
   if(!["member1","member2","member3"].includes(row.seat_code)||

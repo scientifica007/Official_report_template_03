@@ -38,7 +38,7 @@ test("QA legacy repair: QA-only route never loads production credentials or memb
  assert.match(editor,/const qaReport=.*qaOnly===true/);
  assert.match(editor,/if\(committeeCloudEnabled\(\)\)/);
  assert.match(editor,/loadCloudCommitteeSubmissions\(linked\)/);
- assert.match(editor,/mergeSubmittedCloudMembers\(input,mission,rows\)/);
+ assert.match(editor,/mergeSubmittedCloudMembers\(input,mission,rows,seatIdentities\)/);
 });
 
 test("QA legacy repair: mission dashboard can open original editor with selected mission in the SAME tab",()=>{

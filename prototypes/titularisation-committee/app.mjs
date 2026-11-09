@@ -1,9 +1,9 @@
 import {RUBRICS,sameWeightProfile} from "../titularisation-workbench/engine.mjs";
-import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,editNote,changeMode,restoreCommittee,stringifyCommittee} from "./committee-engine.mjs";
+import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,editNote,changeMode,restoreCommittee,stringifyCommittee} from "./committee-engine.mjs?v=p2-phase-total-20261108";
 import {DECISIONS} from "./document-model.mjs";
 import {MINUTES_SCOPES} from "./document-language.mjs";
 import {renderWeights} from "./weights-ui.mjs";
-import {renderForm} from "./form-ui.mjs";
+import {renderForm} from "./form-ui.mjs?v=p2-phase-total-20261108";
 import {renderMembers} from "./members-ui.mjs";
 import {renderDocuments} from "./preview.mjs";
 import {node,clear,labelValue} from "./dom.mjs";
@@ -278,7 +278,7 @@ if(committeeCloudEnabled()){
    if(missionBoundReport&&linkedMissionId&&id!==linkedMissionId){info("اختر مهمة الترسيم التي فُتح منها هذا المحرر.");return;}
    info("جارٍ قراءة المساهمات المرسلة والتحقق منها...");
    try{
-    const {mission,rows}=await loadCloudCommitteeSubmissions(id);
+    const {mission,rows,seatIdentities}=await loadCloudCommitteeSubmissions(id);
     const matches=state.rubricId===mission.rubric_id &&
      (mission.rubric_id!==RUBRICS.analytical14.id||
       sameWeightProfile(state.final.grading.profile,mission.rubric_profile));
@@ -286,7 +286,7 @@ if(committeeCloudEnabled()){
      info("لم تتغير المسودة.");return;
     }
     const input=matches?state:prepareCloudCommitteeDraft(mission);
-    const next=mergeSubmittedCloudMembers(input,mission,rows);
+    const next=mergeSubmittedCloudMembers(input,mission,rows,seatIdentities);
     const labels=next.seats.join("، ");
     if(!confirm("استيراد مساهمات "+labels+" المرسلة فقط؟ لن تتغير علامات المفتش النهائية ولا نصوصه المحررة.")){
      info("لم تتغير المسودة.");return;
