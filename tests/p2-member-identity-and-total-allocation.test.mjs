@@ -79,3 +79,28 @@ test("P2: identity RPC requires scoped 256-bit capability; form and inspector ar
  assert.match(form,/assignPhaseTotal/);
  assert.match(member,/distributePhaseTotal/);
 });
+
+test("P2: import updates signer names/roles only, preserving inspector grading and prose",async()=>{
+ const {mergeSubmittedCloudMembers}=await import("../prototypes/titularisation-committee/committee-cloud-bridge.mjs");
+ const {freshCommittee}=await import("../prototypes/titularisation-committee/committee-engine.mjs");
+ const initial=freshCommittee("individual","grouped5");
+ initial.meta.member1Name="مفتش - اسم قديم";
+ initial.meta.member1Role="وظيفة قديمة";
+ initial.final.grading=withScore(initial.final.grading,"lesson","g1",2);
+ initial.final.notes.lesson.g1="تقدير المفتش مستقل";
+ const memberGrading=draft("grouped5");
+ const memberNotes={lesson:{g1:"ملاحظة العضو"},discussion:{},lessonSummary:"",discussionSummary:"",general:"",recommendations:""};
+ const mission={rubric_id:initial.rubricId};
+ const rows=[{seat_code:"member1",status:"submitted",payload:{grading:memberGrading,notes:memberNotes}}];
+ const identity=[{seat_code:"member1",given_name:"سليم",family_name:"بوعلام",member_role:"أستاذ مكون",display_name:"اسم سابق"}];
+ const restored=mergeSubmittedCloudMembers(initial,mission,rows,identity).state;
+ assert.equal(restored.meta.member1Name,"سليم بوعلام");
+ assert.equal(restored.meta.member1Role,"أستاذ مكون");
+ assert.equal(restored.final.grading.scores.lesson.g1,2);
+ assert.equal(restored.final.notes.lesson.g1,"تقدير المفتش مستقل");
+ assert.equal(restored.meta.member2Name,"");
+ assert.equal(initial.meta.member1Name,"مفتش - اسم قديم");
+ const missingIdentity=mergeSubmittedCloudMembers(initial,mission,rows,[]).state;
+ assert.equal(missingIdentity.meta.member1Name,"مفتش - اسم قديم");
+ assert.throws(()=>mergeSubmittedCloudMembers(initial,mission,rows,[...identity,...identity]),/مكررة/);
+});
