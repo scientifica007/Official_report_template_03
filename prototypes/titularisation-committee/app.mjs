@@ -278,7 +278,7 @@ if(committeeCloudEnabled()){
    if(missionBoundReport&&linkedMissionId&&id!==linkedMissionId){info("اختر مهمة الترسيم التي فُتح منها هذا المحرر.");return;}
    info("جارٍ قراءة المساهمات المرسلة والتحقق منها...");
    try{
-    const {mission,rows}=await loadCloudCommitteeSubmissions(id);
+    const {mission,rows,seatIdentities}=await loadCloudCommitteeSubmissions(id);
     const matches=state.rubricId===mission.rubric_id &&
      (mission.rubric_id!==RUBRICS.analytical14.id||
       sameWeightProfile(state.final.grading.profile,mission.rubric_profile));
@@ -286,7 +286,7 @@ if(committeeCloudEnabled()){
      info("لم تتغير المسودة.");return;
     }
     const input=matches?state:prepareCloudCommitteeDraft(mission);
-    const next=mergeSubmittedCloudMembers(input,mission,rows);
+    const next=mergeSubmittedCloudMembers(input,mission,rows,seatIdentities);
     const labels=next.seats.join("، ");
     if(!confirm("استيراد مساهمات "+labels+" المرسلة فقط؟ لن تتغير علامات المفتش النهائية ولا نصوصه المحررة.")){
      info("لم تتغير المسودة.");return;
