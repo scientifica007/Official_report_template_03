@@ -117,7 +117,7 @@ test("P2 same report editor imports only submitted rows without touching chair g
  assert.deepEqual(merged.state.final.grading.scores,{lesson:{},discussion:{}});
  assert.equal(merged.state.final.grading.profile.frozen,true);
  assert.match(text("prototypes/titularisation-committee/committee-cloud-bridge.mjs"),
-  /const rows=await read\("titularisation_contributions"/);
+  /const rowsPromise=read\("titularisation_contributions"/);
  const ui=text("prototypes/titularisation-committee/app.mjs");
  assert.match(ui,/if\(missionBoundReport\)\{/);
  assert.match(ui,/panel\.hidden=false/);
