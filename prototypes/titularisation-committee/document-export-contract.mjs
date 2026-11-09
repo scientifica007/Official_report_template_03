@@ -1,7 +1,7 @@
 /* Portable, self-describing export; preserves the accepted v1 raw state shape.
  * No private data is sent to any model or cloud service: export is local. */
 import {stringifyCommittee} from "./committee-engine.mjs";
-import {buildReferenceDocuments} from "./document-model.mjs";
+import {buildReferenceDocuments} from "./document-model.mjs?v=p214-r1-20261110";
 export const PORTABLE_CONTRACT_VERSION="titularisation-report-contract-v2";
 const templateRoot="https://github.com/scientifica007/Official_report_template_03/blob/main/prototypes/titularisation-committee/";
 export function portableCommitteeObject(state){
