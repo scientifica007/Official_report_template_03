@@ -3,7 +3,7 @@
  * This is a draft adaptation of the six-page reference for specialized ranks,
  * never evidence of legal template approval or a committee signature. */
 import {documentData,SEATS} from "./committee-engine.mjs";
-import {minutesScopeText} from "./document-language.mjs";
+import {minutesScopeText,MINUTES_RESULTS_INTRO} from "./document-language.mjs";
 import {dateInArabicWords,reportFooter,reportMonthYear,suggestedAppreciation,struckChoices} from "./document-rules.mjs";
 import {RUBRICS,GROUPS,DISCUSSION,lessonItems,totals} from "../titularisation-workbench/engine.mjs";
 export const REFERENCE_ID="specialist-reference-2015-draft-v1";
@@ -131,9 +131,7 @@ export function buildReferenceDocuments(state){
   displayedAppreciation:manualGeneral||(resultsReady?suggestedAppreciation(grade20):""),
   appreciationIsSuggestion:!manualGeneral&&resultsReady&&!!suggestedAppreciation(grade20),
   resultsReady,draftResultsWarning,
-  minutesResultsIntro:resultsReady?
-   "أسفرت مداولات لجنة الامتحان عن النتائج الآتية:":
-   "نتائج المداولة قيد التحرير؛ ليست نتائج نهائية معتمدة:",
+  minutesResultsIntro:MINUTES_RESULTS_INTRO,
   specialistReferenceApplicable:isSpecialist,
   referenceScopeWarning:isSpecialist?"":
    "القالب المرجعي الذي قُدم يخص الأساتذة المتخصصين؛ يلزم التحقق من نموذج هذه الرتبة قبل اعتماده.",
