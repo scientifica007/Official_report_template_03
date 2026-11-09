@@ -108,7 +108,7 @@ test("P1 two-tenant separation: production never imports QA members; QA remains 
  const bridge=read("prototypes/titularisation-committee/committee-cloud-bridge.mjs");
  const cloud=read("cloud.js");
  const cfg=read("cloud-config.js");
- assert.match(bridge,/const rows=await read\("titularisation_contributions"/);
+ assert.match(bridge,/const rowsPromise=read\("titularisation_contributions"/);
  assert.match(bridge,/const QA_SESSION="scientifica_committee_qa_session_v1"/);
  assert.match(bridge,/official_report03_cloud_session_v1/);
  assert.match(bridge,/read\("inspector_profiles"/);
