@@ -2,7 +2,7 @@
  * Browser print and DOCX consume buildReferenceDocuments; never mutate the
  * chair's editable data or present signatures as electronic approvals. */
 import {node,add,clear} from "./dom.mjs";
-import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
+import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs?v=p214-r1-20261110";
 import {COMMITTEE_APPROVAL_HEADING,MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
  MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,minutesOpeningSegments}
  from "./document-language.mjs";
@@ -63,10 +63,10 @@ function assessment(page,finalText,observations){
  else page.append(node("p","التقدير:","paper-line reference-empty-appreciation reference-assessment-label"));
  if(!observations.length)return;
  const section=node("div","","reference-original-contributions");
- 
+ section.append(node("p","ملاحظات الأعضاء الأصلية — للمراجعة ولا تحل محل تقدير المفتش","reference-original-contributions-label"));
  for(const item of observations){
   const line=node("p","","reference-original-contribution");
-  add(line,node("strong",item.criterion+": "),node("span",printableAssessmentText(item.text)));
+  add(line,node("strong",item.author+" — "+item.criterion+": "),node("span",printableAssessmentText(item.text)));
   section.append(line);
  }
  page.append(section);
@@ -146,6 +146,7 @@ function discussion(article,d){
 function results(article,d,state){
  const pg=makePage(article,"reference-results");
  heading(pg,"خلاصة النتائج");
+ if(d.draftResultsWarning)textLine(pg,"تنبيه:",d.draftResultsWarning,"reference-draft-results-notice");
  table(pg,["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],[
   ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
   [DISCUSSION_RESULT_TITLE,mark(20),mark(d.marks.discussion)],
@@ -193,7 +194,7 @@ function minutes(article,d){
  textLine(body,"الولاية:",d.metaValue("wilaya"));
  pg.append(body);
 
- heading(pg,MINUTES_RESULTS_INTRO);
+ heading(pg,d.minutesResultsIntro);
  textLine(pg,"العلامة النهائية:",mark(d.marks.total20)+" /20");
  textLine(pg,"التقدير العام:",d.displayedAppreciation);
  heading(pg,"قرار اللجنة:");
