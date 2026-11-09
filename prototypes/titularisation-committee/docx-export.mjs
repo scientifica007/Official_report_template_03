@@ -1,7 +1,7 @@
 /* Self-contained, browser-side DOCX export; independent of Report 03.
  * Uncompressed OOXML ZIP (no third-party runtime or network requests).
  * Print and DOCX share the same reference projection, not separate calculations. */
-import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs";
+import {buildReferenceDocuments,mark,printableAssessmentText} from "./document-model.mjs?v=p214-r1-20261110";
 import {COMMITTEE_APPROVAL_HEADING,MINUTES_TITLE,MINUTES_SCOPE,LEGAL_REFERENCES,
  MINUTES_RESULTS_INTRO,DISCUSSION_RESULT_TITLE,minutesOpeningSegments}
  from "./document-language.mjs";
@@ -83,9 +83,9 @@ function decisionChoices(d){
 function memberNotes(d,phase){
  const entries=d.memberObservations[phase]||[];
  if(!entries.length)return "";
- let out="";
+ let out=p("ملاحظات الأعضاء الأصلية — للمراجعة ولا تحل محل تقدير المفتش",{size:24,before:110});
  for(const item of entries)
-  out+=p(item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
+  out+=p(item.author+" — "+item.criterion+": "+printableAssessmentText(item.text),{size:28,before:110,after:110});
  return out;
 }
 function signatures(d,spacious=false){
@@ -173,6 +173,7 @@ function discussionPage(d){
 }
 function resultsPage(d){
  let b=p("خلاصة النتائج",{page:true,center:true,bold:true,size:32});
+ if(d.draftResultsWarning)b+=p("تنبيه: "+d.draftResultsWarning,{size:24,before:80,after:80});
  b+=table([["عناصر الكفاءة","قاعدة التنقيط","العلامة المتحصل عليها"],
   ["1 - إلقاء الدرس",mark(40),mark(d.marks.lesson)],
   [DISCUSSION_RESULT_TITLE,mark(20),mark(d.marks.discussion)],
@@ -210,7 +211,7 @@ function minutes(d){
  b+=p("المعيَّن(ة) في رتبة: "+d.metaValue("rank"));
  b+=p("بمؤسسة: "+d.metaValue("institution"));
  b+=p("الولاية: "+d.metaValue("wilaya"));
- b+=p(MINUTES_RESULTS_INTRO,{before:120});
+ b+=p(d.minutesResultsIntro,{before:120});
  b+=p("العلامة النهائية: "+mark(d.marks.total20)+"/20"+
   "      التقدير العام: "+(d.displayedAppreciation||placeholder));
  b+=p("قرار اللجنة:",{bold:true})+decisionChoices(d);
