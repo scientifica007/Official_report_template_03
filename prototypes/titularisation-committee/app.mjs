@@ -13,7 +13,7 @@ import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs?v=p214-r1-20261110";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
-import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,hydrateReportSeatIdentities,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft,loadCloudCommitteeInspectorProfile} from "./committee-cloud-bridge.mjs";
+import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,hydrateReportSeatIdentities,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft,loadCloudCommitteeInspectorProfile} from "./committee-cloud-bridge.mjs?v=p214-seat-prefill-20261110";
 import {hydrateReportInspectorFromVerifiedProfile} from "../../qa-titularisation/report-inspector-prefill.mjs";
 import {inspectorProfileDefaults} from "../../qa-titularisation/workspace-sources.mjs";
 import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/mission-navigation.mjs";
@@ -298,7 +298,7 @@ if(committeeCloudEnabled()){
     // contribution read succeeds. A bearer member link has no such role.
     if(missionBoundReport){
      try{
-      const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs");
+      const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs?v=p214-seat-prefill-20261110");
       const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=p2-prod-owner-20261108");
       if(!synthesisReview)synthesisReview=mountInspectorSynthesis({
        anchor:panel,loadSources:loadInspectorSynthesisSources,
