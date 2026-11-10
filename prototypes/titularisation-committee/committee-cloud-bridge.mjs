@@ -86,6 +86,47 @@ export async function loadCloudCommitteeSubmissions(id){
  return {mission:missions[0],rows,seatIdentities};
 }
 function deepClone(value){return JSON.parse(JSON.stringify(value))}
+
+/** Read each authorised seat identity without requiring a member contribution.
+ * The function is pure and works even when every seat is still vacant. */
+function validatedSeatIdentities(rows){
+ if(!Array.isArray(rows))throw Error("بيانات هوية أعضاء اللجنة غير صالحة.");
+ const seen=new Set(),verified=[];
+ for(const row of rows){
+  if(!row||!["member1","member2","member3"].includes(row.seat_code)||
+    seen.has(row.seat_code))
+   throw Error("بيانات هوية عضو مكررة أو غير معروفة.");
+  seen.add(row.seat_code);
+  const {given_name="",family_name="",member_role="",display_name=""}=row;
+  if([given_name,family_name,member_role,display_name].some(x=>typeof x!=="string"))
+   throw Error("بيانات هوية العضو غير صالحة.");
+  verified.push({
+   nameKey:row.seat_code+"Name",roleKey:row.seat_code+"Role",
+   fullName:([given_name.trim(),family_name.trim()].filter(Boolean).join(" ")||
+    display_name.trim()).slice(0,300),
+   role:member_role.trim().slice(0,300)
+  });
+ }
+ return verified;
+}
+
+/** Prefill only blank signer fields when opening an existing report draft.
+ * Existing inspector-authored values are never replaced without an explicit
+ * import decision. This does not depend on any submitted contributions. */
+export function hydrateReportSeatIdentities(original,seatIdentities=[]){
+ const verified=validatedSeatIdentities(seatIdentities),copy=deepClone(original);
+ const filled=[];
+ for(const row of verified){
+  for(const [key,value] of [[row.nameKey,row.fullName],[row.roleKey,row.role]]){
+   if(value&&!String(copy.meta[key]||"").trim()){
+    copy.meta[key]=value;filled.push(key);
+   }
+  }
+ }
+ if(!filled.length)return {state:original,filled};
+ copy.serial++;
+ return {state:restoreCommittee(copy),filled};
+}
 export function prepareCloudCommitteeDraft(mission){
  const key=Object.keys(RUBRICS).find(k=>RUBRICS[k].id===mission?.rubric_id);
  if(!key)throw Error("شبكة مهمة سحابية غير مدعومة في المحرر.");
@@ -111,19 +152,11 @@ export function mergeSubmittedCloudMembers(original,mission,rows,seatIdentities=
  }
  const copy=deepClone(original);
  copy.mode="individual";
- if(!Array.isArray(seatIdentities))throw Error("بيانات هوية أعضاء اللجنة غير صالحة.");
- const seenIdentities=new Set();
- for(const identity of seatIdentities){
-  if(!identity||!["member1","member2","member3"].includes(identity.seat_code)||
-    seenIdentities.has(identity.seat_code))
-   throw Error("بيانات هوية عضو مكررة أو غير معروفة.");
-  seenIdentities.add(identity.seat_code);
-  const {given_name="",family_name="",member_role="",display_name=""}=identity;
-  if([given_name,family_name,member_role,display_name].some(x=>typeof x!=="string"))
-   throw Error("بيانات هوية العضو غير صالحة.");
-  const fullName=[given_name.trim(),family_name.trim()].filter(Boolean).join(" ")||display_name.trim();
-  if(fullName)copy.meta[identity.seat_code+"Name"]=fullName.slice(0,300);
-  if(member_role.trim())copy.meta[identity.seat_code+"Role"]=member_role.trim().slice(0,300);
+ for(const identity of validatedSeatIdentities(seatIdentities)){
+  // Explicit import retains its existing behaviour: after user confirmation,
+  // current identities can replace previously imported signer text.
+  if(identity.fullName)copy.meta[identity.nameKey]=identity.fullName;
+  if(identity.role)copy.meta[identity.roleKey]=identity.role;
  }
  const applied=new Set();
  for(const row of rows){
