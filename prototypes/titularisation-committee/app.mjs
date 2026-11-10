@@ -13,7 +13,7 @@ import {fitPrintPages} from "./print-fit.mjs";
 import {preparePrintPagination} from "./print-pagination.mjs";
 import {stringifyPortableCommittee} from "./document-export-contract.mjs?v=p214-r1-20261110";
 import {attachVoiceDictation,dismissVoiceDictation,clearVoiceDrafts} from "../../shared/voice-dictation.mjs";
-import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft,loadCloudCommitteeInspectorProfile} from "./committee-cloud-bridge.mjs";
+import {committeeCloudEnabled,listCloudCommitteeMissions,loadCloudCommitteeSubmissions,prepareCloudCommitteeDraft,mergeSubmittedCloudMembers,hydrateReportSeatIdentities,loadCloudCommitteeReportDraft,saveCloudCommitteeReportDraft,loadCloudCommitteeInspectorProfile} from "./committee-cloud-bridge.mjs?v=p214-seat-prefill-20261110";
 import {hydrateReportInspectorFromVerifiedProfile} from "../../qa-titularisation/report-inspector-prefill.mjs";
 import {inspectorProfileDefaults} from "../../qa-titularisation/workspace-sources.mjs";
 import {validMissionId,returnToQAMissionHref} from "../../qa-titularisation/mission-navigation.mjs";
@@ -298,7 +298,7 @@ if(committeeCloudEnabled()){
     // contribution read succeeds. A bearer member link has no such role.
     if(missionBoundReport){
      try{
-      const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs");
+      const {loadInspectorSynthesisSources}=await import("./committee-cloud-bridge.mjs?v=p214-seat-prefill-20261110");
       const {mountInspectorSynthesis}=await import("./inspector-synthesis-ui.mjs?v=p2-prod-owner-20261108");
       if(!synthesisReview)synthesisReview=mountInspectorSynthesis({
        anchor:panel,loadSources:loadInspectorSynthesisSources,
@@ -337,7 +337,7 @@ if(committeeCloudEnabled()){
      loadCloudCommitteeSubmissions(linked),loadCloudCommitteeReportDraft(linked),
      loadCloudCommitteeInspectorProfile().catch(error=>({profileError:String(error?.message||error)}))
     ])
-    .then(([{mission},saved,inspectorProfile])=>{
+    .then(([{mission,seatIdentities},saved,inspectorProfile])=>{
      if(state!==untouched){
       cloudDraftStatus("عُدّلت الصفحة قبل انتهاء تحميل المهمة. صدّر JSON ثم أعد فتح المهمة لتجنب فقد التغييرات.");
       return;
@@ -367,13 +367,24 @@ if(committeeCloudEnabled()){
      const enriched=inspectorProfile?.profileError?
       {state:target,filled:[],sourceAvailable:false}:
       hydrateReportInspectorFromVerifiedProfile(target,inspectorProfile);
+     // Seat identities exist before invitations/submissions. Prefill
+     // missing signer metadata from the owner's RLS-scoped mission seats.
+     // Existing inspector-authored text is never silently replaced.
+     const signerHydrated=prodReport?
+      hydrateReportSeatIdentities(enriched.state,seatIdentities):
+      {state:enriched.state,filled:[]};
      clearVoiceDrafts();
-     state=enriched.state;who="final";render();
+     state=signerHydrated.state;who="final";render();
      showVerifiedInspectorSource(inspectorProfile);
      cloudDraftRevision=saved?.revision||0;
-     cloudDraftReady=true;cloudDraftDirty=enriched.filled.length>0||(!saved&&prodReport);
+     cloudDraftReady=true;
+     cloudDraftDirty=enriched.filled.length>0||
+      signerHydrated.filled.length>0||(!saved&&prodReport);
      $("cloud-draft-save")?.removeAttribute("disabled");
-     if(enriched.filled.length){
+     if(signerHydrated.filled.length){
+      cloudDraftStatus("نُقلت أسماء أعضاء اللجنة وصفاتهم المتاحة من مقاعد المهمة إلى الحقول الفارغة في المحضر، دون تغيير بيانات كتبها المفتش. "+
+       "هذه الإضافات غير محفوظة بعد؛ اضغط «حفظ مسودة التقرير والمحضر في المهمة».");
+     }else if(enriched.filled.length){
       cloudDraftStatus("جُلبت بيانات المفتش إلى التقرير تلقائيًا: "+
        enriched.filled.join("، ")+
        ". الإضافات غير محفوظة بعد؛ اضغط «حفظ مسودة التقرير والمحضر في المهمة».");
