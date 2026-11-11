@@ -61,6 +61,40 @@ function itemRow(container,state,who,phase,item,commit){
    ()=>commit(()=>resetFinalNote(state,phase,item.id)));
  box.append(details);container.append(box);
 }
+// Uses the same half-point, weight-preserving allocator as committee members.
+// This control acts only on the inspector's authored grades, never on the
+// members' contributions or the read-only arithmetic proposals.
+function renderInspectorPhaseTotal(container,state,phase,commit){
+ const cap=phase==="lesson"?40:20;
+ const title=phase==="lesson"?"الحصة البيداغوجية":"المناقشة المهنية";
+ const current=totals(state.final.grading)[phase];
+ const block=node("section","","phase-total-allocation");
+ const label=node("label","","field");
+ label.append(node("span","العلامة الكلية المقترحة لـ"+title+" من "+cap));
+ const input=node("input");
+ input.type="number";input.min="0";input.max=String(cap);input.step="0.5";
+ input.required=true;input.inputMode="decimal";
+ input.value=current.complete?String(current.total):"";
+ input.setAttribute("aria-label","العلامة الكلية لـ"+title+" من "+cap);
+ label.append(input);block.append(label);
+ const feedback=node("p","توزيع حسابي وفق أوزان الشبكة، بخطوة نصف نقطة. راجع علامات المؤشرات وعدّلها عند الحاجة؛ لا يمثل التوزيع تقويمًا مباشرًا، ولا يُحفظ في المهمة إلا بالضغط على زر حفظ المسودة.","hint");
+ action(block,"توزيع العلامة الكلية على مؤشرات "+(phase==="lesson"?"الحصة":"المناقشة"),()=>{
+  const raw=input.value.trim(),value=Number(raw);
+  if(raw===""||!Number.isFinite(value)||value<0||value>cap||
+     !Number.isInteger(value*2)){
+   feedback.textContent="أدخل علامة بين 0 و"+cap+" بخطوة نصف نقطة (0.5).";
+   feedback.className="warning";
+   input.focus?.();
+   return;
+  }
+  const existing=Object.keys(state.final.grading.scores[phase]||{}).length>0;
+  if(existing&&!confirm("سيستبدل هذا التوزيع علامات المفتش الحالية لـ"+
+    title+" فقط، دون المساس بعلامات الامتحان الآخر أو تقديرات اللجنة. هل توافق؟"))return;
+  commit(()=>assignPhaseTotal(state,"final",phase,raw));
+ });
+ block.append(feedback);
+ container.append(block);
+}
 export function renderForm(container,state,who,commit){
  clear(container);
  const isFinal=who==="final",person=isFinal?proposedFinal(state):state.members[who];
@@ -87,6 +121,7 @@ export function renderForm(container,state,who,commit){
  }
  for(const phase of ["lesson","discussion"]){
   container.append(node("h3",phase==="lesson"?"الحصة /40":"المناقشة /20"));
+  if(isFinal)renderInspectorPhaseTotal(container,state,phase,commit);
   for(const item of phase==="lesson"?lessonItems(person.grading):DISCUSSION){
    itemRow(container,state,who,phase,item,commit);
    if(phase==="lesson"&&state.rubricId===RUBRICS.grouped5.id){
