@@ -14,6 +14,7 @@ const {renderDocuments}=await import("../prototypes/titularisation-committee/pre
 const all=(node,tag)=>[...(node.tag===tag?[node]:[]),...node.children.flatMap(child=>all(child,tag))];
 const text=node=>[node.textContent,...node.children.map(text)].join(" ");
 const button=(root,part)=>all(root,"button").find(el=>el.textContent.includes(part));
+const firstIndicator=(root)=>all(root,"input").find(el=>String(el["aria-label"]||"").startsWith("علامة "));
 test("chair editing is prefilled from individual marks and text, with visible authors",()=>{
  let state=changeMode(freshCommittee(),"individual");
  for(const [seat,grade,note] of [["chair",2,"ملاحظة رئيس اللجنة"],["member1",2.5,"ملاحظة العضو الأول"],["member2",3,"ملاحظة العضو الثاني"],["member3",2,"ملاحظة العضو الثالث"]]){
@@ -29,8 +30,7 @@ test("chair editing is prefilled from individual marks and text, with visible au
  assert.match(t,/المتوسط: 9.5 ÷ 4 = 2.375/);
  assert.ok(button(ui,"تقريب للأسفل"));
  assert.ok(button(ui,"تقريب للأعلى"));
- const scores=all(ui,"input");
- assert.equal(scores[0].value,2.5);
+ assert.equal(firstIndicator(ui).value,2.5);
  const notes=all(ui,"textarea");
  assert.match(notes[0].value,/ملاحظة رئيس اللجنة/);
  assert.match(notes[0].value,/ملاحظة العضو الثالث/);
@@ -52,7 +52,7 @@ test("subsequent member submissions do not overwrite authored chair fields",()=>
  state=submit(state,"member2");
  const ui=new El("main");
  renderForm(ui,state,"final",()=>{});
- assert.equal(all(ui,"input")[0].value,8);
+ assert.equal(firstIndicator(ui).value,8);
  const content=all(ui,"textarea").map(x=>x.value).join(" ");
  assert.match(content,/نص المفتش النهائي/);
  assert.doesNotMatch(content,/رأي إضافي/);
