@@ -41,8 +41,8 @@ function createHarness(configured=true,conflict=false,otherProfiles=[],options={
   const path=new URL(url);
   let data=[];
   if(path.pathname.endsWith('/inspector_profiles')){
-   if(path.searchParams.has('id'))data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',district:'تبسة',approved:true,is_admin:false}];
-   else data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',district:'تبسة',approved:true,is_admin:false},...otherProfiles];
+   if(path.searchParams.has('id'))data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',district:'تبسة',approved:true,is_admin:Boolean(options.admin)}];
+   else data=[{id:uid,email:'inspector@example.dz',first_name:'مفتش',last_name:'تجريبي',profession:'IFEP',district:'تبسة',approved:true,is_admin:Boolean(options.admin)},...otherProfiles];
   }else if(path.pathname.endsWith('/shared_institutions')){
    if(request.method==='PATCH')data=conflict?[]:[{id:institutionId,name:'مركز تبسة 1',version:2}];
    else data=[entry];
@@ -72,6 +72,32 @@ test('M2.1: no remote requests, accounts or credentials required when central se
  assert.match(app,/function exportDOCX/);
  assert.match(app,/function exportPDF/);
 });
+test('UX-ARCH-04: inspector can update an authorized institution and cannot create a new one',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('institutions');
+ assert.match(h.elements['cloud-content'].innerHTML,/المؤسسات المتاحة لمقاطعة عملي/);
+ assert.doesNotMatch(h.elements['cloud-content'].innerHTML,/data-cloud-action="new-institution"/);
+ assert.doesNotMatch(h.elements['cloud-content'].innerHTML,/data-cloud-action="save"/);
+ h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ assert.match(h.elements['cloud-content'].innerHTML,/data-cloud-action="save"/);
+ await h.field('director','fullName','المدير الجديد');
+ await h.action('save');
+ const patch=h.requests.find(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions'));
+ assert.ok(patch);
+ assert.equal(patch.body.director_data.fullName,'المدير الجديد');
+ assert.equal(patch.body.name,entry.name);
+ assert.equal(patch.body.code,entry.code);
+ assert.equal(patch.body.wilaya,entry.wilaya);
+ assert.equal(h.requests.some(x=>x.method==='POST'&&x.url.includes('/shared_institutions')),false);
+});
+
+test('UX-ARCH-04: inspector cannot change the protected institution identity',async()=>{
+ const h=createHarness();await h.ready();await h.navigate('institutions');
+ h.events.root.change({target:{id:'cloud-select',value:institutionId}});
+ await h.field('institution','code','UNAUTHORIZED');
+ await h.action('save');
+ assert.equal(h.requests.some(x=>x.method==='PATCH'&&x.url.includes('/shared_institutions')),false);
+ assert.match(h.elements['cloud-content'].innerHTML,/لا يستطيع المفتش تغيير الهوية الأساسية للمؤسسة/);
+});
 test('M2.1: approved inspectors can see same shared institutions and load current director',async()=>{
  const h=createHarness();await h.ready();await h.navigate('institutions');
  assert.match(h.elements['cloud-content'].innerHTML,/مركز تبسة 1/);
@@ -80,8 +106,8 @@ test('M2.1: approved inspectors can see same shared institutions and load curren
  assert.equal(h.bridge.received.institution.code,'1201');
  assert.equal(h.bridge.received.director.fullName,'الرئيس القديم');
 });
-test('M2.1: shared institution edit sends institution and director only, using compare-and-swap version',async()=>{
- const h=createHarness();await h.ready();await h.navigate('institutions');
+test('M2.1: admin shared institution edit preserves compare-and-swap version',async()=>{
+ const h=createHarness(true,false,[],{admin:true});await h.ready();await h.navigate('institutions');
  h.events.root.change({target:{id:'cloud-select',value:institutionId}});
  await h.field('institution','address','عنوان جديد');
  await h.field('director','fullName','الرئيس الجديد');
@@ -98,8 +124,8 @@ test('M2.1: shared institution edit sends institution and director only, using c
  assert.ok(!('findings' in patch.body));
  assert.ok(!('inspectors' in patch.body));
 });
-test('M2.1: simultaneous edits fail without overwriting any active form values',async()=>{
- const h=createHarness(true,true);await h.ready();await h.navigate('institutions');
+test('M2.1: admin concurrent edits fail without overwriting values',async()=>{
+ const h=createHarness(true,true,[],{admin:true});await h.ready();await h.navigate('institutions');
  h.events.root.change({target:{id:'cloud-select',value:institutionId}});
  await h.action('save');
  assert.match(h.elements['cloud-content'].innerHTML,/تغيرت بيانات المؤسسة/);
@@ -172,8 +198,8 @@ test('M2.2 shell: approved users land on dashboard, with distinct profile/admin 
  await h.navigate('dashboard');
  assert.equal(h.elements['cloud-shell'].hidden,false);
 });
-test('M2.2 shell: institution can be edited separately from report, without uploading findings',async()=>{
- const h=createHarness();await h.ready();await h.navigate('institutions');
+test('M2.2 shell: admin legacy institution editor is independent from report',async()=>{
+ const h=createHarness(true,false,[],{admin:true});await h.ready();await h.navigate('institutions');
  assert.match(h.elements['cloud-content'].innerHTML,/إضافة مؤسسة جديدة/);
  const reportGetter=h.bridge.getIdentity;
  h.bridge.getIdentity=()=>{throw new Error('report must not be read by institution editor')};
@@ -198,8 +224,8 @@ test('M2.2 shell: reserved teamwork/calendar/messaging sections explicitly discl
 });
 
 
-test('M2.2 shell: selected version remains pinned until successful write, independent of refreshed list',async()=>{
- const h=createHarness();await h.ready();await h.navigate('institutions');
+test('M2.2 shell: admin edit version is pinned until successful write',async()=>{
+ const h=createHarness(true,false,[],{admin:true});await h.ready();await h.navigate('institutions');
  h.events.root.change({target:{id:'cloud-select',value:institutionId}});
  // A newer server version is now visible; the editor must not blindly write with that version.
  await h.navigate('dashboard');await h.navigate('institutions');
