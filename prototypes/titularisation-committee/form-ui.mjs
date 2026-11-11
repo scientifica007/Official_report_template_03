@@ -70,7 +70,7 @@ function renderInspectorPhaseTotal(container,state,phase,commit){
  const current=totals(state.final.grading)[phase];
  const block=node("section","","phase-total-allocation");
  const label=node("label","","field");
- label.append(node("span","العلامة الكلية المقترحة لـ"+title+" من "+cap));
+ label.append(node("span","العلامة الكلية المقترحة: "+title+" من "+cap));
  const input=node("input");
  input.type="number";input.min="0";input.max=String(cap);input.step="0.5";
  input.required=true;input.inputMode="decimal";
