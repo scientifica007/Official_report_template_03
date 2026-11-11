@@ -3,7 +3,7 @@ import {SEATS,MODES,METADATA_GROUPS,freshCommittee,editMeta,editNote,changeMode,
 import {DECISIONS} from "./document-model.mjs?v=p214-r1-20261110";
 import {MINUTES_SCOPES} from "./document-language.mjs";
 import {renderWeights} from "./weights-ui.mjs";
-import {renderForm} from "./form-ui.mjs?v=p2-phase-total-20261108";
+import {renderForm} from "./form-ui.mjs?v=p214-inspector-phase-total-20261111";
 import {renderMembers} from "./members-ui.mjs";
 import {renderDocuments} from "./preview.mjs?v=p214-r1-20261110";
 import {node,clear,labelValue} from "./dom.mjs";
